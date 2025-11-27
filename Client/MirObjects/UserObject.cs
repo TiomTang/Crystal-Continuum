@@ -817,11 +817,18 @@ namespace Client.MirObjects
 
         public void ClearMagic()
         {
+            ResetNextMagic();
+            GameScene.Scene?.SpellMaterialPreparation?.Cancel(this);
+        }
+
+        public void ResetNextMagic()
+        {
             NextMagic = null;
             NextMagicDirection = 0;
             NextMagicLocation = Point.Empty;
             NextMagicObject = null;
-        } 
+        }
+
     }
 }
 

@@ -309,6 +309,8 @@ namespace Client.MirScenes
         public long ToggleTime;
         public static long SpellTime;
 
+        internal SpellMaterialPreparation SpellMaterialPreparation;
+
         public MirLabel[] OutputLines = new MirLabel[10];
         public List<OutPutMessage> OutputMessages = new List<OutPutMessage>();
 
@@ -320,6 +322,7 @@ namespace Client.MirScenes
             MapControl.AutoHit = false;
 
             Scene = this;
+            SpellMaterialPreparation = new SpellMaterialPreparation(this);
             RequestedItemInfo.Clear();
             RequestedMonsterInfo.Clear();
             RequestedNPCInfo.Clear();
@@ -1058,7 +1061,6 @@ namespace Client.MirScenes
                     magic.CastTime = CMain.Time;
                     break;
             }
-
             int cost;
             string prefix = actor == Hero ? GameLanguage.Get("(Hero) ") : string.Empty;
             switch (magic.Spell)
@@ -2464,6 +2466,8 @@ namespace Client.MirScenes
         private void EquipItem(S.EquipItem p)
         {
             MirItemCell fromCell, toCell;
+            SpellMaterialPreparation preparation = SpellMaterialPreparation;
+            bool materialStep = preparation != null && preparation.IsPendingEquip(p);
 
             bool toHero = p.ToHero || p.Grid == MirGridType.HeroInventory;
             toCell = toHero ? HeroDialog.Grid[p.To] : CharacterDialog.Grid[p.To];
@@ -2483,12 +2487,20 @@ namespace Client.MirScenes
                     return;
             }
 
-            if (toCell == null || fromCell == null) return;
+            if (toCell == null || fromCell == null)
+            {
+                if (materialStep) preparation.CompleteEquipStep(p, false);
+                return;
+            }
 
             toCell.Locked = false;
             fromCell.Locked = false;
 
-            if (!p.Success) return;
+            if (!p.Success)
+            {
+                if (materialStep) preparation.CompleteEquipStep(p, false);
+                return;
+            }
 
             UserItem i = fromCell.Item;
             fromCell.Item = toCell.Item;
@@ -2504,6 +2516,8 @@ namespace Client.MirScenes
                 CharacterDuraPanel.UpdateCharacterDura(i);
                 User.RefreshStats();
             }
+
+            if (materialStep) preparation.CompleteEquipStep(p, true);
         }
         private void EquipSlotItem(S.EquipSlotItem p)
         {
@@ -2594,6 +2608,8 @@ namespace Client.MirScenes
         private void MergeItem(S.MergeItem p)
         {
             MirItemCell toCell, fromCell;
+            SpellMaterialPreparation preparation = SpellMaterialPreparation;
+            bool materialStep = preparation != null && preparation.IsPendingMerge(p);
 
             switch (p.GridFrom)
             {
@@ -2649,7 +2665,11 @@ namespace Client.MirScenes
                     return;
             }
 
-            if (toCell == null || fromCell == null) return;
+            if (toCell == null || fromCell == null)
+            {
+                if (materialStep) preparation.CompleteMergeStep(p, false);
+                return;
+            }
 
             toCell.Locked = false;
             fromCell.Locked = false;
@@ -2657,7 +2677,12 @@ namespace Client.MirScenes
             if (p.GridFrom == MirGridType.Trade || p.GridTo == MirGridType.Trade)
                 TradeDialog.ChangeLockState(false);
 
-            if (!p.Success) return;
+            if (!p.Success)
+            {
+                if (materialStep) preparation.CompleteMergeStep(p, false);
+                return;
+            }
+
             if (fromCell.Item.Count <= toCell.Item.Info.StackSize - toCell.Item.Count)
             {
                 toCell.Item.Count += fromCell.Item.Count;
@@ -2669,8 +2694,22 @@ namespace Client.MirScenes
                 toCell.Item.Count = toCell.Item.Info.StackSize;
             }
 
-            User.RefreshStats();
+            RefreshMergeStats(p.GridFrom, p.GridTo);
+
+            if (materialStep) preparation.CompleteMergeStep(p, true);
         }
+
+        private static void RefreshMergeStats(MirGridType gridFrom, MirGridType gridTo)
+        {
+            bool heroInvolved = gridFrom == MirGridType.HeroInventory || gridFrom == MirGridType.HeroEquipment ||
+                                gridTo == MirGridType.HeroInventory || gridTo == MirGridType.HeroEquipment;
+            bool userInvolved = (gridFrom != MirGridType.HeroInventory && gridFrom != MirGridType.HeroEquipment) ||
+                                (gridTo != MirGridType.HeroInventory && gridTo != MirGridType.HeroEquipment);
+
+            if (heroInvolved) Hero?.RefreshStats();
+            if (userInvolved) User?.RefreshStats();
+        }
+
         private void RemoveItem(S.RemoveItem p)
         {
             MirItemCell toCell;
@@ -10547,6 +10586,8 @@ namespace Client.MirScenes
 
         public void Process()
         {
+            GameScene.Scene?.SpellMaterialPreparation?.Process();
+
             Processdoors();
             User.Process();
             for (int i = ObjectsList.Count - 1; i >= 0; i--)
@@ -11636,6 +11677,8 @@ namespace Client.MirScenes
 
             if (CMain.Time < InputDelay || User.Poison.HasFlag(PoisonType.Paralysis) || User.Poison.HasFlag(PoisonType.LRParalysis) || User.Poison.HasFlag(PoisonType.Frozen) || User.Fishing) return;
 
+            if (GameScene.Scene?.SpellMaterialPreparation?.TryResumePlayer() == true) return;
+
             if (User.NextMagic != null && !User.RidingMount)
             {
                 UseMagic(User.NextMagic, User);
@@ -11949,9 +11992,40 @@ namespace Client.MirScenes
             User.QueuedAction = new QueuedAction { Action = MirAction.Walking, Direction = direction, Location = Functions.PointMove(User.CurrentLocation, direction, 1) };
         }
 
+        private sealed class PreparedMagicCast
+        {
+            public MapObject Target;
+            public Point Location;
+            public MirDirection Direction;
+        }
+
         public void UseMagic(ClientMagic magic, UserObject actor)
         {
-            if (CMain.Time < GameScene.SpellTime || actor.Poison.HasFlag(PoisonType.Stun))
+            UseMagic(magic, actor, null);
+        }
+
+        internal void UsePreparedMagic(ClientMagic magic, UserObject actor, MapObject target, Point location, MirDirection direction)
+        {
+            UseMagic(magic, actor, new PreparedMagicCast { Target = target, Location = location, Direction = direction });
+        }
+
+        private void UseMagic(ClientMagic magic, UserObject actor, PreparedMagicCast preparedCast)
+        {
+            MapObject visibleActor = actor == Hero ? MapObject.HeroObject : actor;
+            if (visibleActor == null || visibleActor.Dead || actor.RidingMount || actor.Fishing)
+            {
+                actor.ClearMagic();
+                return;
+            }
+
+            if (preparedCast == null && GameScene.Scene?.SpellMaterialPreparation != null &&
+                GameScene.Scene.SpellMaterialPreparation.TryHandlePending(magic, actor))
+            {
+                actor.ResetNextMagic();
+                return;
+            }
+
+            if (CMain.Time < GameScene.SpellTime || visibleActor.Poison.HasFlag(PoisonType.Stun))
             {
                 actor.ClearMagic();
                 return;
@@ -12000,7 +12074,11 @@ namespace Client.MirScenes
             MapObject target = null;
 
             //Targeting
-            switch (magic.Spell)
+            if (preparedCast != null)
+            {
+                target = preparedCast.Target;
+            }
+            else switch (magic.Spell)
             {
                 case Spell.FireBall:
                 case Spell.GreatFireBall:
@@ -12153,14 +12231,41 @@ namespace Client.MirScenes
                     break;
             }
 
-            MirDirection dir = (target == null || target == User) ? actor.NextMagicDirection : Functions.DirectionFromPoint(actor.CurrentLocation, target.CurrentLocation);
+            MirDirection dir;
+            Point location;
+            uint targetID;
 
-            Point location = target != null ? target.CurrentLocation : actor.NextMagicLocation;
+            if (preparedCast != null)
+            {
+                if (target != null)
+                {
+                    location = target.CurrentLocation;
+                    dir = target == User ? preparedCast.Direction : Functions.DirectionFromPoint(actor.CurrentLocation, target.CurrentLocation);
 
-            uint targetID = target != null ? target.ObjectID : 0;
+                    if (target.Race == ObjectType.Monster) MapObject.MagicObjectID = target.ObjectID;
+                }
+                else
+                {
+                    location = preparedCast.Location;
+                    dir = preparedCast.Direction;
+                }
 
-            if (magic.Spell == Spell.FlashDash)
-                dir = actor.Direction;
+                targetID = target != null ? target.ObjectID : 0;
+
+                if (magic.Spell == Spell.FlashDash)
+                    dir = actor.Direction;
+            }
+            else
+            {
+                dir = (target == null || target == User) ? actor.NextMagicDirection : Functions.DirectionFromPoint(actor.CurrentLocation, target.CurrentLocation);
+
+                location = target != null ? target.CurrentLocation : actor.NextMagicLocation;
+
+                targetID = target != null ? target.ObjectID : 0;
+
+                if (magic.Spell == Spell.FlashDash)
+                    dir = actor.Direction;
+            }
 
             if ((magic.Range != 0) && (!Functions.InRange(actor.CurrentLocation, location, magic.Range)))
             {
@@ -12172,6 +12277,10 @@ namespace Client.MirScenes
                 actor.ClearMagic();
                 return;
             }
+
+            if (preparedCast == null && GameScene.Scene?.SpellMaterialPreparation != null &&
+                GameScene.Scene.SpellMaterialPreparation.TryBegin(magic, actor, target, location, dir))
+                return;
 
             GameScene.LogTime = CMain.Time + Globals.LogDelay;
 
