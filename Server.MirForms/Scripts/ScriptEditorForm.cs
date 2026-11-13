@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Server.MirEnvir;
@@ -31,6 +32,23 @@ namespace Server.MirForms.Scripts
         private static readonly Color ValueColor = Color.FromArgb(153, 51, 0);
         private static readonly Color KeywordColor = Color.FromArgb(0, 102, 51);
 
+        private const int WmSetRedraw = 0x000B;
+        private const int EmGetScrollPos = 0x04DD;
+        private const int EmSetScrollPos = 0x04DE;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ScrollPoint
+        {
+            public int X;
+            public int Y;
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, ref ScrollPoint lParam);
+
         private readonly TreeView _files = new TreeView();
         private readonly RichTextBox _editor = new RichTextBox();
         private readonly TabControl _side = new TabControl();
@@ -44,6 +62,11 @@ namespace Server.MirForms.Scripts
         private readonly List<ScriptKeyword> _paletteSource = new List<ScriptKeyword>();
 
         private string _path;
+        private string _savedText = string.Empty;
+        private int _textRevision;
+        private int _highlightRevision = -1;
+        private string _structureSignature;
+        private string _problemsSignature;
         private bool _dirty;
         private bool _hasBom = true;
         private bool _suppress;
@@ -93,7 +116,7 @@ namespace Server.MirForms.Scripts
             toolbar.Items.Add(new ToolStripSeparator());
 
             var highlight = new ToolStripButton(GameLanguage.Get("Highlight")) { Checked = true, CheckOnClick = true };
-            highlight.CheckedChanged += (s, e) => { _highlight = highlight.Checked; ApplyHighlight(); };
+            highlight.CheckedChanged += (s, e) => { _highlight = highlight.Checked; ApplyHighlight(true); };
             toolbar.Items.Add(highlight);
 
             var autoCheck = new ToolStripButton(GameLanguage.Get("Auto Check")) { Checked = true, CheckOnClick = true };
@@ -131,7 +154,15 @@ namespace Server.MirForms.Scripts
             _editor.HideSelection = false;
             _editor.ScrollBars = RichTextBoxScrollBars.Both;
             _editor.DetectUrls = false;
-            _editor.TextChanged += (s, e) => { _dirty = true; RefreshPalette(); ScheduleIdle(); };
+            _editor.TextChanged += (s, e) =>
+            {
+                if (_suppress) return;
+
+                _dirty = true;
+                _textRevision++;
+                RefreshPalette();
+                ScheduleIdle();
+            };
             _editor.SelectionChanged += (s, e) => { if (_suppress) return; RefreshPalette(); UpdateStatus(); };
             _editor.MouseDown += EditorMouseDown;
             body.Panel1.Controls.Add(_editor);
@@ -181,7 +212,7 @@ namespace Server.MirForms.Scripts
             Controls.Add(toolbar);
             Controls.Add(status);
 
-            _idleTimer.Tick += (s, e) => { _idleTimer.Stop(); ApplyHighlight(); if (_autoCheck) CheckBuffer(false, false); };
+            _idleTimer.Tick += (s, e) => { _idleTimer.Stop(); ApplyHighlight(false); if (_autoCheck) CheckBuffer(false, false); };
 
             Shown += (s, e) =>
             {
@@ -227,29 +258,37 @@ namespace Server.MirForms.Scripts
             rootNode.Expand();
         }
 
-        /// <summary>Script files an NPC actually points at; empty means the database is not loaded.</summary>
+        /// <summary>
+        /// Script files the NPC database points at. This must read the definition lists, not the
+        /// running <c>NPCs</c> objects: those only appear once the maps have finished loading, so a
+        /// freshly started server would mark half the scripts as unused until the load settles.
+        /// </summary>
         private static HashSet<string> BuildReferencedSet()
         {
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             try
             {
-                var npcs = Envir.Main?.NPCs;
-
-                if (npcs == null) return set;
-
-                foreach (NPCObject npc in npcs)
-                {
-                    string fileName = npc?.Info?.FileName;
-
-                    if (!string.IsNullOrEmpty(fileName)) set.Add(fileName.Replace('/', '\\'));
-                }
+                Collect(Envir.Main?.NPCInfoList, set);
+                Collect(Envir.Edit?.NPCInfoList, set);
             }
             catch (Exception)
             {
             }
 
             return set;
+        }
+
+        private static void Collect(List<Server.MirDatabase.NPCInfo> infos, HashSet<string> set)
+        {
+            if (infos == null) return;
+
+            foreach (Server.MirDatabase.NPCInfo info in infos)
+            {
+                if (info == null || string.IsNullOrEmpty(info.FileName)) continue;
+
+                set.Add(info.FileName.Replace('/', '\\'));
+            }
         }
 
         private void FillDirectory(TreeNode node, string path, string relative, int depth)
@@ -268,14 +307,9 @@ namespace Server.MirForms.Scripts
             foreach (string file in files.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
             {
                 string key = Path.Combine(relative, Path.GetFileNameWithoutExtension(file));
-                var child = new TreeNode(Path.GetFileName(file)) { Tag = file };
+                var child = new TreeNode(Path.GetFileName(file)) { Tag = file, Name = key };
 
-                if (_referenced.Count > 0 && !_referenced.Contains(key))
-                {
-                    child.Text += "  (" + GameLanguage.Get("Unreferenced") + ")";
-                    child.ForeColor = Color.Gray;
-                }
-
+                MarkNode(child);
                 node.Nodes.Add(child);
             }
 
@@ -287,6 +321,50 @@ namespace Server.MirForms.Scripts
                 node.Nodes.Add(child);
                 FillDirectory(child, directory, Path.Combine(relative, Path.GetFileName(directory)), depth + 1);
             }
+        }
+
+        private void MarkNode(TreeNode node)
+        {
+            string name = Path.GetFileName((string)node.Tag);
+
+            if (_referenced.Count == 0)
+            {
+                node.Text = name;
+                node.ForeColor = SystemColors.WindowText;
+                return;
+            }
+
+            bool unused = !_referenced.Contains(node.Name);
+
+            node.Text = name + (unused ? "  (" + GameLanguage.Get("Unreferenced") + ")" : string.Empty);
+            node.ForeColor = unused ? Color.Gray : SystemColors.WindowText;
+        }
+
+        /// <summary>Re-marks the tree without reopening it; the database can be edited while we are open.</summary>
+        private void RefreshReferenceMarks()
+        {
+            HashSet<string> referenced = BuildReferencedSet();
+
+            if (referenced.Count == 0 || referenced.SetEquals(_referenced)) return;
+
+            _referenced = referenced;
+            RelabelNodes(_files.Nodes);
+        }
+
+        private void RelabelNodes(TreeNodeCollection nodes)
+        {
+            foreach (TreeNode node in nodes)
+            {
+                if (node.Name.Length > 0) MarkNode(node);
+
+                RelabelNodes(node.Nodes);
+            }
+        }
+
+        protected override void OnActivated(EventArgs e)
+        {
+            base.OnActivated(e);
+            RefreshReferenceMarks();
         }
 
         private void OpenSelectedFile()
@@ -323,10 +401,11 @@ namespace Server.MirForms.Scripts
 
             _path = path;
             _dirty = false;
+            _savedText = _editor.Text;
 
             _statusText.Text = path;
             RefreshStructure();
-            ApplyHighlight();
+            ApplyHighlight(true);
             CheckBuffer(false, true);
             UpdateTitle();
         }
@@ -341,6 +420,7 @@ namespace Server.MirForms.Scripts
 
             File.WriteAllText(_path, text, _hasBom ? new UTF8Encoding(true) : _encoding);
             _dirty = false;
+            _savedText = _editor.Text;
             UpdateTitle();
             _statusIssues.Text = GameLanguage.Get("Saved");
             CheckBuffer(false, true);
@@ -348,6 +428,8 @@ namespace Server.MirForms.Scripts
 
         private bool ConfirmDiscard()
         {
+            if (_dirty && _editor.Text == _savedText) _dirty = false;
+
             if (!_dirty) return true;
 
             DialogResult result = MessageBox.Show(this,
@@ -445,10 +527,23 @@ namespace Server.MirForms.Scripts
 
         private void RefreshStructure()
         {
+            ScriptProject project = ScriptProject.Parse(_editor.Text);
+
+            var signature = new StringBuilder(_path ?? string.Empty);
+
+            foreach (ScriptPageInfo page in project.Pages)
+            {
+                signature.Append(page.Key).Append(':').Append(page.Line);
+
+                foreach (ScriptBlock block in page.Blocks) signature.Append('@').Append(block.StartLine);
+            }
+
+            if (signature.ToString() == _structureSignature) return;
+
+            _structureSignature = signature.ToString();
+
             _structure.BeginUpdate();
             _structure.Nodes.Clear();
-
-            ScriptProject project = ScriptProject.Parse(_editor.Text);
 
             foreach (ScriptPageInfo page in project.Pages)
             {
@@ -522,19 +617,28 @@ namespace Server.MirForms.Scripts
                 }
             }
 
-            _problems.BeginUpdate();
-            _problems.Items.Clear();
+            var problemSignature = new StringBuilder();
 
-            foreach (ScriptIssue issue in issues.OrderBy(x => x.Line))
+            foreach (ScriptIssue issue in issues) problemSignature.Append(issue.Line).Append(':').Append(issue.Message).Append('|');
+
+            if (problemSignature.ToString() != _problemsSignature)
             {
-                var item = new ListViewItem(issue.Line > 0 ? issue.Line.ToString() : "-");
-                item.SubItems.Add(issue.Message);
-                item.ForeColor = issue.IsError ? Color.Firebrick : Color.DimGray;
-                item.Tag = issue.Line;
-                _problems.Items.Add(item);
-            }
+                _problemsSignature = problemSignature.ToString();
 
-            _problems.EndUpdate();
+                _problems.BeginUpdate();
+                _problems.Items.Clear();
+
+                foreach (ScriptIssue issue in issues.OrderBy(x => x.Line))
+                {
+                    var item = new ListViewItem(issue.Line > 0 ? issue.Line.ToString() : "-");
+                    item.SubItems.Add(issue.Message);
+                    item.ForeColor = issue.IsError ? Color.Firebrick : Color.DimGray;
+                    item.Tag = issue.Line;
+                    _problems.Items.Add(item);
+                }
+
+                _problems.EndUpdate();
+            }
 
             int errors = issues.Count(x => x.IsError);
             _statusIssues.Text = issues.Count == 0
@@ -625,15 +729,30 @@ namespace Server.MirForms.Scripts
 
         // ---------------------------------------------------------------- highlighting
 
-        private void ApplyHighlight()
+        /// <summary>
+        /// Recolours the buffer. Formatting the document raises TextChanged, so the handler has to be
+        /// suppressed here or opening a script would keep marking it dirty and re-running this pass.
+        /// </summary>
+        private void ApplyHighlight(bool force)
         {
-            if (!_highlight || _suppress) return;
+            if (!_highlight)
+            {
+                if (force) ClearColors();
+                return;
+            }
+
+            if (_suppress) return;
+            if (!force && _highlightRevision == _textRevision) return;
 
             int selectionStart = _editor.SelectionStart;
             int selectionLength = _editor.SelectionLength;
+            var scroll = new ScrollPoint();
+
+            SendMessage(_editor.Handle, EmGetScrollPos, IntPtr.Zero, ref scroll);
 
             _suppress = true;
             _editor.SuspendLayout();
+            SendMessage(_editor.Handle, WmSetRedraw, IntPtr.Zero, IntPtr.Zero);
 
             try
             {
@@ -648,11 +767,34 @@ namespace Server.MirForms.Scripts
                 Colorize(text, ButtonPattern, ButtonColor);
                 Colorize(text, ValuePattern, ValueColor);
                 ColorizeKeywords(text);
+
+                _highlightRevision = _textRevision;
             }
             finally
             {
                 _editor.Select(selectionStart, selectionLength);
                 _editor.ResumeLayout();
+                SendMessage(_editor.Handle, WmSetRedraw, (IntPtr)1, IntPtr.Zero);
+                SendMessage(_editor.Handle, EmSetScrollPos, IntPtr.Zero, ref scroll);
+                _editor.Invalidate();
+                _suppress = false;
+            }
+        }
+
+        private void ClearColors()
+        {
+            if (_suppress) return;
+
+            _suppress = true;
+
+            try
+            {
+                _editor.SelectAll();
+                _editor.SelectionColor = _editor.ForeColor;
+                _highlightRevision = _textRevision;
+            }
+            finally
+            {
                 _suppress = false;
             }
         }
