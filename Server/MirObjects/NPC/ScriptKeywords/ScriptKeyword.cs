@@ -64,8 +64,15 @@ namespace Server.MirObjects
     public sealed class ScriptKeyword
     {
         public ScriptKeyword(string name, ScriptKeywordKind kind, ScriptKeywordCategory category, string usage,
-            string description, int minParts, Func<ScriptParseContext, ScriptParseOutcome> handler)
+            string description, int minParts, Func<ScriptParseContext, ScriptParseOutcome> handler,
+            CheckType? check = null, ActionType? action = null, Func<ScriptExecuteContext, ScriptOutcome> executor = null,
+            Func<ScriptExecuteContext, ScriptOutcome> monsterExecutor = null, Func<ScriptExecuteContext, string> valueExecutor = null)
         {
+            Check = check;
+            Action = action;
+            Executor = executor;
+            MonsterExecutor = monsterExecutor;
+            ValueExecutor = valueExecutor;
             Name = name;
             Kind = kind;
             Category = category;
@@ -95,5 +102,25 @@ namespace Server.MirObjects
         public int MinParts { get; }
 
         public Func<ScriptParseContext, ScriptParseOutcome> Handler { get; }
+
+        /// <summary>The check this keyword produces, which is also the key of its executor.</summary>
+        public CheckType? Check { get; }
+
+        /// <summary>The action this keyword produces.</summary>
+        public ActionType? Action { get; }
+
+        /// <summary>
+        /// Runs the keyword. Generated from the old switch in NPCSegment, so one entry now carries the
+        /// name, the argument template, the description, the parser and the behaviour.
+        /// </summary>
+        public Func<ScriptExecuteContext, ScriptOutcome> Executor { get; }
+
+        /// <summary>
+        /// Only set for the handful of actions that behave differently when a monster runs the script.
+        /// </summary>
+        public Func<ScriptExecuteContext, ScriptOutcome> MonsterExecutor { get; }
+
+        /// <summary>Resolves a &lt;$VALUE&gt; placeholder to the text that replaces it.</summary>
+        public Func<ScriptExecuteContext, string> ValueExecutor { get; }
     }
 }

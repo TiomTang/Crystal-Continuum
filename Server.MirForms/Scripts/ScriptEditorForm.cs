@@ -214,9 +214,9 @@ namespace Server.MirForms.Scripts
             _structure.DoubleClick += (s, e) => JumpToStructureNode();
 
             var structureMenu = new ContextMenuStrip();
-            structureMenu.Items.Add(StructureMenuItem(GameLanguage.Get("New Page"), PageCandidate().Text));
+            structureMenu.Items.Add(StructureMenuItem(GameLanguage.Get("New Page"), ScriptStructureCatalog.NewPage().Text));
 
-            foreach (StructureCandidate candidate in SectionCandidates())
+            foreach (StructureCandidate candidate in ScriptStructureCatalog.Sections())
                 structureMenu.Items.Add(StructureMenuItem(candidate.Label, candidate.Text));
 
             _structure.ContextMenuStrip = structureMenu;
@@ -507,10 +507,7 @@ namespace Server.MirForms.Scripts
 
             ScriptBlockKind kind = project.ContextAt(line, out _);
 
-            if (kind == ScriptBlockKind.Page) _structureCandidates.AddRange(PageCandidates());
-
-            _structureCandidates.AddRange(BlockCandidates());
-            _structureCandidates.AddRange(SectionCandidates());
+            _structureCandidates.AddRange(ScriptStructureCatalog.Build(project, line));
 
             switch (kind)
             {
@@ -539,6 +536,8 @@ namespace Server.MirForms.Scripts
 
             foreach (StructureCandidate candidate in _structureCandidates)
             {
+                if (filter.Length > 0 && candidate.IsHeader) continue;
+
                 var entry = new PaletteEntry(candidate);
 
                 if (filter.Length > 0 && entry.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0) continue;
@@ -611,6 +610,21 @@ namespace Server.MirForms.Scripts
 
         private void InsertStructure(StructureCandidate candidate)
         {
+            if (candidate.IsJump)
+            {
+                JumpToLine(candidate.JumpLine);
+                return;
+            }
+
+            if (candidate.Text == null) return;
+
+            // A page or a data section belongs to the file, not to the block the caret happens to sit in.
+            if (candidate.TopLevel)
+            {
+                AppendText(candidate.Text);
+                return;
+            }
+
             int line = _editor.GetLineFromCharIndex(_editor.SelectionStart);
             int position = _editor.GetFirstCharIndexFromLine(line) + _editor.Lines[line].Length;
 
@@ -626,50 +640,6 @@ namespace Server.MirForms.Scripts
             _editor.SelectionLength = 0;
             _editor.SelectedText = (_editor.TextLength > 0 ? "\r\n" : string.Empty) + text;
             _editor.Focus();
-        }
-
-        private static List<StructureCandidate> PageCandidates()
-        {
-            var list = new List<StructureCandidate>
-            {
-                PageCandidate(),
-                new StructureCandidate("[@@NewPage]", GameLanguage.Get("Insert an input request page."), "[@@NewPage]\r\n#SAY\r\n\r\n#ACT\r\n\r\n"),
-            };
-
-            foreach (ScriptSpecialPage page in ScriptSpecialPages.Entries)
-            {
-                list.Add(new StructureCandidate(page.Key, GameLanguage.Get(page.Description), page.Key + "\r\n"));
-            }
-
-            return list;
-        }
-
-        private static StructureCandidate PageCandidate()
-        {
-            return new StructureCandidate("[@NewPage]", GameLanguage.Get("Insert a new page."), "[@NewPage]\r\n#SAY\r\n\r\n#ACT\r\n\r\n");
-        }
-
-        private static List<StructureCandidate> BlockCandidates()
-        {
-            return new List<StructureCandidate>
-            {
-                new StructureCandidate("#IF", GameLanguage.Get("Start a condition block."), "#IF\r\n"),
-                new StructureCandidate("#SAY", GameLanguage.Get("Text the NPC says."), "#SAY\r\n"),
-                new StructureCandidate("#ACT", GameLanguage.Get("Actions that run when the checks pass."), "#ACT\r\n"),
-                new StructureCandidate("#ELSESAY", GameLanguage.Get("Text when the checks fail."), "#ELSESAY\r\n"),
-                new StructureCandidate("#ELSEACT", GameLanguage.Get("Actions when the checks fail."), "#ELSEACT\r\n"),
-            };
-        }
-
-        private static List<StructureCandidate> SectionCandidates()
-        {
-            return new List<StructureCandidate>
-            {
-                new StructureCandidate("[Types]", GameLanguage.Get("Item type numbers this NPC works with."), "[Types]\r\n"),
-                new StructureCandidate("[Trade]", GameLanguage.Get("Goods this NPC sells."), "[Trade]\r\n"),
-                new StructureCandidate("[Recipe]", GameLanguage.Get("Items this NPC can craft."), "[Recipe]\r\n"),
-                new StructureCandidate("[Quests]", GameLanguage.Get("Quests this NPC handles."), "[Quests]\r\n"),
-            };
         }
 
         private ToolStripMenuItem StructureMenuItem(string text, string insert)
@@ -1237,19 +1207,6 @@ namespace Server.MirForms.Scripts
             }
         }
 
-        private sealed class StructureCandidate
-        {
-            public readonly string Label;
-            public readonly string Description;
-            public readonly string Text;
-
-            public StructureCandidate(string label, string description, string text)
-            {
-                Label = label;
-                Description = description;
-                Text = text;
-            }
-        }
 
         private sealed class PaletteEntry
         {
@@ -1272,9 +1229,13 @@ namespace Server.MirForms.Scripts
             {
                 if (Candidate != null)
                 {
-                    return Candidate.Description.Length > 0
+                    string text = Candidate.Description.Length > 0
                         ? Candidate.Label + "   " + Candidate.Description
                         : Candidate.Label;
+
+                    if (Candidate.IsJump) text += "  ·  " + GameLanguage.Get("exists");
+
+                    return text;
                 }
 
                 if (Keyword == null) return _hint ?? GameLanguage.Get("No keyword here");

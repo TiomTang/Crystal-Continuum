@@ -70,6 +70,19 @@ namespace Server.MirForms.Scripts
         }
     }
 
+    /// <summary>One data section: the header the loader matches, plus the kind the checks switch on.</summary>
+    public sealed class ScriptSectionInfo
+    {
+        public readonly ScriptSectionKind Kind;
+        public readonly string Key;
+
+        public ScriptSectionInfo(ScriptSectionKind kind, string key)
+        {
+            Kind = kind;
+            Key = key;
+        }
+    }
+
     /// <summary>
     /// Line model of one NPC script file: pages, blocks, the caret context and the rule checks the
     /// editor runs before the engine parser sees the buffer.
@@ -78,16 +91,30 @@ namespace Server.MirForms.Scripts
     {
         private static readonly Regex ButtonPattern = new Regex(@"<[^<>]*?/(@[A-Za-z0-9_\-]+)", RegexOptions.Compiled);
         private static readonly Regex ValuePattern = new Regex(@"<\$([^>]+)>", RegexOptions.Compiled);
-        private static readonly Dictionary<string, ScriptSectionKind> SectionKeys =
-            new Dictionary<string, ScriptSectionKind>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "[TYPES]", ScriptSectionKind.Types },
-                { "[USEDTYPES]", ScriptSectionKind.UsedTypes },
-                { "[TRADE]", ScriptSectionKind.Trade },
-                { "[RECIPE]", ScriptSectionKind.Recipe },
-                { "[QUESTS]", ScriptSectionKind.Quests },
-                { "[SPEECH]", ScriptSectionKind.Speech },
-            };
+        /// <summary>
+        /// Data sections the loader understands. The parser, the palette and the checks all read this
+        /// list, so a section added here is offered, parsed and validated without touching three places.
+        /// </summary>
+        public static readonly ScriptSectionInfo[] SectionCatalog =
+        {
+            new ScriptSectionInfo(ScriptSectionKind.Types, NPCScript.TypeKey),
+            new ScriptSectionInfo(ScriptSectionKind.UsedTypes, NPCScript.UsedTypeKey),
+            new ScriptSectionInfo(ScriptSectionKind.Trade, NPCScript.TradeKey),
+            new ScriptSectionInfo(ScriptSectionKind.Recipe, NPCScript.RecipeKey),
+            new ScriptSectionInfo(ScriptSectionKind.Quests, NPCScript.QuestKey),
+            new ScriptSectionInfo(ScriptSectionKind.Speech, NPCScript.SpeechKey),
+        };
+
+        private static readonly Dictionary<string, ScriptSectionKind> SectionKeys = BuildSectionKeys();
+
+        private static Dictionary<string, ScriptSectionKind> BuildSectionKeys()
+        {
+            var keys = new Dictionary<string, ScriptSectionKind>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (ScriptSectionInfo info in SectionCatalog) keys[info.Key] = info.Kind;
+
+            return keys;
+        }
 
         private static readonly HashSet<string> KnownTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -245,21 +272,72 @@ namespace Server.MirForms.Scripts
             return string.Join(" ", trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries));
         }
 
-        /// <summary>Block that owns the given 1-based line, or the page when the line sits before any tag.</summary>
+        /// <summary>Page or data section that owns the given 1-based line.</summary>
+        public ScriptPageInfo PageAt(int line)
+        {
+            foreach (ScriptPageInfo page in Pages)
+            {
+                if (line >= page.Line && line <= page.EndLine) return page;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Block that owns the given 1-based line, or the page when the line sits before the first tag.
+        /// The search stops at the page edges: a fresh page sits in page context even when the page
+        /// before it ended inside #ACT.
+        /// </summary>
         public ScriptBlockKind ContextAt(int line, out string pageKey)
         {
             pageKey = string.Empty;
+
+            ScriptPageInfo page = PageAt(line);
+
+            if (page == null) return ScriptBlockKind.Page;
+
+            pageKey = page.Key;
+
             ScriptBlockKind kind = ScriptBlockKind.Page;
 
-            foreach (ScriptBlock block in Blocks)
+            foreach (ScriptBlock block in page.Blocks)
             {
                 if (block.StartLine > line) break;
 
                 kind = block.Kind;
-                pageKey = block.PageKey;
             }
 
             return kind;
+        }
+
+        /// <summary>
+        /// Blocks of the segment that owns the given line. The loader splits a page into a new segment at
+        /// every #IF, and one segment holds at most one SAY, ACT, ELSESAY and ELSEACT.
+        /// </summary>
+        public List<ScriptBlock> SegmentAt(int line)
+        {
+            var segment = new List<ScriptBlock>();
+            ScriptPageInfo page = PageAt(line);
+
+            if (page == null) return segment;
+
+            int first = 0;
+
+            for (int i = 0; i < page.Blocks.Count; i++)
+            {
+                if (page.Blocks[i].StartLine > line) break;
+
+                if (page.Blocks[i].Kind == ScriptBlockKind.Check) first = i;
+            }
+
+            for (int i = first; i < page.Blocks.Count; i++)
+            {
+                if (i > first && page.Blocks[i].Kind == ScriptBlockKind.Check) break;
+
+                segment.Add(page.Blocks[i]);
+            }
+
+            return segment;
         }
 
         public static string Normalize(string pageKey)

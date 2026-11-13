@@ -15331,5 +15331,29 @@
   "Quest number per line: positive offers it here, negative turns it in here.": {
     "Source": "Quest number per line: positive offers it here, negative turns it in here.",
     "Text": "一行一个任务编号：正数表示在本 NPC 接取，负数表示在本 NPC 交付。"
+  },
+  "Pages": {
+    "Source": "页面",
+    "Text": "页面"
+  },
+  "Blocks": {
+    "Source": "代码块",
+    "Text": "代码块"
+  },
+  "Sections": {
+    "Source": "数据段",
+    "Text": "数据段"
+  },
+  "exists": {
+    "Source": "已存在",
+    "Text": "已存在"
+  },
+  "Item type numbers this NPC reacts to.": {
+    "Source": "这个 NPC 会响应的物品种类编号。",
+    "Text": "这个 NPC 会响应的物品种类编号。"
+  },
+  "Speech numbers this NPC can say.": {
+    "Source": "这个 NPC 会说的对白编号。",
+    "Text": "这个 NPC 会说的对白编号。"
   }
 }

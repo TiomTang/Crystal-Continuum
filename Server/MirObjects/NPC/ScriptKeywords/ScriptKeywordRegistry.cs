@@ -17,6 +17,11 @@ namespace Server.MirObjects
         private static readonly Dictionary<string, ScriptKeyword> VariableIndex = BuildIndex(ScriptValueCatalog.PlayerEntries);
         private static readonly Dictionary<string, ScriptKeyword> MonsterVariableIndex = BuildIndex(ScriptValueCatalog.MonsterEntries);
 
+        private static readonly Dictionary<CheckType, Func<ScriptExecuteContext, ScriptOutcome>> CheckExecutorIndex =
+            BuildCheckExecutors();
+
+        private static readonly Dictionary<ActionType, ScriptKeyword> ActionIndexByType = BuildActionIndex();
+
 
         /// <summary>Keywords allowed inside #IF.</summary>
         public static IReadOnlyList<ScriptKeyword> Checks
@@ -40,6 +45,60 @@ namespace Server.MirObjects
         public static IReadOnlyList<ScriptKeyword> MonsterVariables
         {
             get { return ScriptValueCatalog.MonsterEntries; }
+        }
+
+        /// <summary>
+        /// Finds the executor registered for an action type. When a monster runs the script and the entry
+        /// carries a monster variant, that one is used instead.
+        /// </summary>
+        public static Func<ScriptExecuteContext, ScriptOutcome> ActionExecutor(ActionType type, bool forMonster)
+        {
+            ScriptKeyword entry;
+
+            if (!ActionIndexByType.TryGetValue(type, out entry)) return null;
+
+            if (forMonster && entry.MonsterExecutor != null) return entry.MonsterExecutor;
+
+            return entry.Executor;
+        }
+
+        private static Dictionary<ActionType, ScriptKeyword> BuildActionIndex()
+        {
+            var index = new Dictionary<ActionType, ScriptKeyword>();
+
+            foreach (ScriptKeyword entry in ScriptActionCatalog.Entries)
+            {
+                if (!entry.Action.HasValue) continue;
+
+                index[entry.Action.Value] = entry;
+            }
+
+            return index;
+        }
+
+        /// <summary>
+        /// Finds the executor registered for a condition type. The same table entry that names the
+        /// keyword also runs it, so a condition cannot be parsed without a behaviour behind it.
+        /// </summary>
+        public static Func<ScriptExecuteContext, ScriptOutcome> CheckExecutor(CheckType type)
+        {
+            Func<ScriptExecuteContext, ScriptOutcome> executor;
+
+            return CheckExecutorIndex.TryGetValue(type, out executor) ? executor : null;
+        }
+
+        private static Dictionary<CheckType, Func<ScriptExecuteContext, ScriptOutcome>> BuildCheckExecutors()
+        {
+            var index = new Dictionary<CheckType, Func<ScriptExecuteContext, ScriptOutcome>>();
+
+            foreach (ScriptKeyword entry in ScriptCheckCatalog.Entries)
+            {
+                if (!entry.Check.HasValue || entry.Executor == null) continue;
+
+                index[entry.Check.Value] = entry.Executor;
+            }
+
+            return index;
         }
 
         public static bool TryGetCheck(string name, out ScriptKeyword keyword)
