@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -53,6 +54,7 @@ namespace Server.MirForms.Scripts
         private readonly RichTextBox _editor = new RichTextBox();
         private readonly TabControl _side = new TabControl();
         private readonly ListBox _palette = new ListBox();
+        private readonly ListBox _structurePalette = new ListBox();
         private readonly TextBox _paletteFilter = new TextBox();
         private readonly TreeView _structure = new TreeView();
         private readonly ListView _problems = new ListView();
@@ -60,6 +62,14 @@ namespace Server.MirForms.Scripts
         private readonly ToolStripStatusLabel _statusIssues = new ToolStripStatusLabel();
         private readonly System.Windows.Forms.Timer _idleTimer = new System.Windows.Forms.Timer { Interval = 700 };
         private readonly List<ScriptKeyword> _paletteSource = new List<ScriptKeyword>();
+        private readonly List<StructureCandidate> _structureCandidates = new List<StructureCandidate>();
+        private readonly List<StructureCandidate> _valueCandidates = new List<StructureCandidate>();
+        private List<string> _itemNames;
+        private List<StructureCandidate> _questCandidates;
+        private List<StructureCandidate> _itemCandidates;
+        private List<StructureCandidate> _recipeCandidates;
+        private List<StructureCandidate> _typeCandidates;
+        private string _paletteHint = string.Empty;
 
         private string _path;
         private string _savedText = string.Empty;
@@ -168,27 +178,48 @@ namespace Server.MirForms.Scripts
             body.Panel1.Controls.Add(_editor);
 
             var palettePage = new TabPage(GameLanguage.Get("Commands"));
-            _paletteFilter.Dock = DockStyle.Top;
+
+            var paletteLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5 };
+            paletteLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
+            paletteLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 190F));
+            paletteLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
+            paletteLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
+            paletteLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+            _structurePalette.Dock = DockStyle.Fill;
+            _structurePalette.IntegralHeight = false;
+            _structurePalette.MouseDoubleClick += (s, e) => InsertFrom(_structurePalette, e.Location);
+            _structurePalette.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) InsertFrom(_structurePalette, null); };
+
+            _paletteFilter.Dock = DockStyle.Fill;
             _paletteFilter.PlaceholderText = GameLanguage.Get("Filter");
             _paletteFilter.TextChanged += (s, e) => FillPalette();
+
             _palette.Dock = DockStyle.Fill;
             _palette.IntegralHeight = false;
-            _palette.MouseClick += (s, e) =>
-            {
-                int index = _palette.IndexFromPoint(e.Location);
+            _palette.MouseDoubleClick += (s, e) => InsertFrom(_palette, e.Location);
+            _palette.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) InsertFrom(_palette, null); };
 
-                if (index < 0) return;
+            paletteLayout.Controls.Add(Label(GameLanguage.Get("Structure")), 0, 0);
+            paletteLayout.Controls.Add(_structurePalette, 0, 1);
+            paletteLayout.Controls.Add(Label(GameLanguage.Get("Commands")), 0, 2);
+            paletteLayout.Controls.Add(_paletteFilter, 0, 3);
+            paletteLayout.Controls.Add(_palette, 0, 4);
 
-                _palette.SelectedIndex = index;
-                InsertKeyword(_palette.Items[index] as PaletteEntry);
-            };
-            palettePage.Controls.Add(_palette);
-            palettePage.Controls.Add(_paletteFilter);
+            palettePage.Controls.Add(paletteLayout);
 
             var structurePage = new TabPage(GameLanguage.Get("Structure"));
             _structure.Dock = DockStyle.Fill;
             _structure.HideSelection = false;
             _structure.DoubleClick += (s, e) => JumpToStructureNode();
+
+            var structureMenu = new ContextMenuStrip();
+            structureMenu.Items.Add(StructureMenuItem(GameLanguage.Get("New Page"), PageCandidate().Text));
+
+            foreach (StructureCandidate candidate in SectionCandidates())
+                structureMenu.Items.Add(StructureMenuItem(candidate.Label, candidate.Text));
+
+            _structure.ContextMenuStrip = structureMenu;
             structurePage.Controls.Add(_structure);
 
             var problemPage = new TabPage(GameLanguage.Get("Problems"));
@@ -457,9 +488,29 @@ namespace Server.MirForms.Scripts
         {
             int line = _editor.GetLineFromCharIndex(_editor.SelectionStart) + 1;
             ScriptProject project = ScriptProject.Parse(_editor.Text);
-            ScriptBlockKind kind = project.ContextAt(line, out _);
 
             _paletteSource.Clear();
+            _structureCandidates.Clear();
+            _valueCandidates.Clear();
+
+            ScriptPageInfo sectionPage = project.SectionPageAt(line);
+
+            if (sectionPage != null)
+            {
+                _paletteHint = SectionHint(sectionPage.Section);
+                _valueCandidates.AddRange(ValueCandidates(sectionPage, project));
+                FillPalette();
+                return;
+            }
+
+            _paletteHint = GameLanguage.Get("No keyword here");
+
+            ScriptBlockKind kind = project.ContextAt(line, out _);
+
+            if (kind == ScriptBlockKind.Page) _structureCandidates.AddRange(PageCandidates());
+
+            _structureCandidates.AddRange(BlockCandidates());
+            _structureCandidates.AddRange(SectionCandidates());
 
             switch (kind)
             {
@@ -483,8 +534,36 @@ namespace Server.MirForms.Scripts
         {
             string filter = _paletteFilter.Text.Trim();
 
+            _structurePalette.BeginUpdate();
+            _structurePalette.Items.Clear();
+
+            foreach (StructureCandidate candidate in _structureCandidates)
+            {
+                var entry = new PaletteEntry(candidate);
+
+                if (filter.Length > 0 && entry.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                _structurePalette.Items.Add(entry);
+            }
+
+            if (_structurePalette.Items.Count == 0)
+            {
+                _structurePalette.Items.Add(new PaletteEntry(null, GameLanguage.Get("No structure here")));
+            }
+
+            _structurePalette.EndUpdate();
+
             _palette.BeginUpdate();
             _palette.Items.Clear();
+
+            foreach (StructureCandidate candidate in _valueCandidates)
+            {
+                var entry = new PaletteEntry(candidate);
+
+                if (filter.Length > 0 && entry.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                _palette.Items.Add(entry);
+            }
 
             foreach (ScriptKeyword keyword in _paletteSource)
             {
@@ -497,12 +576,105 @@ namespace Server.MirForms.Scripts
                 _palette.Items.Add(entry);
             }
 
-            _palette.EndUpdate();
-
-            if (_paletteSource.Count == 0)
+            if (_palette.Items.Count == 0)
             {
-                _palette.Items.Add(new PaletteEntry(null));
+                _palette.Items.Add(new PaletteEntry(null, _paletteHint));
             }
+
+            _palette.EndUpdate();
+        }
+
+        private static Label Label(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = SystemColors.GrayText,
+            };
+        }
+
+        private void InsertFrom(ListBox list, Point? location)
+        {
+            int index = location.HasValue ? list.IndexFromPoint(location.Value) : list.SelectedIndex;
+
+            if (index < 0 || index >= list.Items.Count) return;
+
+            var entry = list.Items[index] as PaletteEntry;
+
+            if (entry == null) return;
+
+            if (entry.Candidate != null) InsertStructure(entry.Candidate);
+            else InsertKeyword(entry);
+        }
+
+        private void InsertStructure(StructureCandidate candidate)
+        {
+            int line = _editor.GetLineFromCharIndex(_editor.SelectionStart);
+            int position = _editor.GetFirstCharIndexFromLine(line) + _editor.Lines[line].Length;
+
+            _editor.SelectionStart = position;
+            _editor.SelectionLength = 0;
+            _editor.SelectedText = "\r\n" + candidate.Text;
+            _editor.Focus();
+        }
+
+        private void AppendText(string text)
+        {
+            _editor.SelectionStart = _editor.TextLength;
+            _editor.SelectionLength = 0;
+            _editor.SelectedText = (_editor.TextLength > 0 ? "\r\n" : string.Empty) + text;
+            _editor.Focus();
+        }
+
+        private static List<StructureCandidate> PageCandidates()
+        {
+            var list = new List<StructureCandidate>
+            {
+                PageCandidate(),
+                new StructureCandidate("[@@NewPage]", GameLanguage.Get("Insert an input request page."), "[@@NewPage]\r\n#SAY\r\n\r\n#ACT\r\n\r\n"),
+            };
+
+            foreach (ScriptSpecialPage page in ScriptSpecialPages.Entries)
+            {
+                list.Add(new StructureCandidate(page.Key, GameLanguage.Get(page.Description), page.Key + "\r\n"));
+            }
+
+            return list;
+        }
+
+        private static StructureCandidate PageCandidate()
+        {
+            return new StructureCandidate("[@NewPage]", GameLanguage.Get("Insert a new page."), "[@NewPage]\r\n#SAY\r\n\r\n#ACT\r\n\r\n");
+        }
+
+        private static List<StructureCandidate> BlockCandidates()
+        {
+            return new List<StructureCandidate>
+            {
+                new StructureCandidate("#IF", GameLanguage.Get("Start a condition block."), "#IF\r\n"),
+                new StructureCandidate("#SAY", GameLanguage.Get("Text the NPC says."), "#SAY\r\n"),
+                new StructureCandidate("#ACT", GameLanguage.Get("Actions that run when the checks pass."), "#ACT\r\n"),
+                new StructureCandidate("#ELSESAY", GameLanguage.Get("Text when the checks fail."), "#ELSESAY\r\n"),
+                new StructureCandidate("#ELSEACT", GameLanguage.Get("Actions when the checks fail."), "#ELSEACT\r\n"),
+            };
+        }
+
+        private static List<StructureCandidate> SectionCandidates()
+        {
+            return new List<StructureCandidate>
+            {
+                new StructureCandidate("[Types]", GameLanguage.Get("Item type numbers this NPC works with."), "[Types]\r\n"),
+                new StructureCandidate("[Trade]", GameLanguage.Get("Goods this NPC sells."), "[Trade]\r\n"),
+                new StructureCandidate("[Recipe]", GameLanguage.Get("Items this NPC can craft."), "[Recipe]\r\n"),
+                new StructureCandidate("[Quests]", GameLanguage.Get("Quests this NPC handles."), "[Quests]\r\n"),
+            };
+        }
+
+        private ToolStripMenuItem StructureMenuItem(string text, string insert)
+        {
+            return new ToolStripMenuItem(text, null, (s, e) => AppendText(insert));
         }
 
         private void InsertKeyword(PaletteEntry entry)
@@ -547,7 +719,11 @@ namespace Server.MirForms.Scripts
 
             foreach (ScriptPageInfo page in project.Pages)
             {
-                var node = new TreeNode(page.Key + "    " + page.Line) { Tag = page.Line };
+                string suffix = page.IsSection ? "  ·  " + GameLanguage.Get("Section") : string.Empty;
+                var node = new TreeNode(page.Key + "    " + page.Line + suffix) { Tag = page.Line };
+
+                if (page.IsSection) node.ForeColor = Color.FromArgb(90, 90, 90);
+
                 _structure.Nodes.Add(node);
 
                 foreach (ScriptBlock block in page.Blocks)
@@ -673,6 +849,24 @@ namespace Server.MirForms.Scripts
                     var names = new HashSet<string>(maps.Select(x => x.FileName), StringComparer.OrdinalIgnoreCase);
 
                     rules.MapExists = name => names.Contains(name);
+                }
+
+                var items = NonEmpty(Envir.Main?.ItemInfoList, Envir.Edit?.ItemInfoList);
+
+                if (items != null && items.Count > 0)
+                {
+                    var names = new HashSet<string>(items.Select(x => x.Name.Replace(" ", "")), StringComparer.OrdinalIgnoreCase);
+
+                    rules.ItemExists = name => names.Contains(name.Replace(" ", ""));
+                }
+
+                var quests = NonEmpty(Envir.Main?.QuestInfoList, Envir.Edit?.QuestInfoList);
+
+                if (quests != null && quests.Count > 0)
+                {
+                    var numbers = new HashSet<int>(quests.Select(x => x.Index));
+
+                    rules.QuestExists = number => numbers.Contains(number);
                 }
             }
             catch (Exception)
@@ -871,18 +1065,219 @@ namespace Server.MirForms.Scripts
             base.OnFormClosing(e);
         }
 
+        /// <summary>
+        /// Legal values for the section the caret sits in. Values already written there are left out:
+        /// every line of these sections has to be unique, a repeat does nothing.
+        /// </summary>
+        private List<StructureCandidate> ValueCandidates(ScriptPageInfo section, ScriptProject project)
+        {
+            List<StructureCandidate> source;
+
+            switch (section.Section)
+            {
+                case ScriptSectionKind.Types:
+                case ScriptSectionKind.UsedTypes:
+                    source = TypeCandidates();
+                    break;
+                case ScriptSectionKind.Trade:
+                    source = ItemCandidates();
+                    break;
+                case ScriptSectionKind.Recipe:
+                    source = RecipeCandidates();
+                    break;
+                case ScriptSectionKind.Quests:
+                    source = QuestCandidates();
+                    break;
+                default:
+                    return new List<StructureCandidate>();
+            }
+
+            HashSet<string> existing = project.SectionValues(section);
+
+            if (existing.Count == 0) return source;
+
+            return source.Where(x => !existing.Contains(x.Text)).ToList();
+        }
+
+        private List<StructureCandidate> RecipeCandidates()
+        {
+            if (_recipeCandidates != null) return _recipeCandidates;
+
+            _recipeCandidates = new List<StructureCandidate>();
+
+            try
+            {
+                var recipes = NonEmpty(Envir.Main?.RecipeInfoList, Envir.Edit?.RecipeInfoList);
+
+                if (recipes != null)
+                {
+                    foreach (var recipe in recipes.OrderBy(x => x.Item?.Info?.Name))
+                    {
+                        if (recipe.Item?.Info == null || recipe.Ingredients == null || recipe.Ingredients.Count == 0) continue;
+
+                        string name = recipe.Item.Info.Name;
+                        string ingredients = string.Join("，", recipe.Ingredients
+                            .Where(x => x?.Info != null)
+                            .Select(x => x.Info.Name + "×" + x.Count));
+
+                        _recipeCandidates.Add(new StructureCandidate(name, ingredients, name));
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            return _recipeCandidates;
+        }
+
+        private List<StructureCandidate> TypeCandidates()
+        {
+            if (_typeCandidates != null) return _typeCandidates;
+
+            _typeCandidates = new List<StructureCandidate>();
+
+            foreach (ItemType type in Enum.GetValues(typeof(ItemType)))
+            {
+                if (type == ItemType.Nothing) continue;
+
+                string value = ((int)type).ToString(CultureInfo.InvariantCulture);
+                _typeCandidates.Add(new StructureCandidate(value, type.ToString(), value));
+            }
+
+            return _typeCandidates;
+        }
+
+        private List<StructureCandidate> ItemCandidates()
+        {
+            if (_itemCandidates != null) return _itemCandidates;
+
+            _itemCandidates = new List<StructureCandidate>();
+
+            foreach (string name in ItemNames())
+                _itemCandidates.Add(new StructureCandidate(name, string.Empty, name));
+
+            return _itemCandidates;
+        }
+
+        /// <summary>
+        /// The running world (Main) holds the recipes; the edit world (Edit) never loads them. Take
+        /// whichever list actually has data.
+        /// </summary>
+        private static List<T> NonEmpty<T>(List<T> first, List<T> second)
+        {
+            if (first != null && first.Count > 0) return first;
+
+            return second;
+        }
+
+        private List<string> ItemNames()
+        {
+            if (_itemNames != null) return _itemNames;
+
+            _itemNames = new List<string>();
+
+            try
+            {
+                var items = NonEmpty(Envir.Main?.ItemInfoList, Envir.Edit?.ItemInfoList);
+
+                if (items != null) _itemNames.AddRange(items.Select(x => x.Name).Where(x => x.Length > 0));
+            }
+            catch (Exception)
+            {
+            }
+
+            _itemNames.Sort(StringComparer.OrdinalIgnoreCase);
+            return _itemNames;
+        }
+
+        private List<StructureCandidate> QuestCandidates()
+        {
+            if (_questCandidates != null) return _questCandidates;
+
+            _questCandidates = new List<StructureCandidate>();
+
+            try
+            {
+                var quests = NonEmpty(Envir.Main?.QuestInfoList, Envir.Edit?.QuestInfoList);
+
+                if (quests != null)
+                {
+                    foreach (var quest in quests.OrderBy(x => x.Index))
+                    {
+                        string value = quest.Index.ToString(CultureInfo.InvariantCulture);
+                        _questCandidates.Add(new StructureCandidate(value, quest.Name, value));
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            return _questCandidates;
+        }
+
+        private static string SectionHint(ScriptSectionKind section)
+        {
+            switch (section)
+            {
+                case ScriptSectionKind.Types:
+                case ScriptSectionKind.UsedTypes:
+                    return GameLanguage.Get("One item type number per line.");
+                case ScriptSectionKind.Trade:
+                    return GameLanguage.Get("Item name, optionally followed by a count.");
+                case ScriptSectionKind.Recipe:
+                    return GameLanguage.Get("Item name produced by the recipe.");
+                case ScriptSectionKind.Quests:
+                    return GameLanguage.Get("Quest number per line: positive offers it here, negative turns it in here.");
+                case ScriptSectionKind.Speech:
+                    return GameLanguage.Get("Speech number per line.");
+                default:
+                    return GameLanguage.Get("No keyword here");
+            }
+        }
+
+        private sealed class StructureCandidate
+        {
+            public readonly string Label;
+            public readonly string Description;
+            public readonly string Text;
+
+            public StructureCandidate(string label, string description, string text)
+            {
+                Label = label;
+                Description = description;
+                Text = text;
+            }
+        }
+
         private sealed class PaletteEntry
         {
             public readonly ScriptKeyword Keyword;
+            public readonly StructureCandidate Candidate;
+            private readonly string _hint;
 
-            public PaletteEntry(ScriptKeyword keyword)
+            public PaletteEntry(ScriptKeyword keyword, string hint = null)
             {
                 Keyword = keyword;
+                _hint = hint;
+            }
+
+            public PaletteEntry(StructureCandidate candidate)
+            {
+                Candidate = candidate;
             }
 
             public override string ToString()
             {
-                if (Keyword == null) return GameLanguage.Get("No keyword here");
+                if (Candidate != null)
+                {
+                    return Candidate.Description.Length > 0
+                        ? Candidate.Label + "   " + Candidate.Description
+                        : Candidate.Label;
+                }
+
+                if (Keyword == null) return _hint ?? GameLanguage.Get("No keyword here");
 
                 return Keyword.Name + "   " + GameLanguage.Get(Keyword.Description);
             }

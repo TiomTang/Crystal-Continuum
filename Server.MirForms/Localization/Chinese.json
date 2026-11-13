@@ -15131,5 +15131,205 @@
   "Unreferenced": {
     "Source": "Unreferenced",
     "Text": "未引用"
+  },
+  "One item type number per line.": {
+    "Source": "One item type number per line.",
+    "Text": "一行一个物品种类编号。"
+  },
+  "Item name, optionally followed by a count.": {
+    "Source": "Item name, optionally followed by a count.",
+    "Text": "一行一个物品名，后面可以跟数量：物品名 数量。"
+  },
+  "Item name produced by the recipe.": {
+    "Source": "Item name produced by the recipe.",
+    "Text": "一行一个配方产物名。"
+  },
+  "Quest number per line, a negative number removes it.": {
+    "Source": "Quest number per line, a negative number removes it.",
+    "Text": "一行一个任务编号，负数表示移除。"
+  },
+  "Speech number per line.": {
+    "Source": "Speech number per line.",
+    "Text": "一行一个对白编号。"
+  },
+  "Section": {
+    "Source": "Section",
+    "Text": "数据段"
+  },
+  "Insert a new page.": {
+    "Source": "Insert a new page.",
+    "Text": "插入一个新页面。"
+  },
+  "Start a condition block.": {
+    "Source": "Start a condition block.",
+    "Text": "开始一段条件判断。"
+  },
+  "Text the NPC says.": {
+    "Source": "Text the NPC says.",
+    "Text": "NPC 说的话。"
+  },
+  "Actions that run when the checks pass.": {
+    "Source": "Actions that run when the checks pass.",
+    "Text": "条件通过后执行的动作。"
+  },
+  "Text when the checks fail.": {
+    "Source": "Text when the checks fail.",
+    "Text": "条件不通过时说的话。"
+  },
+  "Actions when the checks fail.": {
+    "Source": "Actions when the checks fail.",
+    "Text": "条件不通过时执行的动作。"
+  },
+  "Item type numbers this NPC works with.": {
+    "Source": "Item type numbers this NPC works with.",
+    "Text": "这个 NPC 会处理的物品种类编号。"
+  },
+  "Goods this NPC sells.": {
+    "Source": "Goods this NPC sells.",
+    "Text": "这个 NPC 出售的物品。"
+  },
+  "Items this NPC can craft.": {
+    "Source": "Items this NPC can craft.",
+    "Text": "这个 NPC 能制作的物品。"
+  },
+  "Quests this NPC handles.": {
+    "Source": "Quests this NPC handles.",
+    "Text": "这个 NPC 负责的任务。"
+  },
+  "Add Section": {
+    "Source": "Add Section",
+    "Text": "添加数据段"
+  },
+  "No structure here": {
+    "Source": "No structure here",
+    "Text": "此处不插结构内容"
+  },
+  "Insert an input request page.": {
+    "Source": "Insert an input request page.",
+    "Text": "插入一个输入请求页。"
+  },
+  "Entry page of the script.": {
+    "Source": "Entry page of the script.",
+    "Text": "脚本入口页。"
+  },
+  "Open the buy panel with the goods listed in [Trade].": {
+    "Source": "Open the buy panel with the goods listed in [Trade].",
+    "Text": "用 [Trade] 里的货物打开购买面板。"
+  },
+  "Open the buy panel and the sell panel together.": {
+    "Source": "Open the buy panel and the sell panel together.",
+    "Text": "同时打开购买与出售面板。"
+  },
+  "Open the sell panel.": {
+    "Source": "Open the sell panel.",
+    "Text": "打开出售面板。"
+  },
+  "Open the buy panel without asking for player goods.": {
+    "Source": "Open the buy panel without asking for player goods.",
+    "Text": "打开购买面板，不向玩家收货。"
+  },
+  "Open the buy panel and the sell panel without asking for player goods.": {
+    "Source": "Open the buy panel and the sell panel without asking for player goods.",
+    "Text": "同时打开购买与出售面板，不向玩家收货。"
+  },
+  "Open the buy back list.": {
+    "Source": "Open the buy back list.",
+    "Text": "打开买回列表。"
+  },
+  "Open the used goods panel.": {
+    "Source": "Open the used goods panel.",
+    "Text": "打开二手货面板。"
+  },
+  "Open the repair panel.": {
+    "Source": "Open the repair panel.",
+    "Text": "打开修理面板。"
+  },
+  "Open the special repair panel.": {
+    "Source": "Open the special repair panel.",
+    "Text": "打开特修面板。"
+  },
+  "Open the refine panel.": {
+    "Source": "Open the refine panel.",
+    "Text": "打开炼制面板。"
+  },
+  "Check the outcome of a refinement.": {
+    "Source": "Check the outcome of a refinement.",
+    "Text": "查看炼制结果。"
+  },
+  "Collect the refined item.": {
+    "Source": "Collect the refined item.",
+    "Text": "取出炼制好的物品。"
+  },
+  "Replace the wedding ring.": {
+    "Source": "Replace the wedding ring.",
+    "Text": "更换结婚戒指。"
+  },
+  "Open the storage panel.": {
+    "Source": "Open the storage panel.",
+    "Text": "打开仓库面板。"
+  },
+  "Open the consignment panel.": {
+    "Source": "Open the consignment panel.",
+    "Text": "打开寄售面板。"
+  },
+  "Open the market panel.": {
+    "Source": "Open the market panel.",
+    "Text": "打开市场面板。"
+  },
+  "Open the crafting panel with the recipes listed in [Recipe].": {
+    "Source": "Open the crafting panel with the recipes listed in [Recipe].",
+    "Text": "用 [Recipe] 里的配方打开制作面板。"
+  },
+  "Open the pearl shop.": {
+    "Source": "Open the pearl shop.",
+    "Text": "打开珍珠商店。"
+  },
+  "Ask the player to create a guild.": {
+    "Source": "Ask the player to create a guild.",
+    "Text": "请玩家创建行会。"
+  },
+  "Ask the player to request a castle war.": {
+    "Source": "Ask the player to request a castle war.",
+    "Text": "请玩家申请攻城。"
+  },
+  "Open the guild territory page.": {
+    "Source": "Open the guild territory page.",
+    "Text": "打开行会领地页。"
+  },
+  "Open the send parcel dialog.": {
+    "Source": "Open the send parcel dialog.",
+    "Text": "打开寄件对话。"
+  },
+  "Collect a waiting parcel.": {
+    "Source": "Collect a waiting parcel.",
+    "Text": "领取待收包裹。"
+  },
+  "Open the awakening panel.": {
+    "Source": "Open the awakening panel.",
+    "Text": "打开觉醒面板。"
+  },
+  "Open the disassemble panel.": {
+    "Source": "Open the disassemble panel.",
+    "Text": "打开分解面板。"
+  },
+  "Open the downgrade panel.": {
+    "Source": "Open the downgrade panel.",
+    "Text": "打开降级面板。"
+  },
+  "Open the reset panel.": {
+    "Source": "Open the reset panel.",
+    "Text": "打开重置面板。"
+  },
+  "Ask the player to create a hero.": {
+    "Source": "Ask the player to create a hero.",
+    "Text": "请玩家创建英雄。"
+  },
+  "Open the hero management page.": {
+    "Source": "Open the hero management page.",
+    "Text": "打开英雄管理页。"
+  },
+  "Quest number per line: positive offers it here, negative turns it in here.": {
+    "Source": "Quest number per line: positive offers it here, negative turns it in here.",
+    "Text": "一行一个任务编号：正数表示在本 NPC 接取，负数表示在本 NPC 交付。"
   }
 }
