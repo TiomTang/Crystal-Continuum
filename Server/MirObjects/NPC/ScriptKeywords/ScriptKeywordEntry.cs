@@ -40,6 +40,39 @@ namespace Server.MirObjects
         Variable,
     }
 
+    /// <summary>
+    /// How a line puts a button next to the NPC text. The loader collects the buttons and the editor
+    /// checks that the page they point at exists, so both read this instead of listing the actions.
+    /// </summary>
+    public enum ScriptButtonKind
+    {
+        None,
+
+        /// <summary>The first argument names the page.</summary>
+        Page,
+
+        /// <summary>The second argument names the page.</summary>
+        DelayedPage,
+
+        /// <summary>The first argument names the page, and the button sits with the plain buttons.</summary>
+        Roll,
+    }
+
+    /// <summary>
+    /// What the first data argument of a line names, so a check can ask the running server whether it
+    /// exists. The editor validates against these instead of keeping a list of action names.
+    /// </summary>
+    public enum ScriptArgumentKind
+    {
+        None,
+
+        /// <summary>A skill name.</summary>
+        Spell,
+
+        /// <summary>A map file name.</summary>
+        Map,
+    }
+
     /// <summary>Result of matching one script line against the keyword table.</summary>
     public enum ScriptParseOutcome
     {
@@ -61,13 +94,16 @@ namespace Server.MirObjects
     /// else has to be kept in sync by hand.
     /// </para>
     /// </summary>
-    public sealed class ScriptKeyword
+    public sealed class ScriptKeywordEntry
     {
-        public ScriptKeyword(string name, ScriptKeywordKind kind, ScriptKeywordCategory category, string usage,
+        public ScriptKeywordEntry(string name, ScriptKeywordKind kind, ScriptKeywordCategory category, string usage,
             string description, int minParts, Func<ScriptParseContext, ScriptParseOutcome> handler,
-            CheckType? check = null, ActionType? action = null, Func<ScriptExecuteContext, ScriptOutcome> executor = null,
-            Func<ScriptExecuteContext, ScriptOutcome> monsterExecutor = null, Func<ScriptExecuteContext, string> valueExecutor = null)
+            ScriptCheckKind? check = null, ScriptActionKind? action = null, Func<ScriptExecuteContext, ScriptOutcome> executor = null,
+            Func<ScriptExecuteContext, ScriptOutcome> monsterExecutor = null, Func<ScriptExecuteContext, string> valueExecutor = null,
+            ScriptButtonKind button = ScriptButtonKind.None, ScriptArgumentKind argument = ScriptArgumentKind.None)
         {
+            Button = button;
+            Argument = argument;
             Check = check;
             Action = action;
             Executor = executor;
@@ -104,10 +140,10 @@ namespace Server.MirObjects
         public Func<ScriptParseContext, ScriptParseOutcome> Handler { get; }
 
         /// <summary>The check this keyword produces, which is also the key of its executor.</summary>
-        public CheckType? Check { get; }
+        public ScriptCheckKind? Check { get; }
 
         /// <summary>The action this keyword produces.</summary>
-        public ActionType? Action { get; }
+        public ScriptActionKind? Action { get; }
 
         /// <summary>
         /// Runs the keyword. Generated from the old switch in NPCSegment, so one entry now carries the
@@ -119,6 +155,12 @@ namespace Server.MirObjects
         /// Only set for the handful of actions that behave differently when a monster runs the script.
         /// </summary>
         public Func<ScriptExecuteContext, ScriptOutcome> MonsterExecutor { get; }
+
+        /// <summary>Set on the actions that open a button, so the loader and the editor agree.</summary>
+        public ScriptButtonKind Button { get; }
+
+        /// <summary>What the first data argument names, when the editor can check that it exists.</summary>
+        public ScriptArgumentKind Argument { get; }
 
         /// <summary>Resolves a &lt;$VALUE&gt; placeholder to the text that replaces it.</summary>
         public Func<ScriptExecuteContext, string> ValueExecutor { get; }

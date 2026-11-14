@@ -12,9 +12,8 @@ using Timer = Server.MirEnvir.Timer;
 namespace Server.MirObjects
 {
     /// <summary>
-    /// Executors for #ACT actions, moved out of the switch in NPCSegment without changing a statement.
-    /// The switch break became the end of a do/while(false) block, so break still moves on to the next
-    /// action, while the old bare return now reports Abort and stops the list.
+    /// What each #ACT action does. Keyed by ScriptActionKind, registered on the entry in
+    /// ScriptActionCatalog; Pass moves on to the next action, Fail keeps going, Abort stops the list.
     /// </summary>
     public partial class NPCSegment
     {
@@ -2565,7 +2564,7 @@ namespace Server.MirObjects
             }
 
             /* //mobs have no real "delayed" npc code so not added this yet
-            case ActionType.Goto:
+            case ScriptActionKind.Goto:
             DelayedAction action = new DelayedAction(DelayedType.NPC, -1, player.NPCID, "[" + param[0] + "]");
             player.ActionList.Add(action);
                 break;

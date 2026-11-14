@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Server.MirEnvir;
+using Server.MirObjects;
 
 namespace Server.Database
 {
@@ -151,30 +152,30 @@ namespace Server.Database
         private string RewriteNpc(string text)
         {
             // Only executable sections contain commands. Dialogue can look like a command too.
-            string mode = string.Empty;
+            ScriptBlockKind mode = ScriptBlockKind.Page;
             bool page = false;
             return RewriteLines(text, line =>
             {
                 if (line.StartsWith('[') && (line.EndsWith(']') || (line.StartsWith("[@") && line.Contains(']'))))
                 {
                     page = line.StartsWith("[@");
-                    mode = string.Empty;
+                    mode = ScriptBlockKind.Page;
                     return line;
                 }
                 if (!page) return line;
                 if (line.StartsWith('#'))
                 {
-                    mode = "#" + line[1..].ToUpperInvariant().Trim().Split(' ')[0];
+                    mode = ScriptBlockCatalog.TryParse(line, out ScriptBlockKind tag) ? tag : ScriptBlockKind.Page;
                     return line;
                 }
                 var tokens = Regex.Matches(line.TrimEnd(), @"[^ ]+");
                 if (tokens.Count == 0 || line.StartsWith(';')) return line;
                 string command = tokens[0].Value.ToUpperInvariant();
-                if (mode == "#IF" && command == "CHECKEXACTMON" && tokens.Count >= 5)
+                if (mode == ScriptBlockKind.Check && command == "CHECKEXACTMON" && tokens.Count >= 5)
                     return ReplaceToken(line, 1, compact: true);
-                if (mode == "#IF" && command == "CHECKPET" && tokens.Count >= 2)
+                if (mode == ScriptBlockKind.Check && command == "CHECKPET" && tokens.Count >= 2)
                     return ReplaceToken(line, 1);
-                if (mode == "#ACT" || mode == "#ELSEACT")
+                if (mode == ScriptBlockKind.Act || mode == ScriptBlockKind.ElseAct)
                 {
                     if ((command == "MONGEN" || command == "GIVEPET") && tokens.Count >= 2)
                         return ReplaceToken(line, 1, compact: true);

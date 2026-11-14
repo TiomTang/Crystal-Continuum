@@ -6,28 +6,6 @@ using Server.MirObjects;
 
 namespace Server.MirForms.Scripts
 {
-    public enum ScriptBlockKind
-    {
-        Page,
-        Check,
-        Say,
-        Act,
-        ElseSay,
-        ElseAct,
-    }
-
-    /// <summary>Sections that carry data for the NPC, not clickable pages.</summary>
-    public enum ScriptSectionKind
-    {
-        None,
-        Types,
-        UsedTypes,
-        Trade,
-        Recipe,
-        Quests,
-        Speech,
-    }
-
     public sealed class ScriptBlock
     {
         public ScriptBlockKind Kind;
@@ -70,19 +48,6 @@ namespace Server.MirForms.Scripts
         }
     }
 
-    /// <summary>One data section: the header the loader matches, plus the kind the checks switch on.</summary>
-    public sealed class ScriptSectionInfo
-    {
-        public readonly ScriptSectionKind Kind;
-        public readonly string Key;
-
-        public ScriptSectionInfo(ScriptSectionKind kind, string key)
-        {
-            Kind = kind;
-            Key = key;
-        }
-    }
-
     /// <summary>
     /// Line model of one NPC script file: pages, blocks, the caret context and the rule checks the
     /// editor runs before the engine parser sees the buffer.
@@ -91,55 +56,20 @@ namespace Server.MirForms.Scripts
     {
         private static readonly Regex ButtonPattern = new Regex(@"<[^<>]*?/(@[A-Za-z0-9_\-]+)", RegexOptions.Compiled);
         private static readonly Regex ValuePattern = new Regex(@"<\$([^>]+)>", RegexOptions.Compiled);
-        /// <summary>
-        /// Data sections the loader understands. The parser, the palette and the checks all read this
-        /// list, so a section added here is offered, parsed and validated without touching three places.
-        /// </summary>
-        public static readonly ScriptSectionInfo[] SectionCatalog =
+        private static readonly HashSet<string> KnownTags = BuildKnownTags();
+
+        private static HashSet<string> BuildKnownTags()
         {
-            new ScriptSectionInfo(ScriptSectionKind.Types, NPCScript.TypeKey),
-            new ScriptSectionInfo(ScriptSectionKind.UsedTypes, NPCScript.UsedTypeKey),
-            new ScriptSectionInfo(ScriptSectionKind.Trade, NPCScript.TradeKey),
-            new ScriptSectionInfo(ScriptSectionKind.Recipe, NPCScript.RecipeKey),
-            new ScriptSectionInfo(ScriptSectionKind.Quests, NPCScript.QuestKey),
-            new ScriptSectionInfo(ScriptSectionKind.Speech, NPCScript.SpeechKey),
-        };
+            // INCLUDE and INSERT are read by the loader before a page is split, so they never reach
+            // ParseSegment and have no block of their own.
+            var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        private static readonly Dictionary<string, ScriptSectionKind> SectionKeys = BuildSectionKeys();
+            foreach (ScriptDirectiveEntry directive in ScriptDirectiveCatalog.Entries) tags.Add(directive.Tag.Substring(1));
 
-        private static Dictionary<string, ScriptSectionKind> BuildSectionKeys()
-        {
-            var keys = new Dictionary<string, ScriptSectionKind>(StringComparer.OrdinalIgnoreCase);
+            foreach (ScriptBlockEntry tag in ScriptBlockCatalog.Entries) tags.Add(tag.Text.Substring(1));
 
-            foreach (ScriptSectionInfo info in SectionCatalog) keys[info.Key] = info.Kind;
-
-            return keys;
+            return tags;
         }
-
-        private static readonly HashSet<string> KnownTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "IF", "SAY", "ACT", "ELSESAY", "ELSEACT", "INCLUDE", "INSERT",
-        };
-
-        private static readonly HashSet<string> GotoKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "GOTO", "GROUPGOTO", "ROLLDIE", "ROLLYUT",
-        };
-
-        private static readonly HashSet<string> DelayedGotoKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "TIMERECALL", "TIMERECALLGROUP", "DELAYGOTO",
-        };
-
-        private static readonly HashSet<string> SpellActions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "GIVESKILL", "REMOVESKILL", "HEROGIVESKILL",
-        };
-
-        private static readonly HashSet<string> MapActions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "MOVE", "INSTANCEMOVE",
-        };
 
         public string[] Lines = new string[0];
         public readonly List<ScriptBlock> Blocks = new List<ScriptBlock>();
@@ -165,9 +95,11 @@ namespace Server.MirForms.Scripts
 
                     current = null;
 
-                    if (SectionKeys.TryGetValue(trimmed, out ScriptSectionKind section))
+                    ScriptSectionEntry section = ScriptSectionCatalog.Find(trimmed);
+
+                    if (section != null)
                     {
-                        page = new ScriptPageInfo { Key = trimmed, Line = i + 1, IsSection = true, Section = section };
+                        page = new ScriptPageInfo { Key = trimmed, Line = i + 1, IsSection = true, Section = section.Kind };
                         project.Pages.Add(page);
                         project.Sections.Add(page);
                         continue;
@@ -181,29 +113,10 @@ namespace Server.MirForms.Scripts
 
                 if (!trimmed.StartsWith("#")) continue;
 
-                string tag = trimmed.Substring(1).Split(' ', '\t')[0].ToUpperInvariant();
+                string tag = trimmed.Substring(1).Split(' ', '\t')[0];
                 ScriptBlockKind kind;
 
-                switch (tag)
-                {
-                    case "IF":
-                        kind = ScriptBlockKind.Check;
-                        break;
-                    case "SAY":
-                        kind = ScriptBlockKind.Say;
-                        break;
-                    case "ACT":
-                        kind = ScriptBlockKind.Act;
-                        break;
-                    case "ELSESAY":
-                        kind = ScriptBlockKind.ElseSay;
-                        break;
-                    case "ELSEACT":
-                        kind = ScriptBlockKind.ElseAct;
-                        break;
-                    default:
-                        continue;
-                }
+                if (!ScriptBlockCatalog.TryParse(tag, out kind)) continue;
 
                 if (current != null) current.EndLine = i;
 
@@ -212,7 +125,7 @@ namespace Server.MirForms.Scripts
                     Kind = kind,
                     StartLine = i + 1,
                     EndLine = project.Lines.Length,
-                    Tag = "#" + tag,
+                    Tag = ScriptBlockCatalog.Tag(kind),
                     PageKey = page == null ? string.Empty : page.Key,
                 };
 
@@ -503,7 +416,7 @@ namespace Server.MirForms.Scripts
 
             if (parts[0].StartsWith(";") || parts[0].StartsWith("//")) return;
 
-            ScriptKeyword keyword;
+            ScriptKeywordEntry keyword;
 
             bool found = block.Kind == ScriptBlockKind.Check
                 ? ScriptKeywordRegistry.TryGetCheck(parts[0], out keyword)
@@ -532,12 +445,12 @@ namespace Server.MirForms.Scripts
 
             if (rules == null) return;
 
-            if (SpellActions.Contains(keyword.Name) && parts.Length > 1 && rules.SpellExists != null && !rules.SpellExists(parts[1]))
+            if (keyword.Argument == ScriptArgumentKind.Spell && parts.Length > 1 && rules.SpellExists != null && !rules.SpellExists(parts[1]))
             {
                 issues.Add(new ScriptIssue { Line = line, Message = "引擎不认识这个技能：" + parts[1] });
             }
 
-            if (MapActions.Contains(keyword.Name) && parts.Length > 1 && rules.MapExists != null && !rules.MapExists(parts[1]))
+            if (keyword.Argument == ScriptArgumentKind.Map && parts.Length > 1 && rules.MapExists != null && !rules.MapExists(parts[1]))
             {
                 issues.Add(new ScriptIssue { Line = line, Message = "找不到这个地图：" + parts[1] });
             }
@@ -563,10 +476,14 @@ namespace Server.MirForms.Scripts
 
             string targetKey = null;
 
-            if (GotoKeywords.Contains(parts[0]) && parts.Length > 1)
-                targetKey = parts[1];
-            else if (DelayedGotoKeywords.Contains(parts[0]) && parts.Length > 2)
+            ScriptKeywordEntry action = ScriptActionCatalog.Find(parts[0]);
+
+            if (action == null) return;
+
+            if (action.Button == ScriptButtonKind.DelayedPage && parts.Length > 2)
                 targetKey = parts[2];
+            else if ((action.Button == ScriptButtonKind.Page || action.Button == ScriptButtonKind.Roll) && parts.Length > 1)
+                targetKey = parts[1];
 
             if (targetKey == null || targetKey.StartsWith("#")) return;
 
@@ -587,7 +504,7 @@ namespace Server.MirForms.Scripts
 
                 if (paren >= 0) name = name.Substring(0, paren) + "()";
 
-                ScriptKeyword keyword;
+                ScriptKeywordEntry keyword;
 
                 if (ScriptKeywordRegistry.TryGetVariable(name, out keyword)) continue;
                 if (ScriptKeywordRegistry.TryGetMonsterVariable(name, out keyword)) continue;

@@ -10,10 +10,9 @@ using Timer = Server.MirEnvir.Timer;
 namespace Server.MirObjects
 {
     /// <summary>
-    /// Executors for #IF conditions. Every body was moved out of the switch in NPCSegment without
-    /// changing a statement: the switch break became the end of a do/while(false) block, so the control
-    /// flow is identical, and the old return true now reports Abort. Player-only checks return Pass when
-    /// there is no player, which is what the old monster switch did by having no case for them.
+    /// What each #IF condition does. Keyed by ScriptCheckKind, registered on the entry in
+    /// ScriptCheckCatalog; player-only checks return Pass when there is no player, which is what the
+    /// engine used to get by having no monster case for them.
     /// </summary>
     public partial class NPCSegment
     {

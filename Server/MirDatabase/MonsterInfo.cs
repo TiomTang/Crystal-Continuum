@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using Server.MirEnvir;
+using Server.MirObjects;
 
 namespace Server.MirDatabase
 {
@@ -503,7 +504,7 @@ namespace Server.MirDatabase
                 lines.AddRange(newLines);
             }
 
-            lines.RemoveAll(str => str.ToUpper().StartsWith("#INSERT"));
+            lines.RemoveAll(str => ScriptDirectiveCatalog.Is(str, ScriptDirectiveKind.Insert));
 
             return lines;
         }

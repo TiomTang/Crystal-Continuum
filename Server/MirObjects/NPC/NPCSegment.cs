@@ -181,7 +181,7 @@ namespace Server.MirObjects
         {
             if (string.IsNullOrEmpty(name) || name.IndexOf('(') >= 0) return;
 
-            ScriptKeyword keyword;
+            ScriptKeywordEntry keyword;
 
             if (ScriptKeywordRegistry.TryGetVariable(name, out keyword)) return;
             if (ScriptKeywordRegistry.TryGetMonsterVariable(name, out keyword)) return;
@@ -258,7 +258,7 @@ namespace Server.MirObjects
         private string RunValue(PlayerObject player, MonsterObject monster, string innerMatch, Match varMatch,
             Match oneValMatch, Match twoValMatch)
         {
-            ScriptKeyword keyword;
+            ScriptKeywordEntry keyword;
 
             bool found = monster != null
                 ? ScriptKeywordRegistry.TryGetMonsterVariable(innerMatch, out keyword)

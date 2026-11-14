@@ -61,7 +61,7 @@ namespace Server.MirForms.Scripts
         private readonly ToolStripStatusLabel _statusText = new ToolStripStatusLabel();
         private readonly ToolStripStatusLabel _statusIssues = new ToolStripStatusLabel();
         private readonly System.Windows.Forms.Timer _idleTimer = new System.Windows.Forms.Timer { Interval = 700 };
-        private readonly List<ScriptKeyword> _paletteSource = new List<ScriptKeyword>();
+        private readonly List<ScriptKeywordEntry> _paletteSource = new List<ScriptKeywordEntry>();
         private readonly List<StructureCandidate> _structureCandidates = new List<StructureCandidate>();
         private readonly List<StructureCandidate> _valueCandidates = new List<StructureCandidate>();
         private List<string> _itemNames;
@@ -564,7 +564,7 @@ namespace Server.MirForms.Scripts
                 _palette.Items.Add(entry);
             }
 
-            foreach (ScriptKeyword keyword in _paletteSource)
+            foreach (ScriptKeywordEntry keyword in _paletteSource)
             {
                 var entry = new PaletteEntry(keyword);
 
@@ -651,7 +651,7 @@ namespace Server.MirForms.Scripts
         {
             if (entry == null || entry.Keyword == null) return;
 
-            ScriptKeyword keyword = entry.Keyword;
+            ScriptKeywordEntry keyword = entry.Keyword;
             bool variable = keyword.Kind == ScriptKeywordKind.Variable;
 
             string usage = variable
@@ -1210,11 +1210,11 @@ namespace Server.MirForms.Scripts
 
         private sealed class PaletteEntry
         {
-            public readonly ScriptKeyword Keyword;
+            public readonly ScriptKeywordEntry Keyword;
             public readonly StructureCandidate Candidate;
             private readonly string _hint;
 
-            public PaletteEntry(ScriptKeyword keyword, string hint = null)
+            public PaletteEntry(ScriptKeywordEntry keyword, string hint = null)
             {
                 Keyword = keyword;
                 _hint = hint;

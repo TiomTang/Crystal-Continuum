@@ -13,9 +13,8 @@ using Timer = Server.MirEnvir.Timer;
 namespace Server.MirObjects
 {
     /// <summary>
-    /// Executors for &lt;$VALUE&gt; replacements. Each body was moved out of the switch in ReplaceValue
-    /// without changing a statement: break leaves the do/while(false) block and the value built so far is
-    /// returned, while an explicit return inside a body still answers directly.
+    /// What each &lt;$VALUE&gt; replacement returns. The player table and the monster table both register
+    /// these from ScriptValueCatalog; a body that answers an empty string means "no value".
     /// </summary>
     public partial class NPCSegment
     {

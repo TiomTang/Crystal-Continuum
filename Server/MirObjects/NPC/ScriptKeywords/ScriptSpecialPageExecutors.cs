@@ -1,3 +1,4 @@
+using System;
 using Server.MirDatabase;
 using Server.MirEnvir;
 using S = ServerPackets;
@@ -6,15 +7,10 @@ namespace Server.MirObjects
 {
     /// <summary>
     /// What the engine does on its own when a page key asks for a panel. Each handler is registered on
-    /// the page in ScriptSpecialPages, so the editor offers exactly the pages the loader reacts to.
+    /// the page in ScriptSpecialPageCatalog, so the editor offers exactly the pages the loader reacts to.
     /// </summary>
     public partial class NPCScript
     {
-        private static string KeyOf(NPCPage page)
-        {
-            return page.Key.ToUpper();
-        }
-
         internal static void Special_Buy(NPCScript script, PlayerObject player, NPCPage page)
         {
             var sentGoods = new List<UserItem>(script.Goods);
@@ -37,7 +33,7 @@ namespace Server.MirObjects
 
             player.SendNPCGoods(sentGoods, script.PriceRate(player), PanelType.Buy, Settings.GoodsHideAddedStats);
 
-            if (KeyOf(page) == BuySellKey)
+            if (string.Equals(page.Key, BuySellKey, StringComparison.OrdinalIgnoreCase))
             {
                 player.Enqueue(new S.NPCSell());
             }
@@ -52,7 +48,7 @@ namespace Server.MirObjects
 
             player.SendNPCGoods(sentGoods, script.PriceRate(player), PanelType.Buy, Settings.GoodsHideAddedStats);
 
-            if (KeyOf(page) == BuySellNewKey)
+            if (string.Equals(page.Key, BuySellNewKey, StringComparison.OrdinalIgnoreCase))
             {
                 player.Enqueue(new S.NPCSell());
             }

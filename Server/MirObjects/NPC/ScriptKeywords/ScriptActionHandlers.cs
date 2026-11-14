@@ -12,7 +12,7 @@ namespace Server.MirObjects
         private static readonly Regex FlagRegex = new Regex(@"\[(.*?)\]", RegexOptions.Compiled);
         private static readonly Regex VariableRegex = new Regex(@"[A-Z][0-9]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private static ScriptParseOutcome AddNameList(ScriptParseContext ctx, ActionType action, bool createFile)
+        private static ScriptParseOutcome AddNameList(ScriptParseContext ctx, ScriptActionKind action, bool createFile)
         {
             Match quoteMatch = QuoteRegex.Match(ctx.Line);
 
@@ -34,7 +34,7 @@ namespace Server.MirObjects
             return ScriptParseOutcome.Handled;
         }
 
-        private static ScriptParseOutcome AddQuotedMessage(ScriptParseContext ctx, ActionType action)
+        private static ScriptParseOutcome AddQuotedMessage(ScriptParseContext ctx, ScriptActionKind action)
         {
             Match quoteMatch = QuoteRegex.Match(ctx.Line);
 

@@ -310,7 +310,7 @@ namespace Server.MirObjects
 
             for (int i = 0; i < lines.Count; i++)
             {
-                if (!lines[i].ToUpper().StartsWith("#INSERT")) continue;
+                if (!ScriptDirectiveCatalog.Is(lines[i], ScriptDirectiveKind.Insert)) continue;
 
                 string[] split = lines[i].Split(' ');
 
@@ -326,7 +326,7 @@ namespace Server.MirObjects
                 lines.AddRange(newLines);
             }
 
-            lines.RemoveAll(str => str.ToUpper().StartsWith("#INSERT"));
+            lines.RemoveAll(str => ScriptDirectiveCatalog.Is(str, ScriptDirectiveKind.Insert));
 
             return lines;
         }
@@ -335,7 +335,7 @@ namespace Server.MirObjects
         {
             for (int i = 0; i < lines.Count; i++)
             {
-                if (!lines[i].ToUpper().StartsWith("#INCLUDE")) continue;
+                if (!ScriptDirectiveCatalog.Is(lines[i], ScriptDirectiveKind.Include)) continue;
 
                 string[] split = lines[i].Split(' ');
 
@@ -383,7 +383,7 @@ namespace Server.MirObjects
                 }
             }
 
-            lines.RemoveAll(str => str.ToUpper().StartsWith("#INCLUDE"));
+            lines.RemoveAll(str => ScriptDirectiveCatalog.Is(str, ScriptDirectiveKind.Include));
 
             return lines;
         }
@@ -455,7 +455,7 @@ namespace Server.MirObjects
                         nextPage = true;
                     }
 
-                    else if (nextLine.StartsWith("#IF"))
+                    else if (ScriptBlockCatalog.Is(nextLine, ScriptBlockKind.Check))
                     {
                         nextSection = true;
                     }
@@ -535,26 +535,29 @@ namespace Server.MirObjects
 
                 if (lines[i].StartsWith("#"))
                 {
-                    string[] action = lines[i].Remove(0, 1).ToUpper().Trim().Split(' ');
-                    switch (action[0])
+                    ScriptBlockKind kind;
+
+                    if (!ScriptBlockCatalog.TryParse(lines[i], out kind)) throw new NotImplementedException();
+
+                    switch (kind)
                     {
-                        case "IF":
+                        case ScriptBlockKind.Check:
                             currentSay = checks;
                             currentButtons = null;
                             continue;
-                        case "SAY":
+                        case ScriptBlockKind.Say:
                             currentSay = say;
                             currentButtons = buttons;
                             continue;
-                        case "ACT":
+                        case ScriptBlockKind.Act:
                             currentSay = acts;
                             currentButtons = gotoButtons;
                             continue;
-                        case "ELSESAY":
+                        case ScriptBlockKind.ElseSay:
                             currentSay = elseSay;
                             currentButtons = elseButtons;
                             continue;
-                        case "ELSEACT":
+                        case ScriptBlockKind.ElseAct:
                             currentSay = elseActs;
                             currentButtons = gotoButtons;
                             continue;
@@ -581,24 +584,20 @@ namespace Server.MirObjects
                     //Check if line has a goto command
                     var parts = lines[i].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-                    if (parts.Count() > 1)
-                        switch (parts[0].ToUpper())
+                    ScriptKeywordEntry action = parts.Length > 1 ? ScriptActionCatalog.Find(parts[0]) : null;
+
+                    if (action != null && action.Button != ScriptButtonKind.None)
+                    {
+                        int target = action.Button == ScriptButtonKind.DelayedPage ? 2 : 1;
+
+                        if (parts.Length > target)
                         {
-                            case "GOTO":
-                            case "GROUPGOTO":
-                                gotoButtons.Add(string.Format("[{0}]", parts[1].ToUpper()));
-                                break;
-                            case "TIMERECALL":
-                            case "DELAYGOTO":
-                            case "TIMERECALLGROUP":
-                                if (parts.Length > 2)
-                                    gotoButtons.Add(string.Format("[{0}]", parts[2].ToUpper()));
-                                break;
-                            case "ROLLDIE":
-                            case "ROLLYUT":
-                                buttons.Add(string.Format("[{0}]", parts[1].ToUpper()));
-                                break;
+                            string button = string.Format("[{0}]", parts[target].ToUpper());
+
+                            if (action.Button == ScriptButtonKind.Roll) buttons.Add(button);
+                            else gotoButtons.Add(button);
                         }
+                    }
                 }
 
                 currentSay.Add(lines[i].TrimEnd());
@@ -937,7 +936,7 @@ namespace Server.MirObjects
 
         private void ProcessSpecial(PlayerObject player, NPCPage page)
         {
-            ScriptSpecialPage special = ScriptSpecialPages.Find(page.Key);
+            ScriptSpecialPageEntry special = ScriptSpecialPageCatalog.Find(page.Key);
 
             if (special?.Executor == null) return;
 

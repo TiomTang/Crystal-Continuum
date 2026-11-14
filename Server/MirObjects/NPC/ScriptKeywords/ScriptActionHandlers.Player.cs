@@ -13,19 +13,19 @@ namespace Server.MirObjects
             string x = ctx.Parts.Length > 2 ? ctx.Parts[2] : "0";
             string y = ctx.Parts.Length > 3 ? ctx.Parts[3] : "0";
 
-            ctx.Acts.Add(new NPCActions(ActionType.Move, ctx.Parts[1], x, y));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.Move, ctx.Parts[1], x, y));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_InstanceMove(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.InstanceMove, ctx.Parts[1], ctx.Parts[2], ctx.Parts[3], ctx.Parts[4]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.InstanceMove, ctx.Parts[1], ctx.Parts[2], ctx.Parts[3], ctx.Parts[4]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_GroupRecall(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.GroupRecall));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GroupRecall));
             return ScriptParseOutcome.Handled;
         }
 
@@ -48,13 +48,13 @@ namespace Server.MirObjects
                 y = ctx.Parts.Length < 5 ? "0" : ctx.Parts[4];
             }
 
-            ctx.Acts.Add(new NPCActions(ActionType.GroupTeleport, ctx.Parts[1], instanceId, x, y));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GroupTeleport, ctx.Parts[1], instanceId, x, y));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_TeleportGT(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.TeleportGT));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.TeleportGT));
             return ScriptParseOutcome.Handled;
         }
 
@@ -62,55 +62,55 @@ namespace Server.MirObjects
 
         public static ScriptParseOutcome Act_GiveGold(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.GiveGold, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GiveGold, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_TakeGold(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.TakeGold, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.TakeGold, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_GiveGuildGold(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.GiveGuildGold, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GiveGuildGold, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_TakeGuildGold(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.TakeGuildGold, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.TakeGuildGold, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_GiveCredit(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.GiveCredit, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GiveCredit, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_TakeCredit(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.TakeCredit, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.TakeCredit, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_GivePearls(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.GivePearls, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GivePearls, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_TakePearls(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.TakePearls, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.TakePearls, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_TakeConquestGold(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.TakeConquestGold, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.TakeConquestGold, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
@@ -120,7 +120,7 @@ namespace Server.MirObjects
         {
             string count = ctx.Parts.Length < 3 ? string.Empty : ctx.Parts[2];
 
-            ctx.Acts.Add(new NPCActions(ActionType.GiveItem, ctx.Parts[1], count));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GiveItem, ctx.Parts[1], count));
             return ScriptParseOutcome.Handled;
         }
 
@@ -129,7 +129,7 @@ namespace Server.MirObjects
             string count = ctx.Parts.Length < 3 ? string.Empty : ctx.Parts[2];
             string durability = ctx.Parts.Length > 3 ? ctx.Parts[3] : string.Empty;
 
-            ctx.Acts.Add(new NPCActions(ActionType.TakeItem, ctx.Parts[1], count, durability));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.TakeItem, ctx.Parts[1], count, durability));
             return ScriptParseOutcome.Handled;
         }
 
@@ -137,7 +137,7 @@ namespace Server.MirObjects
         {
             string type = ctx.Parts.Length >= 2 ? ctx.Parts[1] : string.Empty;
 
-            ctx.Acts.Add(new NPCActions(ActionType.UnequipItem, type));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.UnequipItem, type));
             return ScriptParseOutcome.Handled;
         }
 
@@ -152,7 +152,7 @@ namespace Server.MirObjects
 
             string fileName = Path.Combine(Settings.DropPath, listPath);
 
-            ctx.Acts.Add(new NPCActions(ActionType.Drop, fileName));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.Drop, fileName));
             return ScriptParseOutcome.Handled;
         }
 
@@ -160,64 +160,64 @@ namespace Server.MirObjects
 
         public static ScriptParseOutcome Act_GiveExp(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.GiveExp, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GiveExp, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_GiveHP(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.GiveHP, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GiveHP, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_GiveMP(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.GiveMP, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GiveMP, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_ChangeLevel(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.ChangeLevel, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.ChangeLevel, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_SetPkPoint(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.SetPkPoint, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.SetPkPoint, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_ReducePkPoint(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.ReducePkPoint, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.ReducePkPoint, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_IncreasePkPoint(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.IncreasePkPoint, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.IncreasePkPoint, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_ChangeGender(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.ChangeGender));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.ChangeGender));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_ChangeClass(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.ChangeClass, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.ChangeClass, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_ChangeHair(ScriptParseContext ctx)
         {
             if (ctx.Parts.Length < 2)
-                ctx.Acts.Add(new NPCActions(ActionType.ChangeHair));
+                ctx.Acts.Add(new NPCActions(ScriptActionKind.ChangeHair));
             else
-                ctx.Acts.Add(new NPCActions(ActionType.ChangeHair, ctx.Parts[1]));
+                ctx.Acts.Add(new NPCActions(ScriptActionKind.ChangeHair, ctx.Parts[1]));
 
             return ScriptParseOutcome.Handled;
         }
@@ -229,7 +229,7 @@ namespace Server.MirObjects
             if (match.Success)
             {
                 string flagIndex = match.Groups[1].Captures[0].Value;
-                ctx.Acts.Add(new NPCActions(ActionType.Set, flagIndex, ctx.Parts[2]));
+                ctx.Acts.Add(new NPCActions(ScriptActionKind.Set, flagIndex, ctx.Parts[2]));
             }
 
             return ScriptParseOutcome.Handled;
@@ -239,19 +239,19 @@ namespace Server.MirObjects
         {
             string instanceId = ctx.Parts.Length < 3 ? "1" : ctx.Parts[2];
 
-            ctx.Acts.Add(new NPCActions(ActionType.Param1, ctx.Parts[1], instanceId));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.Param1, ctx.Parts[1], instanceId));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_Param2(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.Param2, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.Param2, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_Param3(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.Param3, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.Param3, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
@@ -266,7 +266,7 @@ namespace Server.MirObjects
                 valueToStore = quoteMatch.Groups[1].Captures[0].Value;
 
             if (match.Success)
-                ctx.Acts.Add(new NPCActions(ActionType.Mov, ctx.Parts[1], valueToStore));
+                ctx.Acts.Add(new NPCActions(ScriptActionKind.Mov, ctx.Parts[1], valueToStore));
 
             return ScriptParseOutcome.Handled;
         }
@@ -282,20 +282,20 @@ namespace Server.MirObjects
                 valueToStore = quoteMatch.Groups[1].Captures[0].Value;
 
             if (match.Success)
-                ctx.Acts.Add(new NPCActions(ActionType.Calc, "%" + ctx.Parts[1], ctx.Parts[2], valueToStore, ctx.Parts[1].Insert(1, "-")));
+                ctx.Acts.Add(new NPCActions(ScriptActionKind.Calc, "%" + ctx.Parts[1], ctx.Parts[2], valueToStore, ctx.Parts[1].Insert(1, "-")));
 
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_RefreshEffects(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.RefreshEffects));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.RefreshEffects));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_CanGainExp(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.CanGainExp, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.CanGainExp, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
@@ -305,13 +305,13 @@ namespace Server.MirObjects
         {
             string spellLevel = ctx.Parts.Length > 2 ? ctx.Parts[2] : "0";
 
-            ctx.Acts.Add(new NPCActions(ActionType.GiveSkill, ctx.Parts[1], spellLevel));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GiveSkill, ctx.Parts[1], spellLevel));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_RemoveSkill(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.RemoveSkill, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.RemoveSkill, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
@@ -322,19 +322,19 @@ namespace Server.MirObjects
             string petCount = ctx.Parts.Length > 2 ? ctx.Parts[2] : "1";
             string petLevel = ctx.Parts.Length > 3 ? ctx.Parts[3] : "0";
 
-            ctx.Acts.Add(new NPCActions(ActionType.GivePet, ctx.Parts[1], petCount, petLevel));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.GivePet, ctx.Parts[1], petCount, petLevel));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_RemovePet(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.RemovePet, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.RemovePet, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_ClearPets(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.ClearPets));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.ClearPets));
             return ScriptParseOutcome.Handled;
         }
 
@@ -342,19 +342,19 @@ namespace Server.MirObjects
 
         public static ScriptParseOutcome Act_ReviveHero(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.ReviveHero));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.ReviveHero));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_SealHero(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.SealHero));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.SealHero));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_DeleteHero(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.DeleteHero));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.DeleteHero));
             return ScriptParseOutcome.Handled;
         }
 
@@ -362,13 +362,13 @@ namespace Server.MirObjects
         {
             string spellLevel = ctx.Parts.Length > 2 ? ctx.Parts[2] : "0";
 
-            ctx.Acts.Add(new NPCActions(ActionType.HeroGiveSkill, ctx.Parts[1], spellLevel));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.HeroGiveSkill, ctx.Parts[1], spellLevel));
             return ScriptParseOutcome.Handled;
         }
 
         public static ScriptParseOutcome Act_HeroRemoveSkill(ScriptParseContext ctx)
         {
-            ctx.Acts.Add(new NPCActions(ActionType.HeroRemoveSkill, ctx.Parts[1]));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.HeroRemoveSkill, ctx.Parts[1]));
             return ScriptParseOutcome.Handled;
         }
     }

@@ -75,7 +75,7 @@ namespace Server.MirForms.Scripts
         {
             var rows = new List<StructureCandidate>();
 
-            foreach (ScriptSectionInfo info in ScriptProject.SectionCatalog)
+            foreach (ScriptSectionEntry info in ScriptSectionCatalog.Entries)
             {
                 rows.Add(new StructureCandidate(ScriptStructureGroup.Section, info.Key, Description(info.Kind), info.Key + "\r\n", true));
             }
@@ -95,7 +95,7 @@ namespace Server.MirForms.Scripts
             rows.Add(Page("[@NewPage]", GameLanguage.Get("Insert a new page."), NewPageText));
             rows.Add(Page("[@@NewPage]", GameLanguage.Get("Insert an input request page."), InputPageText));
 
-            foreach (ScriptSpecialPage page in ScriptSpecialPages.Entries)
+            foreach (ScriptSpecialPageEntry page in ScriptSpecialPageCatalog.Entries)
             {
                 rows.Add(Page(page.Key, GameLanguage.Get(page.Description), page.Key + "\r\n"));
             }
@@ -126,15 +126,15 @@ namespace Server.MirForms.Scripts
                 }
             }
 
-            rows.Add(Block("#IF", GameLanguage.Get("Start a condition block."), "#IF\r\n"));
+            rows.Add(Block(ScriptBlockKind.Check, GameLanguage.Get("Start a condition block.")));
 
-            if (!say) rows.Add(Block("#SAY", GameLanguage.Get("Text the NPC says."), "#SAY\r\n"));
+            if (!say) rows.Add(Block(ScriptBlockKind.Say, GameLanguage.Get("Text the NPC says.")));
 
-            if (!act) rows.Add(Block("#ACT", GameLanguage.Get("Actions that run when the checks pass."), "#ACT\r\n"));
+            if (!act) rows.Add(Block(ScriptBlockKind.Act, GameLanguage.Get("Actions that run when the checks pass.")));
 
-            if (say && !elseSay) rows.Add(Block("#ELSESAY", GameLanguage.Get("Text when the checks fail."), "#ELSESAY\r\n"));
+            if (say && !elseSay) rows.Add(Block(ScriptBlockKind.ElseSay, GameLanguage.Get("Text when the checks fail.")));
 
-            if (act && !elseAct) rows.Add(Block("#ELSEACT", GameLanguage.Get("Actions when the checks fail."), "#ELSEACT\r\n"));
+            if (act && !elseAct) rows.Add(Block(ScriptBlockKind.ElseAct, GameLanguage.Get("Actions when the checks fail.")));
         }
 
         /// <summary>
@@ -145,7 +145,7 @@ namespace Server.MirForms.Scripts
         {
             AddHeader(rows, "Sections");
 
-            foreach (ScriptSectionInfo info in ScriptProject.SectionCatalog)
+            foreach (ScriptSectionEntry info in ScriptSectionCatalog.Entries)
             {
                 ScriptPageInfo existing = project.Sections.Find(x => x.Section == info.Kind);
                 string description = Description(info.Kind);
@@ -193,9 +193,11 @@ namespace Server.MirForms.Scripts
             return new StructureCandidate(ScriptStructureGroup.Page, label, description, text, true);
         }
 
-        private static StructureCandidate Block(string label, string description, string text)
+        private static StructureCandidate Block(ScriptBlockKind kind, string description)
         {
-            return new StructureCandidate(ScriptStructureGroup.Block, label, description, text, false);
+            string tag = ScriptBlockCatalog.Tag(kind);
+
+            return new StructureCandidate(ScriptStructureGroup.Block, tag, description, tag + "\r\n", false);
         }
     }
 }

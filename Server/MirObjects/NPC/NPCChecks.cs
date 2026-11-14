@@ -2,10 +2,10 @@
 {
     public class NPCChecks
     {
-        public CheckType Type;
+        public ScriptCheckKind Type;
         public List<string> Params = new List<string>();
 
-        public NPCChecks(CheckType check, params string[] p)
+        public NPCChecks(ScriptCheckKind check, params string[] p)
         {
             Type = check;
 
@@ -14,57 +14,4 @@
         }
     }
 
-    public enum CheckType
-    {
-        IsAdmin,
-        Level,
-        CheckItem,
-        CheckGold,
-        CheckGuildGold,
-        CheckCredit,
-        CheckGender,
-        CheckClass,
-        CheckDay,
-        CheckHour,
-        CheckMinute,
-        CheckNameList,
-        CheckPkPoint,
-        CheckRange,
-        Check,
-        CheckHum,
-        CheckMon,
-        CheckExactMon,
-        Random,
-        Groupleader,
-        GroupCount,
-        GroupCheckNearby,
-        PetLevel,
-        PetCount,
-        CheckCalc,
-        InGuild,
-        CheckMap,
-        CheckQuest,
-        CheckRelationship,
-        CheckWeddingRing,
-        CheckPet,
-        HasBagSpace,
-        IsNewHuman,
-        CheckConquest,
-        AffordGuard,
-        AffordGate,
-        AffordWall,
-        AffordSiege,
-        CheckPermission,
-        ConquestAvailable,
-        ConquestOwner,
-        CheckGuildNameList,
-        CheckTimer,
-        HeroLevel,
-        CheckHeroClass,
-        CheckHeroGender,
-        CheckHeroItem,
-        HasGT,
-        CheckBuff,
-        CheckMapLight
-    }
 }
