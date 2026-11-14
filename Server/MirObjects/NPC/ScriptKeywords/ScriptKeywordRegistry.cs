@@ -108,6 +108,9 @@ namespace Server.MirObjects
 
             if (keyword.Handler == null)
             {
+                ScriptDiagnostics.Report(ScriptDiagnosticKind.MissingHandler, context, keyword.Name,
+                    string.Format("\"{0}\" has no parser", keyword.Name));
+
                 return ScriptParseOutcome.Unknown;
             }
 

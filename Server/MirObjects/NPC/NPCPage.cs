@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Collections.Generic;
 
 namespace Server.MirObjects
 {
@@ -20,24 +20,20 @@ namespace Server.MirObjects
 
         public string ArgumentParse(string key)
         {
-            if (key.StartsWith("[@_")) return key; //Default NPC page so doesn't use arguments in this way
+            ScriptPageKeyEntry entry = ScriptPageKeyCatalog.Find(key);
 
-            Regex r = new Regex(@"\((.*)\)");
+            // Automatic markers and input pages keep their arguments inside the key; only clickable
+            // pages split "…(a,b)" into Args and keep an empty "()" so the header still matches.
+            if (entry == null || !entry.UsesArguments) return key;
 
-            Match match = r.Match(key);
-            if (!match.Success) return key;
+            string[] args;
+            string normalized = ScriptPageKeyCatalog.SplitArguments(key, out args);
 
-            key = Regex.Replace(key, r.ToString(), "()");
+            if (args.Length == 0) return key;
 
-            string strValues = match.Groups[1].Value;
-            string[] arrValues = strValues.Split(',');
+            Args = new List<string>(args);
 
-            Args = new List<string>();
-
-            foreach (var t in arrValues)
-                Args.Add(t);
-
-            return key;
+            return normalized;
         }
     }
 }

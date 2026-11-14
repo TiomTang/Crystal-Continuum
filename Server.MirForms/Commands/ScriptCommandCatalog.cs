@@ -69,7 +69,7 @@ namespace Server
 
             foreach (SourceLine line in lines.ToArray())
             {
-                if (!ScriptDirectiveCatalog.Is(line.Text, ScriptDirectiveKind.Insert)) continue;
+                if (!ScriptDirectiveCatalog.Is(line.Text, ScriptDirectiveCatalog.Insert)) continue;
 
                 string[] split = line.Text.Split(' ');
                 if (split.Length < 2 || split[1].Length < 3) continue;

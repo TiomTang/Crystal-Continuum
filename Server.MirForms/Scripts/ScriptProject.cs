@@ -180,7 +180,7 @@ namespace Server.MirForms.Scripts
         {
             string trimmed = line.Trim();
 
-            if (trimmed.Length == 0 || trimmed.StartsWith(";") || trimmed.StartsWith("//")) return string.Empty;
+            if (trimmed.Length == 0 || ScriptLexer.IsComment(trimmed)) return string.Empty;
 
             return string.Join(" ", trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries));
         }
@@ -291,7 +291,7 @@ namespace Server.MirForms.Scripts
 
                     if (trimmed.Length == 0) continue;
 
-                    if (trimmed.StartsWith(";") || trimmed.StartsWith("//")) continue;
+                    if (ScriptLexer.IsComment(trimmed)) continue;
 
                     if (trimmed.StartsWith("#"))
                     {
@@ -303,7 +303,7 @@ namespace Server.MirForms.Scripts
                             {
                                 Line = i,
                                 IsError = true,
-                                Message = "引擎不认识的指令：#" + tag + "（加载时会抛异常）",
+                                Message = "引擎不认识的指令：#" + tag + "（这一行会被跳过）",
                             });
                         }
 
@@ -331,7 +331,7 @@ namespace Server.MirForms.Scripts
             {
                 string line = Lines[i - 1].Trim();
 
-                if (line.Length == 0 || line.StartsWith(";") || line.StartsWith("//")) continue;
+                if (line.Length == 0 || ScriptLexer.IsComment(line)) continue;
 
                 switch (section.Section)
                 {
@@ -414,7 +414,7 @@ namespace Server.MirForms.Scripts
 
             if (parts.Length == 0) return;
 
-            if (parts[0].StartsWith(";") || parts[0].StartsWith("//")) return;
+            if (ScriptLexer.IsComment(parts[0])) return;
 
             ScriptKeywordEntry keyword;
 

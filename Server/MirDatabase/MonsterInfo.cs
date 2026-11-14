@@ -504,7 +504,7 @@ namespace Server.MirDatabase
                 lines.AddRange(newLines);
             }
 
-            lines.RemoveAll(str => ScriptDirectiveCatalog.Is(str, ScriptDirectiveKind.Insert));
+            lines.RemoveAll(str => ScriptDirectiveCatalog.Is(str, ScriptDirectiveCatalog.Insert));
 
             return lines;
         }

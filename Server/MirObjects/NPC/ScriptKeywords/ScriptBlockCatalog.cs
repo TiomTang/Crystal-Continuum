@@ -14,16 +14,35 @@ namespace Server.MirObjects
         ElseAct,
     }
 
+    /// <summary>
+    /// What a block collects. Several tags can share a role, which is how a new tag is added without
+    /// teaching the segment parser a new destination.
+    /// </summary>
+    public enum ScriptBlockRole
+    {
+        Check,
+        Say,
+        Act,
+        ElseSay,
+        ElseAct,
+    }
+
     /// <summary>One block tag, as written in a script.</summary>
     public sealed class ScriptBlockEntry
     {
         public readonly ScriptBlockKind Kind;
         public readonly string Text;
+        public readonly ScriptBlockRole Role;
 
-        public ScriptBlockEntry(ScriptBlockKind kind, string text)
+        /// <summary>True when this tag starts a new segment inside a page.</summary>
+        public readonly bool SplitsSegment;
+
+        public ScriptBlockEntry(ScriptBlockKind kind, string text, ScriptBlockRole role, bool splitsSegment = false)
         {
             Kind = kind;
             Text = text;
+            Role = role;
+            SplitsSegment = splitsSegment;
         }
     }
 
@@ -35,11 +54,11 @@ namespace Server.MirObjects
     {
         public static readonly ScriptBlockEntry[] Entries =
         {
-            new ScriptBlockEntry(ScriptBlockKind.Check, "#IF"),
-            new ScriptBlockEntry(ScriptBlockKind.Say, "#SAY"),
-            new ScriptBlockEntry(ScriptBlockKind.Act, "#ACT"),
-            new ScriptBlockEntry(ScriptBlockKind.ElseSay, "#ELSESAY"),
-            new ScriptBlockEntry(ScriptBlockKind.ElseAct, "#ELSEACT"),
+            new ScriptBlockEntry(ScriptBlockKind.Check, "#IF", ScriptBlockRole.Check, true),
+            new ScriptBlockEntry(ScriptBlockKind.Say, "#SAY", ScriptBlockRole.Say),
+            new ScriptBlockEntry(ScriptBlockKind.Act, "#ACT", ScriptBlockRole.Act),
+            new ScriptBlockEntry(ScriptBlockKind.ElseSay, "#ELSESAY", ScriptBlockRole.ElseSay),
+            new ScriptBlockEntry(ScriptBlockKind.ElseAct, "#ELSEACT", ScriptBlockRole.ElseAct),
         };
 
         private static readonly Dictionary<string, ScriptBlockKind> Index = BuildIndex();
@@ -91,14 +110,22 @@ namespace Server.MirObjects
             return Index.TryGetValue(tag, out kind);
         }
 
-        /// <summary>True when the line starts with the tag, the way the loader splits segments.</summary>
+        /// <summary>
+        /// True when the line is exactly this block tag, with the leading '#' and ignoring indentation,
+        /// so a misspelled tag such as "#IFX" is left for the parser to report instead of splitting the
+        /// page the way "#IF" would.
+        /// </summary>
         public static bool Is(string line, ScriptBlockKind kind)
         {
             if (string.IsNullOrEmpty(line)) return false;
 
-            string text = Tag(kind);
+            string text = line.TrimStart();
 
-            return text.Length > 0 && line.StartsWith(text, StringComparison.OrdinalIgnoreCase);
+            if (text.Length == 0 || text[0] != '#') return false;
+
+            ScriptBlockKind found;
+
+            return TryParse(text, out found) && found == kind;
         }
 
         private static readonly Dictionary<ScriptBlockKind, ScriptBlockEntry> ByKind = BuildKindIndex();
@@ -126,5 +153,30 @@ namespace Server.MirObjects
             ScriptBlockEntry entry;
 
             return ByKind.TryGetValue(kind, out entry) ? entry : null;
-        }    }
+        }
+
+        /// <summary>Block for a line, or null when the line is not a block tag.</summary>
+        public static ScriptBlockEntry TryFind(string line, out ScriptBlockKind kind)
+        {
+            return TryParse(line, out kind) ? Find(kind) : null;
+        }
+
+        /// <summary>
+        /// True when the line is a tag that starts a new segment, as #IF does. The leading '#' is
+        /// required: dialogue such as "If you..." is text, not a tag.
+        /// </summary>
+        public static bool SplitsSegment(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return false;
+
+            string text = line.TrimStart();
+
+            if (text.Length == 0 || text[0] != '#') return false;
+
+            ScriptBlockKind kind;
+            ScriptBlockEntry entry = TryFind(text, out kind);
+
+            return entry != null && entry.SplitsSegment;
+        }
+    }
 }

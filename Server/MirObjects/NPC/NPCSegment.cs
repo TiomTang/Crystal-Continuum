@@ -50,18 +50,19 @@ namespace Server.MirObjects
 
         public string[] ParseArguments(string[] words)
         {
-            Regex r = new Regex(@"\%ARG\((\d+)\)");
-
             for (int i = 0; i < words.Length; i++)
             {
-                foreach (Match m in r.Matches(words[i].ToUpper()))
+                if (words[i].IndexOf("%ARG", StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                words[i] = ScriptLexer.Argument.Replace(words[i], match =>
                 {
-                    if (!m.Success) continue;
+                    int sequence;
 
-                    int sequence = Convert.ToInt32(m.Groups[1].Value);
+                    if (!int.TryParse(match.Groups[1].Value, out sequence)) return match.Value;
+                    if (Page == null || Page.Args.Count <= sequence) return match.Value;
 
-                    if (Page.Args.Count >= (sequence + 1)) words[i] = words[i].Replace(m.Groups[0].Value, Page.Args[sequence]);
-                }
+                    return Page.Args[sequence];
+                });
             }
 
             return words;
@@ -69,9 +70,7 @@ namespace Server.MirObjects
 
         public void AddVariable(MapObject player, string key, string value)
         {
-            Regex regex = new Regex(@"[A-Za-z][0-9]");
-
-            if (!regex.Match(key).Success) return;
+            if (!ScriptLexer.IsVariableKey(key)) return;
 
             for (int i = 0; i < player.NPCVar.Count; i++)
             {
@@ -85,9 +84,7 @@ namespace Server.MirObjects
 
         public string FindVariable(MapObject player, string key)
         {
-            Regex regex = new Regex(@"\%[A-Za-z][0-9]");
-
-            if (!regex.Match(key).Success) return key;
+            if (!ScriptLexer.IsVariableKey(key)) return key;
 
             string tempKey = key.Substring(1);
 
@@ -101,7 +98,7 @@ namespace Server.MirObjects
 
         public void ParseCheck(string line)
         {
-            var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = ScriptLexer.Tokenize(line);
 
             parts = ParseArguments(parts);
 
@@ -119,7 +116,7 @@ namespace Server.MirObjects
 
         public void ParseAct(List<NPCActions> acts, string line)
         {
-            var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = ScriptLexer.Tokenize(line);
 
             parts = ParseArguments(parts);
 
@@ -140,14 +137,7 @@ namespace Server.MirObjects
         {
             for (var i = 0; i < speech.Count; i++)
             {
-                var parts = speech[i].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                
-                if (parts.Length == 0) continue;
-
-                foreach (var part in parts)
-                {
-                    speech[i] = speech[i].Replace(part, ReplaceValue(player, part));
-                }
+                speech[i] = ReplaceValues(player, null, speech[i]);
             }
 
             return LinkFormatter.ReplacePlaceholders(speech, (type, index) => EnsureLinkInfo(player, type, index)) ?? speech;
@@ -192,62 +182,50 @@ namespace Server.MirObjects
 
         public string ReplaceValue(PlayerObject player, string param)
         {
-            var regex = new Regex(@"\<\$(.*)\>");
-            var varRegex = new Regex(@"(.*?)\(([A-Z][0-9])\)");
-            var oneValRegex = new Regex(@"(.*?)\(((.*?))\)");
-            var twoValRegex = new Regex(@"(.*?)\(((.*?),(.*?))\)");
-            var match = regex.Match(param);
-
-            if (!match.Success) return param;
-
-            string innerMatch = match.Groups[1].Captures[0].Value.ToUpper();
-
-            Match varMatch = varRegex.Match(innerMatch);
-            Match oneValMatch = oneValRegex.Match(innerMatch);
-            Match twoValMatch = twoValRegex.Match(innerMatch);
-
-            if (varRegex.Match(innerMatch).Success)
-                innerMatch = innerMatch.Replace(varMatch.Groups[2].Captures[0].Value.ToUpper(), "");
-            else if (twoValRegex.Match(innerMatch).Success)
-                innerMatch = innerMatch.Replace(twoValMatch.Groups[2].Captures[0].Value.ToUpper(), "");
-            else if (oneValRegex.Match(innerMatch).Success)
-                innerMatch = innerMatch.Replace(oneValMatch.Groups[2].Captures[0].Value.ToUpper(), "");
-
-            string newValue = RunValue(player, null, innerMatch, varMatch, oneValMatch, twoValMatch);
-
-            if (string.IsNullOrEmpty(newValue))
-            {
-                ReportUnknownValue(innerMatch);
-                return param;
-            }
-
-            return param.Replace(match.Value, newValue);
+            return ReplaceValues(player, null, param);
         }
+
         public string ReplaceValue(MonsterObject Monster, string param)
         {
-            var regex = new Regex(@"\<\$(.*)\>");
-            var varRegex = new Regex(@"(.*?)\(([A-Z][0-9])\)");
+            return ReplaceValues(null, Monster, param);
+        }
 
-            var match = regex.Match(param);
+        /// <summary>
+        /// Resolves every &lt;$VALUE&gt; in the text, one placeholder at a time. A token with two
+        /// placeholders no longer collapses into a single broken lookup, and a placeholder whose argument
+        /// contains a space resolves because the tokenizer kept it together.
+        /// </summary>
+        private string ReplaceValues(PlayerObject player, MonsterObject monster, string text)
+        {
+            if (string.IsNullOrEmpty(text) || text.IndexOf("<$", StringComparison.Ordinal) < 0) return text;
 
-            if (!match.Success) return param;
+            return ScriptLexer.Placeholder.Replace(text, match => Resolve(player, monster, match));
+        }
 
-            string innerMatch = match.Groups[1].Captures[0].Value.ToUpper();
+        private string Resolve(PlayerObject player, MonsterObject monster, Match match)
+        {
+            string innerMatch = match.Groups[1].Value.ToUpper();
 
-            Match varMatch = varRegex.Match(innerMatch);
+            Match varMatch = ScriptLexer.StatementValue.Match(innerMatch);
+            Match oneValMatch = monster == null ? ScriptLexer.OneValue.Match(innerMatch) : null;
+            Match twoValMatch = monster == null ? ScriptLexer.TwoValue.Match(innerMatch) : null;
 
-            if (varRegex.Match(innerMatch).Success)
-                innerMatch = innerMatch.Replace(varMatch.Groups[2].Captures[0].Value.ToUpper(), "");
+            if (varMatch.Success)
+                innerMatch = innerMatch.Replace(varMatch.Groups[2].Value.ToUpper(), "");
+            else if (twoValMatch != null && twoValMatch.Success)
+                innerMatch = innerMatch.Replace(twoValMatch.Groups[2].Value.ToUpper(), "");
+            else if (oneValMatch != null && oneValMatch.Success)
+                innerMatch = innerMatch.Replace(oneValMatch.Groups[2].Value.ToUpper(), "");
 
-            string newValue = RunValue(null, Monster, innerMatch, varMatch, null, null);
+            string newValue = RunValue(player, monster, innerMatch, varMatch, oneValMatch, twoValMatch);
 
             if (string.IsNullOrEmpty(newValue))
             {
                 ReportUnknownValue(innerMatch);
-                return param;
+                return match.Value;
             }
 
-            return param.Replace(match.Value, newValue);
+            return newValue;
         }
 
         /// <summary>
@@ -309,14 +287,7 @@ namespace Server.MirObjects
 
                 for (int j = 0; j < param.Count; j++)
                 {
-                    var parts = param[j].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (parts.Length == 0) continue;
-
-                    foreach (var part in parts)
-                    {
-                        param[j] = param[j].Replace(part, ReplaceValue(monster, part));
-                    }
+                    param[j] = ReplaceValues(null, monster, param[j]);
                 }
 
                 ScriptOutcome outcome = RunCheck(check, param, null, monster);
@@ -343,14 +314,7 @@ namespace Server.MirObjects
 
                 for (int j = 0; j < param.Count; j++)
                 {
-                    var parts = param[j].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (parts.Length == 0) continue;
-
-                    foreach (var part in parts)
-                    {
-                        param[j] = param[j].Replace(part, ReplaceValue(player, part));
-                    }
+                    param[j] = ReplaceValues(player, null, param[j]);
                 }
 
                 ScriptOutcome outcome = RunCheck(check, param, player, null);
@@ -418,14 +382,7 @@ namespace Server.MirObjects
 
                 for (int j = 0; j < param.Count; j++)
                 {
-                    var parts = param[j].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (parts.Length == 0) continue;
-
-                    foreach (var part in parts)
-                    {
-                        param[j] = param[j].Replace(part, ReplaceValue(player, part));
-                    }
+                    param[j] = ReplaceValues(player, null, param[j]);
 
                     if (player.NPCData.TryGetValue("NPCInputStr", out object _npcInputStr))
                     {
@@ -475,14 +432,7 @@ namespace Server.MirObjects
 
                 for (int j = 0; j < param.Count; j++)
                 {
-                    var parts = param[j].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (parts.Length == 0) continue;
-
-                    foreach (var part in parts)
-                    {
-                        param[j] = param[j].Replace(part, ReplaceValue(monster, part));
-                    }
+                    param[j] = ReplaceValues(null, monster, param[j]);
                 }
                 if (RunAction(act, param, null, monster, state) == ScriptOutcome.Abort) return;
             }
@@ -539,7 +489,7 @@ namespace Server.MirObjects
                 case ">=": return left.CompareTo(right) >= 0;
                 case "==": return left.Equals(right);
                 case "!=": return !left.Equals(right);
-                default: throw new ArgumentException("Invalid comparison operator: {0}", op);
+                default: throw new ArgumentException(string.Format("Invalid comparison operator: {0}", op));
             }
         }
 
@@ -551,7 +501,7 @@ namespace Server.MirObjects
                 case "-": return left - right;
                 case "*": return left * right;
                 case "/": return left / right;
-                default: throw new ArgumentException("Invalid sum operator: {0}", op);
+                default: throw new ArgumentException(string.Format("Invalid sum operator: {0}", op));
             }
         }
     }
