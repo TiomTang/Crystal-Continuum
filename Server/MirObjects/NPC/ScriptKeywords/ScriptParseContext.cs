@@ -2,6 +2,22 @@ using System.Collections.Generic;
 
 namespace Server.MirObjects
 {
+    /// <summary>
+    /// A line of a script paired with the number it had in the file. Keywords are collected while a
+    /// segment is split and parsed afterwards, so the number has to travel with the text.
+    /// </summary>
+    public readonly struct ScriptSourceLine
+    {
+        public readonly string Text;
+        public readonly int Number;
+
+        public ScriptSourceLine(string text, int number)
+        {
+            Text = text;
+            Number = number;
+        }
+    }
+
     /// <summary>Everything a keyword handler needs about the line it is parsing.</summary>
     public sealed class ScriptParseContext
     {
@@ -10,6 +26,9 @@ namespace Server.MirObjects
 
         /// <summary>Raw line, kept for diagnostics.</summary>
         public string Line;
+
+        /// <summary>1-based line number in the script file, or 0 when it is not known.</summary>
+        public int LineNumber;
 
         /// <summary>Script file being parsed, for diagnostics.</summary>
         public string FileName;

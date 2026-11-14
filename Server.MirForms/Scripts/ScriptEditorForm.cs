@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -487,7 +487,7 @@ namespace Server.MirForms.Scripts
         private void RefreshPalette()
         {
             int line = _editor.GetLineFromCharIndex(_editor.SelectionStart) + 1;
-            ScriptProject project = ScriptProject.Parse(_editor.Text);
+            ScriptProject project = ScriptProject.Parse(_editor.Text, _path);
 
             _paletteSource.Clear();
             _structureCandidates.Clear();
@@ -669,7 +669,7 @@ namespace Server.MirForms.Scripts
 
         private void RefreshStructure()
         {
-            ScriptProject project = ScriptProject.Parse(_editor.Text);
+            ScriptProject project = ScriptProject.Parse(_editor.Text, _path);
 
             var signature = new StringBuilder(_path ?? string.Empty);
 
@@ -734,7 +734,7 @@ namespace Server.MirForms.Scripts
 
         private void JumpToPage(string key)
         {
-            ScriptProject project = ScriptProject.Parse(_editor.Text);
+            ScriptProject project = ScriptProject.Parse(_editor.Text, _path);
             string normalized = ScriptProject.Normalize(key);
 
             foreach (ScriptPageInfo page in project.Pages)
@@ -750,7 +750,7 @@ namespace Server.MirForms.Scripts
 
         private void CheckBuffer(bool report, bool engine)
         {
-            ScriptProject project = ScriptProject.Parse(_editor.Text);
+            ScriptProject project = ScriptProject.Parse(_editor.Text, _path);
             List<ScriptIssue> issues = project.Check(BuildRules());
 
             if (engine)

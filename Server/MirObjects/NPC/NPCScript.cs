@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using Server.MirDatabase;
 using Server.MirEnvir;
@@ -104,8 +105,22 @@ namespace Server.MirObjects
 
         public void Load()
         {
-            LoadInfo();
-            LoadGoods();
+            try
+            {
+                LoadInfo();
+                LoadGoods();
+            }
+            catch (Exception ex)
+            {
+                // One broken script must not take the rest of the NPCs down. The script stays empty and
+                // the reason is reported, so the server starts and the author can see what happened.
+                ClearInfo();
+
+                ScriptDiagnostics.Report(ScriptDiagnosticKind.LoadFailed,
+                    new ScriptParseContext { FileName = FileName + ".txt" }, string.Empty, ex.Message);
+
+                MessageQueue.Enqueue("Script Not Loaded: " + FileName);
+            }
         }
 
         public float PriceRate(PlayerObject player, bool baseRate = false)

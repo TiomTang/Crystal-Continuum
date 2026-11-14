@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Server.MirObjects;
@@ -54,9 +55,11 @@ namespace Server.MirForms.Scripts
     /// </summary>
     public sealed class ScriptProject
     {
-        private static readonly Regex ButtonPattern = new Regex(@"<[^<>]*?/(@[A-Za-z0-9_\-]+)", RegexOptions.Compiled);
-        private static readonly Regex ValuePattern = new Regex(@"<\$([^>]+)>", RegexOptions.Compiled);
         private static readonly HashSet<string> KnownTags = BuildKnownTags();
+
+        /// <summary>Page keys of the files #INSERT names, kept until the file itself changes.</summary>
+        private static readonly Dictionary<string, KeyValuePair<DateTime, HashSet<string>>> IncludeFileCache =
+            new Dictionary<string, KeyValuePair<DateTime, HashSet<string>>>(StringComparer.OrdinalIgnoreCase);
 
         private static HashSet<string> BuildKnownTags()
         {
@@ -77,7 +80,7 @@ namespace Server.MirForms.Scripts
         public readonly List<ScriptPageInfo> Sections = new List<ScriptPageInfo>();
         public readonly HashSet<string> PageKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public static ScriptProject Parse(string text)
+        public static ScriptProject Parse(string text, string path = null)
         {
             var project = new ScriptProject();
             project.Lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
@@ -87,27 +90,36 @@ namespace Server.MirForms.Scripts
 
             for (int i = 0; i < project.Lines.Length; i++)
             {
-                string trimmed = project.Lines[i].Trim().TrimStart('\uFEFF');
+                // The engine reads a key exactly as written: "[@MAIN] " with a trailing space is text to
+                // the loader, so the editor must not show it as a page.
+                string raw = project.Lines[i].TrimStart('\uFEFF');
+                string trimmed = raw.Trim();
 
-                if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                ScriptSectionEntry section = FindSection(trimmed);
+
+                if (section != null)
                 {
                     if (current != null) current.EndLine = i;
 
                     current = null;
 
-                    ScriptSectionEntry section = ScriptSectionCatalog.Find(trimmed);
-
-                    if (section != null)
-                    {
-                        page = new ScriptPageInfo { Key = trimmed, Line = i + 1, IsSection = true, Section = section.Kind };
-                        project.Pages.Add(page);
-                        project.Sections.Add(page);
-                        continue;
-                    }
-
-                    page = new ScriptPageInfo { Key = trimmed, Line = i + 1 };
+                    page = new ScriptPageInfo { Key = trimmed, Line = i + 1, IsSection = true, Section = section.Kind };
                     project.Pages.Add(page);
-                    project.PageKeys.Add(Normalize(trimmed));
+                    project.Sections.Add(page);
+                    continue;
+                }
+
+                string pageKey;
+
+                if (ScriptPageKeyCatalog.TryParseHeader(raw, out pageKey))
+                {
+                    if (current != null) current.EndLine = i;
+
+                    current = null;
+
+                    page = new ScriptPageInfo { Key = pageKey, Line = i + 1 };
+                    project.Pages.Add(page);
+                    project.PageKeys.Add(Normalize(pageKey));
                     continue;
                 }
 
@@ -138,7 +150,110 @@ namespace Server.MirForms.Scripts
                 project.Pages[i].EndLine = i + 1 < project.Pages.Count ? project.Pages[i + 1].Line - 1 : project.Lines.Length;
             }
 
+            project.AddIncludedPageKeys(path);
+
             return project;
+        }
+
+        /// <summary>Section whose header the line is, by the loader's own rule.</summary>
+        private static ScriptSectionEntry FindSection(string trimmed)
+        {
+            foreach (ScriptSectionEntry entry in ScriptSectionCatalog.Ordered)
+            {
+                if (entry.MatchesHeader(trimmed)) return entry;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Pages that come from #INSERT files are not in this text, so a button pointing at one would be
+        /// reported as missing. Read the files the directive names and register their keys; a file that
+        /// cannot be resolved is left for the server to report.
+        /// </summary>
+        private void AddIncludedPageKeys(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+
+            string envir = IncludeRoot(path);
+
+            foreach (string line in Lines)
+            {
+                ScriptDirectiveEntry directive;
+
+                if (!ScriptDirectiveCatalog.TryParse(line, out directive)) continue;
+                if (directive != ScriptDirectiveCatalog.Insert) continue;
+
+                string[] parts = ScriptLexer.Tokenize(line);
+
+                if (parts.Length < 2) continue;
+
+                string file;
+
+                try
+                {
+                    file = Path.GetFullPath(Path.Combine(envir, parts[1].Trim('"', '[', ']')));
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                HashSet<string> keys = IncludedKeys(file);
+
+                if (keys != null) PageKeys.UnionWith(keys);
+            }
+        }
+
+        /// <summary>
+        /// Page keys of one inserted file, cached until the file changes. The editor parses on idle for
+        /// its palette, so a script that inserts ten files must not read them ten times per keystroke.
+        /// </summary>
+        private static HashSet<string> IncludedKeys(string file)
+        {
+            DateTime stamp;
+
+            try
+            {
+                if (!File.Exists(file)) return null;
+
+                stamp = File.GetLastWriteTimeUtc(file);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+
+            KeyValuePair<DateTime, HashSet<string>> cached;
+
+            if (IncludeFileCache.TryGetValue(file, out cached) && cached.Key == stamp) return cached.Value;
+
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string included in File.ReadAllLines(file))
+            {
+                string key;
+
+                if (ScriptPageKeyCatalog.TryParseHeader(included.TrimStart('\uFEFF'), out key))
+                    keys.Add(Normalize(key));
+            }
+
+            IncludeFileCache[file] = new KeyValuePair<DateTime, HashSet<string>>(stamp, keys);
+
+            return keys;
+        }
+
+        /// <summary>The Envir folder a directive path is relative to: the parent of the NPCs tree.</summary>
+        private static string IncludeRoot(string path)
+        {
+            string directory = Path.GetDirectoryName(path);
+
+            DirectoryInfo info = directory == null ? null : new DirectoryInfo(directory);
+
+            while (info != null && !string.Equals(info.Name, "NPCs", StringComparison.OrdinalIgnoreCase))
+                info = info.Parent;
+
+            return info != null && info.Parent != null ? info.Parent.FullName : directory ?? ".";
         }
 
         /// <summary>Section the given 1-based line belongs to, if any.</summary>
@@ -410,7 +525,7 @@ namespace Server.MirForms.Scripts
                 block.Kind != ScriptBlockKind.Act &&
                 block.Kind != ScriptBlockKind.ElseAct) return;
 
-            string[] parts = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = ScriptLexer.Tokenize(trimmed);
 
             if (parts.Length == 0) return;
 
@@ -458,9 +573,9 @@ namespace Server.MirForms.Scripts
 
         private void CheckLinks(int line, string trimmed, List<ScriptIssue> issues)
         {
-            foreach (Match match in ButtonPattern.Matches(trimmed))
+            foreach (Match match in ScriptLexer.Button.Matches(trimmed))
             {
-                string target = match.Groups[1].Value;
+                string target = match.Groups[1].Value.Split('/')[0];
 
                 if (string.Equals(target, "@Exit", StringComparison.OrdinalIgnoreCase)) continue;
 
@@ -470,7 +585,7 @@ namespace Server.MirForms.Scripts
                 }
             }
 
-            string[] parts = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = ScriptLexer.Tokenize(trimmed);
 
             if (parts.Length == 0) return;
 
@@ -497,7 +612,7 @@ namespace Server.MirForms.Scripts
         {
             if (!trimmed.Contains("<$")) return;
 
-            foreach (Match match in ValuePattern.Matches(trimmed))
+            foreach (Match match in ScriptLexer.Placeholder.Matches(trimmed))
             {
                 string name = match.Groups[1].Value.ToUpperInvariant();
                 int paren = name.IndexOf('(');

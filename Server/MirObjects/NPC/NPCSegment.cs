@@ -96,7 +96,7 @@ namespace Server.MirObjects
             return key;
         }
 
-        public void ParseCheck(string line)
+        public void ParseCheck(string line, int lineNumber = 0)
         {
             string[] parts = ScriptLexer.Tokenize(line);
 
@@ -108,13 +108,14 @@ namespace Server.MirObjects
             {
                 Parts = parts,
                 Line = line,
+                LineNumber = lineNumber,
                 FileName = ScriptParseScope.FileName,
                 PageKey = Page == null ? string.Empty : Page.Key,
                 Segment = this,
             });
         }
 
-        public void ParseAct(List<NPCActions> acts, string line)
+        public void ParseAct(List<NPCActions> acts, string line, int lineNumber = 0)
         {
             string[] parts = ScriptLexer.Tokenize(line);
 
@@ -126,6 +127,7 @@ namespace Server.MirObjects
             {
                 Parts = parts,
                 Line = line,
+                LineNumber = lineNumber,
                 FileName = ScriptParseScope.FileName,
                 PageKey = Page == null ? string.Empty : Page.Key,
                 Segment = this,

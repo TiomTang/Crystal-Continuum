@@ -13,105 +13,182 @@ namespace Server.MirObjects
     /// </summary>
     internal static class ScriptDirectiveHandlers
     {
+        /// <summary>
+        /// How many files one script may pull in through other files. A file that names itself, directly
+        /// or through a chain, would otherwise grow the line list for as long as there is memory.
+        /// </summary>
+        private const int MaxDepth = 8;
+
         public static void Insert(List<string> lines)
         {
-            List<string> newLines = new List<string>();
-
-            for (int i = 0; i < lines.Count; i++)
-            {
-                if (!ScriptDirectiveCatalog.Is(lines[i], ScriptDirectiveCatalog.Insert)) continue;
-
-                string[] split = lines[i].Split(' ');
-
-                if (split.Length < 2)
-                {
-                    ReportMalformed(lines[i], ScriptDirectiveCatalog.Insert);
-                    continue;
-                }
-
-                string path = Path.Combine(Settings.EnvirPath, Unquote(split[1]));
-
-                if (!File.Exists(path))
-                    MessageQueue.Instance.Enqueue(GameLanguage.Get("INSERT Script Not Found: {0}", path));
-                else
-                    newLines = File.ReadAllLines(path).ToList();
-
-                lines.AddRange(newLines);
-            }
-
-            lines.RemoveAll(str => ScriptDirectiveCatalog.Is(str, ScriptDirectiveCatalog.Insert));
+            Expand(lines, ScriptDirectiveCatalog.Insert, new HashSet<string>(StringComparer.OrdinalIgnoreCase), 0);
         }
 
         public static void Include(List<string> lines)
         {
-            for (int i = 0; i < lines.Count; i++)
+            Expand(lines, ScriptDirectiveCatalog.Include, new HashSet<string>(StringComparer.OrdinalIgnoreCase), 0);
+        }
+
+        /// <summary>
+        /// Replaces every directive of one kind with the lines it stands for, at the position the
+        /// directive held. The replacement is expanded again with every directive kind, so a pulled-in
+        /// file may use directives of its own; a file already being read is reported, not followed.
+        /// </summary>
+        private static void Expand(List<string> lines, ScriptDirectiveEntry entry, HashSet<string> open, int depth)
+        {
+            var result = new List<string>(lines.Count);
+
+            foreach (string line in lines)
             {
-                if (!ScriptDirectiveCatalog.Is(lines[i], ScriptDirectiveCatalog.Include)) continue;
-
-                string[] split = lines[i].Split(' ');
-
-                if (split.Length < 3)
+                if (!ScriptDirectiveCatalog.Is(line, entry))
                 {
-                    ReportMalformed(lines[i], ScriptDirectiveCatalog.Include);
+                    result.Add(line);
                     continue;
                 }
 
-                string path = Path.Combine(Settings.EnvirPath, Unquote(split[1]));
-                string page = ("[" + split[2] + "]").ToUpper();
+                if (depth >= MaxDepth)
+                {
+                    Report(ScriptDiagnosticKind.MalformedDirective, line,
+                        "Directive nesting deeper than " + MaxDepth + " levels");
 
-                bool start = false, finish = false;
+                    continue;
+                }
 
-                var parsedLines = new List<string>();
+                string path;
+                List<string> content = ReadContent(line, entry, out path);
+
+                if (content == null) continue;
+
+                if (!open.Add(path))
+                {
+                    Report(ScriptDiagnosticKind.MalformedDirective, line,
+                        ScriptDirectiveCatalog.Tag(entry) + " reads a file that is already being read: " + path);
+
+                    continue;
+                }
+
+                ExpandAll(content, open, depth + 1);
+                open.Remove(path);
+
+                result.AddRange(content);
+            }
+
+            lines.Clear();
+            lines.AddRange(result);
+        }
+
+        private static void ExpandAll(List<string> lines, HashSet<string> open, int depth)
+        {
+            foreach (ScriptDirectiveEntry entry in ScriptDirectiveCatalog.Ordered)
+                Expand(lines, entry, open, depth);
+        }
+
+        /// <summary>
+        /// The lines a directive stands for, or null when it cannot be used and has already been
+        /// reported. INSERT takes a whole file; INCLUDE takes one page written between braces.
+        /// </summary>
+        private static List<string> ReadContent(string line, ScriptDirectiveEntry entry, out string path)
+        {
+            string[] parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
+            path = null;
+
+            if (entry == ScriptDirectiveCatalog.Insert)
+            {
+                if (parts.Length < 2)
+                {
+                    Report(ScriptDiagnosticKind.MalformedDirective, line, "Malformed INSERT directive");
+                    return null;
+                }
+
+                path = Resolve(parts[1]);
 
                 if (!File.Exists(path))
                 {
-                    MessageQueue.Instance.Enqueue(GameLanguage.Get("INCLUDE Script Not Found: {0}", path));
-                    return;
+                    MessageQueue.Instance.Enqueue(GameLanguage.Get("INSERT Script Not Found: {0}", path));
+                    Report(ScriptDiagnosticKind.MissingScript, line, "INSERT file not found: " + path);
+
+                    return null;
                 }
 
-                IList<string> extLines = File.ReadAllLines(path);
-
-                for (int j = 0; j < extLines.Count; j++)
-                {
-                    if (!extLines[j].ToUpper().StartsWith(page)) continue;
-
-                    for (int x = j + 1; x < extLines.Count; x++)
-                    {
-                        if (extLines[x].Trim() == ("{"))
-                        {
-                            start = true;
-                            continue;
-                        }
-
-                        if (extLines[x].Trim() == ("}"))
-                        {
-                            finish = true;
-                            break;
-                        }
-
-                        parsedLines.Add(extLines[x]);
-                    }
-                }
-
-                if (start && finish)
-                {
-                    lines.InsertRange(i + 1, parsedLines);
-                    parsedLines.Clear();
-                }
+                return File.ReadAllLines(path).ToList();
             }
 
-            lines.RemoveAll(str => ScriptDirectiveCatalog.Is(str, ScriptDirectiveCatalog.Include));
+            if (parts.Length < 3)
+            {
+                Report(ScriptDiagnosticKind.MalformedDirective, line, "Malformed INCLUDE directive");
+                return null;
+            }
+
+            path = Resolve(parts[1]);
+
+            string page = ("[" + parts[2] + "]").ToUpper();
+
+            if (!File.Exists(path))
+            {
+                MessageQueue.Instance.Enqueue(GameLanguage.Get("INCLUDE Script Not Found: {0}", path));
+                Report(ScriptDiagnosticKind.MissingScript, line, "INCLUDE file not found: " + path);
+
+                return null;
+            }
+
+            IList<string> extLines = File.ReadAllLines(path);
+
+            for (int i = 0; i < extLines.Count; i++)
+            {
+                if (!extLines[i].ToUpper().StartsWith(page)) continue;
+
+                var body = new List<string>();
+
+                bool start = false, finish = false;
+
+                for (int j = i + 1; j < extLines.Count; j++)
+                {
+                    if (extLines[j].Trim() == "{")
+                    {
+                        start = true;
+                        continue;
+                    }
+
+                    if (extLines[j].Trim() == "}")
+                    {
+                        finish = true;
+                        break;
+                    }
+
+                    if (start) body.Add(extLines[j]);
+                }
+
+                if (start && finish) return body;
+
+                break;
+            }
+
+            MessageQueue.Instance.Enqueue(GameLanguage.Get("INCLUDE Page Not Found: {0} in {1}", page, path));
+            Report(ScriptDiagnosticKind.MissingPage, line, "INCLUDE page " + page + " not found in " + path);
+
+            return null;
         }
 
-        private static void ReportMalformed(string line, ScriptDirectiveEntry entry)
+        private static string Resolve(string argument)
         {
-            string tag = ScriptDirectiveCatalog.Tag(entry);
+            return Path.GetFullPath(Path.Combine(Settings.EnvirPath, Unquote(argument)));
+        }
 
-            ScriptDiagnostics.Report(ScriptDiagnosticKind.MalformedDirective, new ScriptParseContext
+        private static void Report(ScriptDiagnosticKind kind, string line, string message)
+        {
+            ScriptDiagnostics.Report(kind, new ScriptParseContext
             {
                 Line = line,
                 FileName = ScriptParseScope.FileName,
-            }, tag, "Malformed " + tag + " directive");
+            }, Tag(line), message);
+        }
+
+        private static string Tag(string line)
+        {
+            string[] parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
+            return parts.Length == 0 ? string.Empty : parts[0].ToUpper();
         }
 
         /// <summary>
@@ -126,7 +203,7 @@ namespace Server.MirObjects
             {
                 char first = argument[0], last = argument[argument.Length - 1];
 
-                if ((first == '"' && last == '"') || (first == '[' && last == ']'))
+                if ((first == '\"' && last == '\"') || (first == '[' && last == ']'))
                     return argument.Substring(1, argument.Length - 2);
             }
 

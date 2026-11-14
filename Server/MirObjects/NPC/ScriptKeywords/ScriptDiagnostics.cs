@@ -15,6 +15,7 @@ namespace Server.MirObjects
         WrongArity,
         MissingPage,
         MissingScript,
+        LoadFailed,
     }
 
     /// <summary>One script problem, deduplicated by file, page, keyword and line text.</summary>
@@ -27,13 +28,21 @@ namespace Server.MirObjects
         public string Text;
         public string Message;
 
+        /// <summary>1-based line in the script file, or 0 when the problem was found at run time.</summary>
+        public int Line;
+
+        /// <summary>True when a player reached the line, false when the loader found it.</summary>
+        public bool Runtime;
+
         /// <summary>How often the same problem was reported.</summary>
         public int Count = 1;
 
         public override string ToString()
         {
-            return string.Format("[{0}] {1} {2}: {3} ({4}){5}", Kind, FileName, PageKey, Message, Text,
-                Count > 1 ? " x" + Count : string.Empty);
+            string where = Line > 0 ? FileName + ":" + Line : FileName;
+
+            return string.Format("[{0}] {1} {2}: {3} ({4}){5}{6}", Kind, where, PageKey, Message, Text,
+                Runtime ? " [runtime]" : string.Empty, Count > 1 ? " x" + Count : string.Empty);
         }
     }
 
@@ -54,6 +63,15 @@ namespace Server.MirObjects
 
         /// <summary>Optional sink for warnings; the server points this at its log.</summary>
         public static Action<string> Sink;
+
+        /// <summary>
+        /// Also parse the pages no button reaches, so a script author sees mistakes in pages nobody has
+        /// wired up yet. Set false to skip the extra work.
+        /// </summary>
+        public static bool DeepScan = true;
+
+        /// <summary>Pages the deep scan looked at, for tests and startup reports.</summary>
+        public static int DeepScanned;
 
         public static int Count
         {
@@ -89,6 +107,10 @@ namespace Server.MirObjects
             return list;
         }
 
+        /// <summary>
+        /// Records a problem found while a file loads. Entries are keyed without the line number, so a
+        /// mistake repeated on ten lines stays one entry and keeps the first line it was seen on.
+        /// </summary>
         public static void Report(ScriptDiagnosticKind kind, ScriptParseContext context, string keyword, string message)
         {
             if (context == null) return;
@@ -122,6 +144,7 @@ namespace Server.MirObjects
                         Keyword = keyword,
                         Text = text,
                         Message = message,
+                        Line = context.LineNumber,
                     });
 
                     added = true;
@@ -134,7 +157,9 @@ namespace Server.MirObjects
 
             if (sink != null)
             {
-                sink(string.Format("[Script] {0} {1}: {2} | {3}", file, page, message, text));
+                string where = context.LineNumber > 0 ? file + ":" + context.LineNumber : file;
+
+                sink(string.Format("[Script] {0} {1}: {2} | {3}", where, page, message, text));
             }
         }
 
@@ -170,6 +195,7 @@ namespace Server.MirObjects
                         Keyword = keyword ?? string.Empty,
                         Text = string.Empty,
                         Message = message,
+                        Runtime = true,
                     });
 
                     added = true;
