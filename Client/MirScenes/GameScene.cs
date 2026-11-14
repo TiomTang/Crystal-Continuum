@@ -7112,13 +7112,15 @@ namespace Client.MirScenes
 
             List<string> tailParts = new List<string>();
             if (HoverItem.Weight > 0)
-                tailParts.Add(string.Format("{0} {1}", "W:", HoverItem.Weight));
+                tailParts.Add(GameLanguage.Get("Weight: {0}", HoverItem.Weight));
             if (!string.IsNullOrEmpty(text))
                 tailParts.Add(text);
 
             if (tailParts.Count > 0)
             {
-                string tailText = string.Join("  ", tailParts.ToArray());
+                // Weight and the type-specific value are separate facts; joining them with spaces
+                // pushed loyalty onto the weight line and made the tooltip read as one run-on line.
+                string tailText = string.Join("\n", tailParts.ToArray());
                 baseText = string.IsNullOrEmpty(baseText)
                     ? tailText
                     : string.Format("{0}\n{1}", baseText, tailText);

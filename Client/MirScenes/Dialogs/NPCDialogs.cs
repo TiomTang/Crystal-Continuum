@@ -306,6 +306,10 @@ namespace Client.MirScenes.Dialogs
 
             if (resetIndex)
             {
+                // A single #SAY line can be wider than the label; split it before the labels are laid
+                // out, so the page height and scroll bar count display lines instead of script lines.
+                lines = WrapLines(lines);
+
                 _index = 0;
                 CurrentLines = lines;
                 UpdatePositionBar();
@@ -501,6 +505,67 @@ namespace Client.MirScenes.Dialogs
                 TextLabel[i].Text = currentLine;
                 TextLabel[i].MouseWheel += NPCDialog_MouseWheel;
             }
+        }
+
+        private List<string> WrapLines(List<string> lines)
+        {
+            const int maxWidth = 416;
+
+            var wrapped = new List<string>(lines.Count);
+
+            foreach (string line in lines)
+            {
+                if (string.IsNullOrEmpty(line) || HasMarkup(line) || MeasureWidth(line) <= maxWidth)
+                {
+                    wrapped.Add(line);
+                    continue;
+                }
+
+                string rest = line;
+
+                while (rest.Length > 0)
+                {
+                    int take = rest.Length;
+
+                    while (take > 1 && MeasureWidth(rest.Substring(0, take)) > maxWidth)
+                        take--;
+
+                    int cut = take;
+
+                    // Break after a punctuation mark when one sits near the end, so a sentence is not
+                    // cut in the middle of a phrase.
+                    for (int i = take - 1; i > take / 2; i--)
+                    {
+                        char c = rest[i - 1];
+
+                        if (c == '，' || c == '。' || c == '；' || c == '：' || c == '、' || c == '！' || c == '？' || c == ' ')
+                        {
+                            cut = i;
+                            break;
+                        }
+                    }
+
+                    wrapped.Add(rest.Substring(0, cut).TrimEnd());
+                    rest = rest.Substring(cut).TrimStart();
+                }
+            }
+
+            return wrapped;
+        }
+
+        /// <summary>
+        /// Lines carrying a link, colour or button marker are left alone: their visible text is
+        /// rewritten later and the markers would not survive a split.
+        /// </summary>
+        private static bool HasMarkup(string line)
+        {
+            return R.IsMatch(line) || C.IsMatch(line) || L.IsMatch(line) || B.IsMatch(line) ||
+                   MonsterLink.IsMatch(line) || NPCLink.IsMatch(line) || ItemLink.IsMatch(line);
+        }
+
+        private int MeasureWidth(string text)
+        {
+            return TextRenderer.MeasureText(CMain.Graphics, text, font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding).Width;
         }
 
         private void NewButton(string text, string key, Point p, string link = "")

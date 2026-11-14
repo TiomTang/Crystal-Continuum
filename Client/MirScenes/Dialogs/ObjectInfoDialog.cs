@@ -26,7 +26,7 @@ namespace Client.MirScenes.Dialogs
                 AutoSize = true,
                 BackColour = Color.Transparent,
                 ForeColour = Color.Yellow,
-                Font = new Font(Settings.FontName, 10F),
+                Font = new Font(Settings.FontName, Settings.FontSize),
                 Parent = this,
             };
             _body.SizeChanged += (o, e) => Size = _body.Size;
