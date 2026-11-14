@@ -333,6 +333,12 @@ namespace Server.MirObjects
         {
             Owner.Enqueue(magic.GetInfo(true));
         }
+        public override void SendRemoveMagic(int placeId)
+        {
+            if (Owner == null) return;
+
+            Owner.Enqueue(new S.RemoveMagic { PlaceId = placeId, Hero = true });
+        }
         protected bool CanUseMagic(UserMagic magic)
         {
             if (magic == null) return false;

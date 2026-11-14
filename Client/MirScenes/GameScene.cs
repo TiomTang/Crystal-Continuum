@@ -4639,8 +4639,12 @@ namespace Client.MirScenes
 
         private void RemoveMagic(S.RemoveMagic p)
         {
-            User.Magics.RemoveAt(p.PlaceId);
-            User.RefreshStats();
+            UserObject actor = p.Hero && Hero != null ? Hero : User;
+
+            if (p.PlaceId < 0 || p.PlaceId >= actor.Magics.Count) return;
+
+            actor.Magics.RemoveAt(p.PlaceId);
+            actor.RefreshStats();
             foreach (SkillBarDialog Bar in SkillBarDialogs)
             {
                 Bar.Update();

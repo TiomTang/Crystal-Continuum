@@ -1655,7 +1655,7 @@ namespace Server.MirObjects
                             if (player.Info.Magics[i].Spell != skill1) continue;
 
                             player.Info.Magics.RemoveAt(i);
-                            player.Enqueue(new S.RemoveMagic { PlaceId = i });
+                            player.SendRemoveMagic(i);
                             removed = true;
                         }
 

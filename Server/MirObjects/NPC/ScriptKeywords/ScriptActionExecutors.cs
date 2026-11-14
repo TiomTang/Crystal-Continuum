@@ -937,7 +937,7 @@ namespace Server.MirObjects
                     if (player.Info.Magics[j].Spell != skill) continue;
 
                     player.Info.Magics.RemoveAt(j);
-                    player.Enqueue(new S.RemoveMagic { PlaceId = j });
+                    player.SendRemoveMagic(j);
                 }
             }
             return ScriptOutcome.Pass;
@@ -2459,7 +2459,7 @@ namespace Server.MirObjects
                     if (player.Hero.Info.Magics[j].Spell != skill) continue;
 
                     player.Hero.Info.Magics.RemoveAt(j);
-                    player.Hero.Enqueue(new S.RemoveMagic { PlaceId = j });
+                    player.Hero.SendRemoveMagic(j);
                 }
             }
             return ScriptOutcome.Pass;

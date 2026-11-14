@@ -414,7 +414,7 @@ namespace Server.MirObjects
                 "Teach the hero a skill.", 3, ScriptActionHandlers.Act_HeroGiveSkill, action: ScriptActionKind.HeroGiveSkill, executor: NPCSegment.Exec_HeroGiveSkill, argument: ScriptArgumentKind.Spell),
 
             new ScriptKeywordEntry("HEROREMOVESKILL", ScriptKeywordKind.Action, ScriptKeywordCategory.Hero, "<skill>",
-                "Remove a skill from the hero.", 2, ScriptActionHandlers.Act_HeroRemoveSkill, action: ScriptActionKind.HeroRemoveSkill, executor: NPCSegment.Exec_HeroRemoveSkill),
+                "Remove a skill from the hero.", 2, ScriptActionHandlers.Act_HeroRemoveSkill, action: ScriptActionKind.HeroRemoveSkill, executor: NPCSegment.Exec_HeroRemoveSkill, argument: ScriptArgumentKind.Spell),
         };
 
         private static readonly Dictionary<string, ScriptKeywordEntry> Index = BuildIndex();

@@ -2351,6 +2351,10 @@ namespace Server.MirObjects
         {
             Enqueue(magic.GetInfo(false));
         }
+        public virtual void SendRemoveMagic(int placeId)
+        {
+            Enqueue(new S.RemoveMagic { PlaceId = placeId });
+        }
         private void RemoveTempSkills(IEnumerable<string> skillsToRemove)
         {
             foreach (var skill in skillsToRemove)
@@ -2362,7 +2366,7 @@ namespace Server.MirObjects
                     if (!Info.Magics[i].IsTempSpell || Info.Magics[i].Spell != spelltype) continue;
 
                     Info.Magics.RemoveAt(i);
-                    Enqueue(new S.RemoveMagic { PlaceId = i });
+                    SendRemoveMagic(i);
                 }
             }
         }

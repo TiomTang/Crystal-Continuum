@@ -3355,14 +3355,17 @@ namespace ServerPackets
         }
 
         public int PlaceId;
+        public bool Hero;
         protected override void ReadPacket(BinaryReader reader)
         {
             PlaceId = reader.ReadInt32();
+            Hero = reader.ReadBoolean();
         }
 
         protected override void WritePacket(BinaryWriter writer)
         {
             writer.Write(PlaceId);
+            writer.Write(Hero);
         }
 
     }
