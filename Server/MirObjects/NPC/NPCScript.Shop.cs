@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using Server.MirDatabase;
 using Server.MirEnvir;
 using System.Text.RegularExpressions;
@@ -66,7 +66,7 @@ namespace Server.MirObjects
             uint cost = (uint)totalCost;
             uint baseCost = (uint)Math.Clamp(pricedItem.Price() * (double)PriceRate(player, true), 0, uint.MaxValue);
 
-            if (player.NPCPage.Key.ToUpper() == PearlBuyKey)//pearl currency
+            if (ScriptSpecialPageCatalog.IsPage(player.NPCPage.Key, ScriptSpecialPageKind.PearlBuy))//pearl currency
             {
                 if (cost > player.Info.PearlCount) return;
             }
@@ -79,7 +79,7 @@ namespace Server.MirObjects
 
             if (!player.CanGainItem(item)) return;
 
-            if (player.NPCPage.Key.ToUpper() == PearlBuyKey)
+            if (ScriptSpecialPageCatalog.IsPage(player.NPCPage.Key, ScriptSpecialPageKind.PearlBuy))
             {
                 player.IntelligentCreatureLosePearls((int)cost);
             }
@@ -107,7 +107,7 @@ namespace Server.MirObjects
 
                 callingNPC.NeedSave = true;
 
-                player.SendNPCGoods(newGoodsList, PriceRate(player), player.NPCPage.Key.ToUpper() == BuyUsedKey ? PanelType.BuySub : PanelType.Buy, Settings.GoodsHideAddedStats);
+                player.SendNPCGoods(newGoodsList, PriceRate(player), ScriptSpecialPageCatalog.IsPage(player.NPCPage.Key, ScriptSpecialPageKind.BuyUsed) ? PanelType.BuySub : PanelType.Buy, Settings.GoodsHideAddedStats);
             }
 
             if (isBuyBack)

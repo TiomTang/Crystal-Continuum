@@ -32,6 +32,7 @@ namespace Server.MirForms.Scripts
         public Func<string, bool> SpellExists;
         public Func<string, bool> MapExists;
         public Func<string, bool> ItemExists;
+        public Func<int, bool> ScriptExists;
 
         /// <summary>Null when the quest list is unavailable.</summary>
         public Func<int, bool> QuestExists;
@@ -426,7 +427,7 @@ namespace Server.MirForms.Scripts
                     }
 
                     CheckKeywords(block, i, trimmed, rules, issues);
-                    CheckLinks(i, trimmed, issues);
+                    CheckLinks(i, trimmed, rules, issues);
                     CheckValues(i, trimmed, issues);
                 }
             }
@@ -569,9 +570,14 @@ namespace Server.MirForms.Scripts
             {
                 issues.Add(new ScriptIssue { Line = line, Message = "找不到这个地图：" + parts[1] });
             }
+
+            if (keyword.Argument == ScriptArgumentKind.Item && parts.Length > 1 && rules.ItemExists != null && !rules.ItemExists(parts[1]))
+            {
+                issues.Add(new ScriptIssue { Line = line, Message = "没有这个物品：" + parts[1] });
+            }
         }
 
-        private void CheckLinks(int line, string trimmed, List<ScriptIssue> issues)
+        private void CheckLinks(int line, string trimmed, ScriptRules rules, List<ScriptIssue> issues)
         {
             foreach (Match match in ScriptLexer.Button.Matches(trimmed))
             {
@@ -594,6 +600,20 @@ namespace Server.MirForms.Scripts
             ScriptKeywordEntry action = ScriptActionCatalog.Find(parts[0]);
 
             if (action == null) return;
+
+            if (action.Action == ScriptActionKind.Call && parts.Length > 1)
+            {
+                int scriptID;
+
+                if (!int.TryParse(parts[1], out scriptID))
+                {
+                    issues.Add(new ScriptIssue { Line = line, Message = "CALL 需要脚本编号：" + parts[1] });
+                }
+                else if (rules?.ScriptExists != null && !rules.ScriptExists(scriptID))
+                {
+                    issues.Add(new ScriptIssue { Line = line, Message = "CALL 指向不存在的脚本：" + scriptID });
+                }
+            }
 
             if (action.Button == ScriptButtonKind.DelayedPage && parts.Length > 2)
                 targetKey = parts[2];

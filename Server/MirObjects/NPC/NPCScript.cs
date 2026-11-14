@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using Server.MirDatabase;
 using Server.MirEnvir;
@@ -41,47 +41,6 @@ namespace Server.MirObjects
         public readonly NPCScriptType Type;
         public readonly string FileName;
 
-        public const string
-            MainKey = "[@MAIN]",
-            BuyKey = "[@BUY]",
-            SellKey = "[@SELL]",
-            BuySellKey = "[@BUYSELL]",
-            RepairKey = "[@REPAIR]",
-            SRepairKey = "[@SREPAIR]",
-            RefineKey = "[@REFINE]",
-            RefineCheckKey = "[@REFINECHECK]",
-            RefineCollectKey = "[@REFINECOLLECT]",
-            ReplaceWedRingKey = "[@REPLACEWEDDINGRING]",
-            BuyBackKey = "[@BUYBACK]",
-            StorageKey = "[@STORAGE]",
-            ConsignKey = "[@CONSIGN]",
-            MarketKey = "[@MARKET]",
-            CraftKey = "[@CRAFT]",
-
-            GuildCreateKey = "[@CREATEGUILD]",
-            RequestWarKey = "[@REQUESTWAR]",
-            SendParcelKey = "[@SENDPARCEL]",
-            CollectParcelKey = "[@COLLECTPARCEL]",
-            AwakeningKey = "[@AWAKENING]",
-            DisassembleKey = "[@DISASSEMBLE]",
-            DowngradeKey = "[@DOWNGRADE]",
-            ResetKey = "[@RESET]",
-            PearlBuyKey = "[@PEARLBUY]",
-            BuyUsedKey = "[@BUYUSED]",
-            BuyNewKey = "[@BUYNEW]",
-            BuySellNewKey = "[@BUYSELLNEW]",
-            HeroCreateKey = "[@CREATEHERO]",
-            HeroManageKey = "[@MANAGEHERO]",
-
-            TradeKey = "[TRADE]",
-            RecipeKey = "[RECIPE]",
-            TypeKey = "[TYPES]",
-            UsedTypeKey = "[USEDTYPES]",
-            QuestKey = "[QUESTS]",
-            SpeechKey = "[SPEECH]",
-            GuildTerritoryKey = "[@GUILDTERRITORY]";
-
-
         public List<ItemType> Types = new List<ItemType>();
         public List<ItemType> UsedTypes = new List<ItemType>();
         public List<UserItem> Goods = new List<UserItem>();
@@ -108,7 +67,6 @@ namespace Server.MirObjects
             try
             {
                 LoadInfo();
-                LoadGoods();
             }
             catch (Exception ex)
             {
@@ -120,6 +78,22 @@ namespace Server.MirObjects
                     new ScriptParseContext { FileName = FileName + ".txt" }, string.Empty, ex.Message);
 
                 MessageQueue.Enqueue("Script Not Loaded: " + FileName);
+
+                return;
+            }
+
+            try
+            {
+                LoadGoods();
+            }
+            catch (Exception ex)
+            {
+                // The pages parsed fine; a broken .msd only costs the shop stock. The previous stock
+                // stays untouched because LoadGoods swaps its list only after a complete read.
+                ScriptDiagnostics.Report(ScriptDiagnosticKind.LoadFailed,
+                    new ScriptParseContext { FileName = FileName + ".txt" }, "Goods", ex.Message);
+
+                MessageQueue.Enqueue("Goods Not Loaded: " + FileName);
             }
         }
 
@@ -152,6 +126,8 @@ namespace Server.MirObjects
         {
             key = key.ToUpper();
 
+            monster.NPCBreak = false;
+
             for (int i = 0; i < NPCPages.Count; i++)
             {
                 NPCPage page = NPCPages[i];
@@ -159,9 +135,9 @@ namespace Server.MirObjects
 
                 foreach (NPCSegment segment in page.SegmentList)
                 {
-                    if (page.BreakFromSegments)
+                    if (monster.NPCBreak)
                     {
-                        page.BreakFromSegments = false;
+                        monster.NPCBreak = false;
                         break;
                     }
 
@@ -194,9 +170,11 @@ namespace Server.MirObjects
         {
             key = key.ToUpper();
 
+            player.NPCBreak = false;
+
             if (!player.NPCDelayed)
             {
-                if (key != MainKey)
+                if (!ScriptSpecialPageCatalog.IsPage(key, ScriptSpecialPageKind.Main))
                 {
                     if (player.NPCObjectID != objectID) return;
 
@@ -233,32 +211,41 @@ namespace Server.MirObjects
                 return;
             }
 
-            for (int i = 0; i < NPCPages.Count; i++)
+            try
             {
-                NPCPage page = NPCPages[i];
-                if (!String.Equals(page.Key, key, StringComparison.CurrentCultureIgnoreCase)) continue;
-
-                player.NPCSpeech = new List<string>();
-                player.NPCSuccess.Clear();
-                player.NPCDialogClose = false;
-
-                foreach (NPCSegment segment in page.SegmentList)
+                for (int i = 0; i < NPCPages.Count; i++)
                 {
-                    if (page.BreakFromSegments)
+                    NPCPage page = NPCPages[i];
+                    if (!String.Equals(page.Key, key, StringComparison.CurrentCultureIgnoreCase)) continue;
+
+                    player.NPCSpeech = new List<string>();
+                    player.NPCSuccess.Clear();
+                    player.NPCDialogClose = false;
+
+                    foreach (NPCSegment segment in page.SegmentList)
                     {
-                        page.BreakFromSegments = false;
-                        break;
+                        if (player.NPCBreak)
+                        {
+                            player.NPCBreak = false;
+                            break;
+                        }
+
+                        if (player.NPCDialogClose) break;
+
+                        ProcessSegment(player, page, segment, objectID);
                     }
 
-                    if (player.NPCDialogClose) break;
-
-                    ProcessSegment(player, page, segment, objectID);
+                    Response(player, page);
                 }
-
-                Response(player, page);
             }
-
-            player.NPCData.Remove("NPCInputStr");
+            finally
+            {
+                // A page that fails while it runs must not leave the session in the delayed state,
+                // which would skip the button check on the next request.
+                player.NPCDelayed = false;
+                player.NPCBreak = false;
+                player.NPCData.Remove("NPCInputStr");
+            }
         }
 
         private void Response(PlayerObject player, NPCPage page)
@@ -284,7 +271,24 @@ namespace Server.MirObjects
         {
             player.NPCObjectID = objectID;
             player.NPCScriptID = ScriptID;
-            player.NPCSuccess.Add(segment, segment.Check(player));
+
+            bool success;
+
+            try
+            {
+                success = segment.Check(player);
+            }
+            catch (Exception ex)
+            {
+                // A broken action costs one segment, not the dialogue: the page still answers with
+                // its failure text and the reason reaches the diagnostics.
+                ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException,
+                    page == null ? string.Empty : page.Key, "NPC", ex.Message);
+
+                success = false;
+            }
+
+            player.NPCSuccess.Add(segment, success);
             player.NPCPage = page;
         }
 

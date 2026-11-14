@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Server.MirDatabase;
 using Server.MirEnvir;
 using S = ServerPackets;
@@ -33,7 +33,7 @@ namespace Server.MirObjects
 
             player.SendNPCGoods(sentGoods, script.PriceRate(player), PanelType.Buy, Settings.GoodsHideAddedStats);
 
-            if (string.Equals(page.Key, BuySellKey, StringComparison.OrdinalIgnoreCase))
+            if (ScriptSpecialPageCatalog.IsPage(page.Key, ScriptSpecialPageKind.BuySell))
             {
                 player.Enqueue(new S.NPCSell());
             }
@@ -48,7 +48,7 @@ namespace Server.MirObjects
 
             player.SendNPCGoods(sentGoods, script.PriceRate(player), PanelType.Buy, Settings.GoodsHideAddedStats);
 
-            if (string.Equals(page.Key, BuySellNewKey, StringComparison.OrdinalIgnoreCase))
+            if (ScriptSpecialPageCatalog.IsPage(page.Key, ScriptSpecialPageKind.BuySellNew))
             {
                 player.Enqueue(new S.NPCSell());
             }

@@ -74,17 +74,17 @@ namespace Server.MirObjects
     {
         public static readonly ScriptSectionEntry[] Entries =
         {
-            new ScriptSectionEntry(ScriptSectionKind.Types, NPCScript.TypeKey, 10,
+            new ScriptSectionEntry(ScriptSectionKind.Types, "[TYPES]", 10,
                 (script, lines, index) => script.ParseTypeSection(lines, index), isEntry: IsInteger),
-            new ScriptSectionEntry(ScriptSectionKind.UsedTypes, NPCScript.UsedTypeKey, 20,
+            new ScriptSectionEntry(ScriptSectionKind.UsedTypes, "[USEDTYPES]", 20,
                 (script, lines, index) => script.ParseUsedTypeSection(lines, index), isEntry: IsInteger),
-            new ScriptSectionEntry(ScriptSectionKind.Trade, NPCScript.TradeKey, 30,
+            new ScriptSectionEntry(ScriptSectionKind.Trade, "[TRADE]", 30,
                 (script, lines, index) => script.ParseGoodsSection(lines, index), endsAtHeader: true),
-            new ScriptSectionEntry(ScriptSectionKind.Recipe, NPCScript.RecipeKey, 40,
+            new ScriptSectionEntry(ScriptSectionKind.Recipe, "[RECIPE]", 40,
                 (script, lines, index) => script.ParseCraftingSection(lines, index), endsAtHeader: true),
-            new ScriptSectionEntry(ScriptSectionKind.Quests, NPCScript.QuestKey, 50,
+            new ScriptSectionEntry(ScriptSectionKind.Quests, "[QUESTS]", 50,
                 (script, lines, index) => script.ParseQuestsSection(lines, index), endsAtHeader: true),
-            new ScriptSectionEntry(ScriptSectionKind.Speech, NPCScript.SpeechKey, 60,
+            new ScriptSectionEntry(ScriptSectionKind.Speech, "[SPEECH]", 60,
                 (script, lines, index) => script.ParseSpeechSection(lines, index), isEntry: IsSpeech),
         };
 
@@ -113,6 +113,14 @@ namespace Server.MirObjects
         }
 
         /// <summary>Section for a header line such as "[Trade]", or null for an ordinary page.</summary>
+        /// <summary>Header text of a section; the table is the only place it is written.</summary>
+        public static string Key(ScriptSectionKind kind)
+        {
+            ScriptSectionEntry section = Find(kind);
+
+            return section == null ? null : section.Key;
+        }
+
         public static ScriptSectionEntry Find(string key)
         {
             ScriptSectionEntry entry;

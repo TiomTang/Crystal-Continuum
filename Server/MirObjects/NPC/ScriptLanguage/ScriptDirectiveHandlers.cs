@@ -111,7 +111,7 @@ namespace Server.MirObjects
                     return null;
                 }
 
-                return File.ReadAllLines(path).ToList();
+                return new List<string>(ReadScriptFile(path, line));
             }
 
             if (parts.Length < 3)
@@ -132,7 +132,7 @@ namespace Server.MirObjects
                 return null;
             }
 
-            IList<string> extLines = File.ReadAllLines(path);
+            IList<string> extLines = ReadScriptFile(path, line);
 
             for (int i = 0; i < extLines.Count; i++)
             {
@@ -168,6 +168,22 @@ namespace Server.MirObjects
             Report(ScriptDiagnosticKind.MissingPage, line, "INCLUDE page " + page + " not found in " + path);
 
             return null;
+        }
+
+        /// <summary>
+        /// Reads a file a directive points at, with the same encoding rule as the script itself: GBK is
+        /// accepted but reported, so a converted script does not silently keep a legacy include.
+        /// </summary>
+        private static IList<string> ReadScriptFile(string path, string line)
+        {
+            bool legacy;
+
+            IList<string> lines = ScriptTextFile.ReadAllLines(path, out legacy);
+
+            if (legacy)
+                Report(ScriptDiagnosticKind.LegacyEncoding, line, "file is not UTF-8, read as GBK: " + path);
+
+            return lines;
         }
 
         private static string Resolve(string argument)

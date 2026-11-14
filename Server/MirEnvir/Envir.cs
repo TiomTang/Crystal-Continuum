@@ -5703,6 +5703,9 @@ namespace Server.MirEnvir
         {
             SaveGoods(true);
 
+            // Diagnostics describe the load that is about to run, not the one before it.
+            ScriptDiagnostics.Clear();
+
             Robot.Clear();
 
             var keys = Scripts.Keys;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -44,7 +44,16 @@ namespace Server.MirObjects
             {
                 if (!int.TryParse(param[0], out int scriptID)) return ScriptOutcome.Abort;
 
-                var action = new DelayedAction(DelayedType.NPC, -1, player.NPCObjectID, scriptID, "[@MAIN]");
+                if (!Envir.Scripts.ContainsKey(scriptID))
+                {
+                    ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingScript,
+                        seg.Page == null ? string.Empty : seg.Page.Key, "CALL", "Unknown script: " + scriptID);
+
+                    return ScriptOutcome.Abort;
+                }
+
+                var action = new DelayedAction(DelayedType.NPC, -1, player.NPCObjectID, scriptID,
+                    ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Main));
                 player.ActionList.Add(action);
             }
             return ScriptOutcome.Pass;
@@ -55,11 +64,17 @@ namespace Server.MirObjects
             NPCSegment seg = ctx.Segment;
             MapObject obj = (MapObject)ctx.Player ?? ctx.Monster;
 
-            if (obj == null) return ScriptOutcome.Pass;
-
+            if (obj == null)
             {
+                // No player or monster behind the call (internal page run): the page itself is the
+                // only place the request state can live.
                 seg.Page.BreakFromSegments = true;
+
+                return ScriptOutcome.Pass;
             }
+
+            obj.NPCBreak = true;
+
             return ScriptOutcome.Pass;
         }
 

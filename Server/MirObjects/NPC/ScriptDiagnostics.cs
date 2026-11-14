@@ -15,7 +15,12 @@ namespace Server.MirObjects
         WrongArity,
         MissingPage,
         MissingScript,
+        DuplicatePage,
+        MalformedSection,
         LoadFailed,
+        LegacyEncoding,
+        RuntimeException,
+        ChainLimit,
     }
 
     /// <summary>One script problem, deduplicated by file, page, keyword and line text.</summary>
@@ -155,7 +160,10 @@ namespace Server.MirObjects
 
             Action<string> sink = Sink;
 
-            if (sink != null)
+            // A page nobody defines is common in shipped data (links across scripts, keys assembled at
+            // run time); the collection keeps them for the editor, while the server log only takes the
+            // ones it can act on. A missing page found at run time still reaches the log.
+            if (sink != null && (kind != ScriptDiagnosticKind.MissingPage || ScriptParseScope.FileName == null))
             {
                 string where = context.LineNumber > 0 ? file + ":" + context.LineNumber : file;
 

@@ -71,6 +71,9 @@ namespace Server.MirObjects
 
         /// <summary>A map file name.</summary>
         Map,
+
+        /// <summary>An item name.</summary>
+        Item,
     }
 
     /// <summary>Result of matching one script line against the keyword table.</summary>

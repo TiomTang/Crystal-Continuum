@@ -86,7 +86,7 @@ namespace Server.MirObjects
                 "Require the account to hold a single character.", 1, ScriptCheckHandlers.Check_IsNewHuman, check: ScriptCheckKind.IsNewHuman, executor: NPCSegment.Exec_IsNewHuman),
 
             new ScriptKeywordEntry("CHECKITEM", ScriptKeywordKind.Check, ScriptKeywordCategory.Item, "<item> [count] [durability]",
-                "Check whether the player carries an item.", 2, ScriptCheckHandlers.Check_Item, check: ScriptCheckKind.CheckItem, executor: NPCSegment.Exec_CheckItem),
+                "Check whether the player carries an item.", 2, ScriptCheckHandlers.Check_Item, check: ScriptCheckKind.CheckItem, executor: NPCSegment.Exec_CheckItem, argument: ScriptArgumentKind.Item),
             new ScriptKeywordEntry("HASBAGSPACE", ScriptKeywordKind.Check, ScriptKeywordCategory.Item, "<operator> <free slots>",
                 "Compare the number of free bag slots.", 3, ScriptCheckHandlers.Check_BagSpace, check: ScriptCheckKind.HasBagSpace, executor: NPCSegment.Exec_HasBagSpace),
 

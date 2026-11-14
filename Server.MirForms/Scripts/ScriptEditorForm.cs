@@ -419,7 +419,7 @@ namespace Server.MirForms.Scripts
             }
             catch (DecoderFallbackException)
             {
-                _encoding = Encoding.GetEncoding(936);
+                _encoding = TextEncodings.Gbk;
                 text = _encoding.GetString(bytes, offset, bytes.Length - offset);
             }
 
@@ -434,7 +434,8 @@ namespace Server.MirForms.Scripts
             _dirty = false;
             _savedText = _editor.Text;
 
-            _statusText.Text = path;
+            // A GBK file is kept in GBK on save; say so instead of letting the author guess.
+            _statusText.Text = _encoding.CodePage == Encoding.UTF8.CodePage ? path : path + "  [GBK]";
             RefreshStructure();
             ApplyHighlight(true);
             CheckBuffer(false, true);
@@ -830,6 +831,11 @@ namespace Server.MirForms.Scripts
                     rules.ItemExists = name => names.Contains(name.Replace(" ", ""));
                 }
 
+                if (Envir.Main != null && Envir.Main.Scripts.Count > 0)
+                {
+                    rules.ScriptExists = id => Envir.Main.Scripts.ContainsKey(id);
+                }
+
                 var quests = NonEmpty(Envir.Main?.QuestInfoList, Envir.Edit?.QuestInfoList);
 
                 if (quests != null && quests.Count > 0)
@@ -847,9 +853,10 @@ namespace Server.MirForms.Scripts
         }
 
         /// <summary>
-        /// Runs the buffer through the real parser: the engine throws on tags it does not know, which
-        /// no rule check can predict. The temporary file sits in the NPC folder because the loader
-        /// resolves scripts relative to it, and it is deleted straight after parsing.
+        /// Runs the buffer through the real parser. The loader reports what it cannot read through
+        /// <see cref="ScriptDiagnostics"/> instead of throwing, so the check reads that collection
+        /// rather than waiting for an exception. The temporary file sits in the NPC folder because the
+        /// loader resolves scripts relative to it, and it is deleted straight after parsing.
         /// </summary>
         private string EngineCheck()
         {
@@ -859,12 +866,39 @@ namespace Server.MirForms.Scripts
 
             try
             {
-                File.WriteAllText(path, _editor.Text, new UTF8Encoding(false));
+                File.WriteAllText(path, _editor.Text, _encoding);
+
+                ScriptDiagnostics.Clear();
 
                 NPCScript script = NPCScript.GetOrAdd(0u, "_editor_check", NPCScriptType.Normal);
                 script.LoadInfo();
 
-                return null;
+                var message = new StringBuilder();
+
+                int total = 0, shown = 0;
+
+                foreach (ScriptDiagnostic diagnostic in ScriptDiagnostics.Snapshot())
+                {
+                    if (!string.Equals(diagnostic.FileName, "_editor_check.txt", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    total++;
+
+                    if (shown >= 5) continue;
+
+                    shown++;
+
+                    if (message.Length > 0) message.Append("; ");
+
+                    if (diagnostic.Line > 0) message.Append("第 ").Append(diagnostic.Line).Append(" 行 ");
+
+                    message.Append(diagnostic.Message);
+                }
+
+                if (total == 0) return null;
+
+                if (total > shown) message.Append(" …");
+
+                return message.ToString();
             }
             catch (Exception exception)
             {

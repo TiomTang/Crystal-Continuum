@@ -8,6 +8,12 @@ namespace Server.MirObjects
 {
     public partial class NPCScript
     {
+        /// <summary>Source lines with their file numbers, shared by every page of one load.</summary>
+        private List<ScriptSourceLine> _scriptLines;
+
+        /// <summary>Normalised page header to its line in <see cref="_scriptLines"/>.</summary>
+        private Dictionary<string, int> _pageHeaderIndex;
+
         public void LoadInfo()
         {
             ClearInfo();
@@ -26,10 +32,19 @@ namespace Server.MirObjects
 
             try
             {
-                List<string> lines = File.ReadAllLines(fileName).ToList();
+                bool legacy;
+
+                List<string> lines = ScriptTextFile.ReadAllLines(fileName, out legacy).ToList();
+
+                if (legacy)
+                    ScriptDiagnostics.Report(ScriptDiagnosticKind.LegacyEncoding,
+                        new ScriptParseContext { FileName = FileName + ".txt" }, string.Empty,
+                        "file is not UTF-8, read as GBK");
 
                 foreach (ScriptDirectiveEntry directive in ScriptDirectiveCatalog.Ordered)
                     directive.Apply(lines);
+
+                PrepareScriptLines(lines);
 
                 switch (Type)
                 {
@@ -59,8 +74,72 @@ namespace Server.MirObjects
             }
             finally
             {
+                _scriptLines = null;
+                _pageHeaderIndex = null;
+
                 ScriptParseScope.Set(null);
             }
+        }
+
+        private static List<ScriptSourceLine> BuildScriptLines(IList<string> scriptLines)
+        {
+            var lines = new List<ScriptSourceLine>(scriptLines.Count);
+
+            for (int i = 0; i < scriptLines.Count; i++)
+            {
+                if (string.IsNullOrEmpty(scriptLines[i])) continue;
+
+                lines.Add(new ScriptSourceLine(scriptLines[i], i + 1));
+            }
+
+            return lines;
+        }
+
+        private void PrepareScriptLines(IList<string> scriptLines)
+        {
+            _scriptLines = BuildScriptLines(scriptLines);
+            _pageHeaderIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < _scriptLines.Count; i++)
+            {
+                string header;
+                string[] args;
+
+                if (!ScriptPageKeyCatalog.TryParseHeader(_scriptLines[i].Text, out header)) continue;
+
+                string normalized = NPCPage.NormalizeSectionName(header, out args);
+
+                if (!_pageHeaderIndex.ContainsKey(normalized)) _pageHeaderIndex[normalized] = i;
+            }
+        }
+
+        /// <summary>
+        /// First line whose header matches the normalised key. The index is only trusted when the
+        /// header is written exactly as the key, so a page defined with arguments still falls back to
+        /// the original prefix scan instead of changing what counts as a match.
+        /// </summary>
+        private int FindPageHeader(string tempSectionName)
+        {
+            int index;
+
+            if (_pageHeaderIndex != null && _pageHeaderIndex.TryGetValue(tempSectionName, out index))
+            {
+                if (string.Equals(_scriptLines[index].Text, tempSectionName, StringComparison.OrdinalIgnoreCase))
+                    return index;
+            }
+
+            if (_scriptLines == null) return -1;
+
+            for (int i = 0; i < _scriptLines.Count; i++)
+            {
+                string line = _scriptLines[i].Text;
+
+                if (ScriptLexer.IsComment(line)) continue;
+
+                if (line.ToUpper().StartsWith(tempSectionName.ToUpper())) return i;
+            }
+
+            return -1;
         }
 
         public void ClearInfo()
@@ -80,14 +159,14 @@ namespace Server.MirObjects
         {
             var loadedNPC = NPCObject.Get(LoadedObjectID);
 
-            if (loadedNPC != null)
+            if (loadedNPC == null) return;
+
+            string path = Path.Combine(Settings.GoodsPath, loadedNPC.Info.Index.ToString() + ".msd");
+
+            var loaded = new List<UserItem>();
+
+            if (File.Exists(path))
             {
-                loadedNPC.UsedGoods.Clear();
-
-                string path = Path.Combine(Settings.GoodsPath, loadedNPC.Info.Index.ToString() + ".msd");
-
-                if (!File.Exists(path)) return;
-
                 using (FileStream stream = File.OpenRead(path))
                 {
                     using (BinaryReader reader = new BinaryReader(stream))
@@ -104,15 +183,23 @@ namespace Server.MirObjects
                         else
                             version = Envir.LoadVersion;
 
+                        if (count < 0 || count > 100000)
+                            throw new ArgumentException("Invalid goods count: " + count);
+
                         for (int k = 0; k < count; k++)
                         {
                             UserItem item = new UserItem(reader, version, customversion);
                             if (Envir.BindItem(item))
-                                loadedNPC.UsedGoods.Add(item);
+                                loaded.Add(item);
                         }
                     }
                 }
             }
+
+            // Swap only after the file has been read completely, so a truncated .msd cannot leave the
+            // NPC with half its stock or clear what the previous load had.
+            loadedNPC.UsedGoods.Clear();
+            loadedNPC.UsedGoods.AddRange(loaded);
         }
 
         private void ParseDefault(List<string> lines)
@@ -155,6 +242,8 @@ namespace Server.MirObjects
 
         private void ParseScript(IList<string> lines)
         {
+            ReportDuplicatePages(lines);
+
             NPCPages.AddRange(ParsePages(lines));
 
             foreach (ScriptSectionEntry section in ScriptSectionCatalog.Ordered)
@@ -168,12 +257,64 @@ namespace Server.MirObjects
             }
         }
 
-        private List<NPCPage> ParsePages(IList<string> lines, string key = MainKey)
+        /// <summary>
+        /// Reports a page header that appears more than once in the same file. The loader keeps the
+        /// first copy, so without this the later bodies vanish without a word.
+        /// </summary>
+        private void ReportDuplicatePages(IList<string> lines)
         {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string key;
+
+                if (!ScriptPageKeyCatalog.TryParseHeader(lines[i], out key)) continue;
+                if (seen.Add(key)) continue;
+
+                ScriptDiagnostics.Report(ScriptDiagnosticKind.DuplicatePage, new ScriptParseContext
+                {
+                    Line = lines[i],
+                    LineNumber = i + 1,
+                    FileName = ScriptParseScope.FileName,
+                }, key, "Duplicate page \"" + key + "\"");
+            }
+        }
+
+        /// <summary>
+        /// Reports a button or jump target that no page header answers to. Without this the target
+        /// used to become an empty page, so the click did nothing and nothing was logged.
+        /// </summary>
+        private void ReportMissingPage(string key)
+        {
+            // A key built from a run-time value has no page yet; only a literal target can be dead.
+            if (string.IsNullOrEmpty(key) || key.IndexOf("<$", StringComparison.Ordinal) >= 0) return;
+
+            ScriptDiagnostics.Report(ScriptDiagnosticKind.MissingPage, new ScriptParseContext
+            {
+                FileName = ScriptParseScope.FileName,
+            }, key, "Page not found: " + key);
+        }
+
+        private List<NPCPage> ParsePages(IList<string> lines, string key = null)
+        {
+            if (key == null) key = ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Main);
+
             List<NPCPage> pages = new List<NPCPage>();
             List<string> buttons = new List<string>();
 
             NPCPage page = ParsePage(lines, key);
+
+            if (page == null)
+            {
+                // [@MAIN] has no body only when the file is not a dialogue script; the engine still
+                // needs its page object so a caller can open an empty window instead of failing.
+                if (ScriptSpecialPageCatalog.Find(key) == null) ReportMissingPage(key);
+                else pages.Add(new NPCPage(key));
+
+                return pages;
+            }
+
             pages.Add(page);
 
             buttons.AddRange(page.Buttons);
@@ -187,6 +328,28 @@ namespace Server.MirObjects
                 if (match) continue;
 
                 page = ParsePage(lines, section);
+
+                if (page == null)
+                {
+                    // A special page is answered by the engine, not by script text: it keeps an empty
+                    // page as its carrier so Response still reaches ProcessSpecial. @Exit is closed
+                    // by the client and never travels here.
+                    if (ScriptSpecialPageCatalog.Find(section) != null ||
+                        section.StartsWith("[@@", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Input pages are driven by the client's text prompt, so they need the same
+                        // empty carrier a special page does.
+                        pages.Add(new NPCPage(section));
+                    }
+                    else if (!section.StartsWith("[@_", StringComparison.OrdinalIgnoreCase) &&
+                             !string.Equals(section, "[@EXIT]", StringComparison.OrdinalIgnoreCase))
+                    {
+                        ReportMissingPage(section);
+                    }
+
+                    continue;
+                }
+
                 buttons.AddRange(page.Buttons);
 
                 pages.Add(page);
@@ -200,23 +363,21 @@ namespace Server.MirObjects
             bool nextPage = false, nextSection = false;
 
             // Numbers travel with the text: empty lines are dropped here, so the index in this list is
-            // no longer the line the script file has.
-            var lines = new List<ScriptSourceLine>();
-
-            for (int i = 0; i < scriptLines.Count; i++)
-            {
-                if (string.IsNullOrEmpty(scriptLines[i])) continue;
-
-                lines.Add(new ScriptSourceLine(scriptLines[i], i + 1));
-            }
+            // no longer the line the script file has. The list is built once per load and shared by
+            // every page, which is why a page no longer rebuilds it.
+            var lines = _scriptLines ?? BuildScriptLines(scriptLines);
 
             NPCPage Page = new NPCPage(sectionName);
 
             //Cleans arguments out of search page name
             string tempSectionName = Page.ArgumentParse(sectionName);
 
+            int header = FindPageHeader(tempSectionName);
+
+            if (header < 0) return null;
+
             //parse all individual pages in a script, defined by sectionName
-            for (int i = 0; i < lines.Count; i++)
+            for (int i = header; i < lines.Count; i++)
             {
                 string line = lines[i].Text;
 
@@ -290,7 +451,7 @@ namespace Server.MirObjects
                 return Page;
             }
 
-            return Page;
+            return null;
         }
 
         private NPCSegment ParseSegment(NPCPage page, IEnumerable<ScriptSourceLine> scriptLines)
@@ -516,7 +677,17 @@ namespace Server.MirObjects
 
                 QuestInfo info = Envir.GetQuestInfo(Math.Abs(index));
 
-                if (info == null) return;
+                if (info == null)
+                {
+                    ScriptDiagnostics.Report(ScriptDiagnosticKind.MalformedSection, new ScriptParseContext
+                    {
+                        Line = entry.Text,
+                        LineNumber = entry.Index + 1,
+                        FileName = ScriptParseScope.FileName,
+                    }, "Quests", "Unknown quest: " + index);
+
+                    continue;
+                }
 
                 if (index > 0) info.NpcIndex = LoadedObjectID;
                 else info.FinishNpcIndex = LoadedObjectID;

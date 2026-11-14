@@ -145,10 +145,10 @@ namespace Server.MirObjects
                 "Take pearls from the player.", 2, ScriptActionHandlers.Act_TakePearls, action: ScriptActionKind.TakePearls, executor: NPCSegment.Exec_TakePearls),
 
             new ScriptKeywordEntry("GIVEITEM", ScriptKeywordKind.Action, ScriptKeywordCategory.Item, "<item> [count]",
-                "Give an item to the player.", 2, ScriptActionHandlers.Act_GiveItem, action: ScriptActionKind.GiveItem, executor: NPCSegment.Exec_GiveItem),
+                "Give an item to the player.", 2, ScriptActionHandlers.Act_GiveItem, action: ScriptActionKind.GiveItem, executor: NPCSegment.Exec_GiveItem, argument: ScriptArgumentKind.Item),
 
             new ScriptKeywordEntry("TAKEITEM", ScriptKeywordKind.Action, ScriptKeywordCategory.Item, "<item> <count> [durability]",
-                "Take an item from the player.", 3, ScriptActionHandlers.Act_TakeItem, action: ScriptActionKind.TakeItem, executor: NPCSegment.Exec_TakeItem),
+                "Take an item from the player.", 3, ScriptActionHandlers.Act_TakeItem, action: ScriptActionKind.TakeItem, executor: NPCSegment.Exec_TakeItem, argument: ScriptArgumentKind.Item),
 
             new ScriptKeywordEntry("GIVEEXP", ScriptKeywordKind.Action, ScriptKeywordCategory.Player, "<amount>",
                 "Give experience to the player.", 2, ScriptActionHandlers.Act_GiveExp, action: ScriptActionKind.GiveExp, executor: NPCSegment.Exec_GiveExp),

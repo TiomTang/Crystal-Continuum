@@ -18,18 +18,33 @@ namespace Server.MirObjects
             Key = key;
         }
 
-        public string ArgumentParse(string key)
+        /// <summary>
+        /// Strips the arguments of a clickable page key, leaving the empty "()" the header carries.
+        /// Returns the key unchanged when it is not a clickable page or carries no arguments.
+        /// </summary>
+        public static string NormalizeSectionName(string key, out string[] args)
         {
+            args = null;
+
             ScriptPageKeyEntry entry = ScriptPageKeyCatalog.Find(key);
 
             // Automatic markers and input pages keep their arguments inside the key; only clickable
             // pages split "…(a,b)" into Args and keep an empty "()" so the header still matches.
             if (entry == null || !entry.UsesArguments) return key;
 
-            string[] args;
             string normalized = ScriptPageKeyCatalog.SplitArguments(key, out args);
 
             if (args.Length == 0) return key;
+
+            return normalized;
+        }
+
+        public string ArgumentParse(string key)
+        {
+            string[] args;
+            string normalized = NormalizeSectionName(key, out args);
+
+            if (args == null || args.Length == 0) return key;
 
             Args = new List<string>(args);
 

@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using Server.MirDatabase;
 using Server.MirEnvir;
 using Server.MirObjects;
@@ -236,7 +236,7 @@ foreach (var restrict in restrictions)
 
 {
     var p = Player();
-    AtNPC(p, NPCScript.MarketKey);
+    AtNPC(p, ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Market));
     var item = Item(1, 1);
     item.RentalInformation = new RentalInformation { BindingFlags = BindMode.DontSell | BindMode.DontTrade };
     p.Info.Inventory[0] = item;
@@ -258,7 +258,7 @@ foreach (var restrict in restrictions)
 
 {
     var p = Player();
-    AtNPC(p, NPCScript.StorageKey);
+    AtNPC(p, ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Storage));
     p.Account.Storage = new UserItem[Globals.StorageGridSize * 2];
     var source = Item(1, 60);
     p.Account.Storage[0] = source;
@@ -308,7 +308,7 @@ foreach (var restrict in restrictions)
     var goods = Item(1, 90, new ItemInfo { Name = "ShopStock", StackSize = 100, Price = 10 });
     script.Goods = new() { goods };
     var p = Player(); p.Account.Gold = 0;
-    p.NPCPage = new NPCPage(NPCScript.BuyKey);
+    p.NPCPage = new NPCPage(ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Buy));
     script.Buy(p, 1, 50);
     Check(goods.Count == 90 && p.Info.Inventory.All(item => item == null),
         "Failed NPC purchase changed shared stock");
@@ -338,7 +338,7 @@ foreach (var restrict in restrictions)
 foreach (int invalid in new[] { int.MinValue, -1, 1000, int.MaxValue })
 {
     var p = Player();
-    AtNPC(p, NPCScript.StorageKey);
+    AtNPC(p, ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Storage));
     var item = Item(1);
     p.Info.Inventory[0] = item;
     Action[] requests = {
@@ -369,13 +369,13 @@ foreach (int invalid in new[] { int.MinValue, -1, 1000, int.MaxValue })
     p.AddForTest(b);
     Check(a.Count == 70 && p.Info.Inventory.Count(item => item != null) == 1,
         "Valid automatic stacking failed");
-    AtNPC(p, NPCScript.RefineKey);
+    AtNPC(p, ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Refine));
     var refining = Item(3, 1);
     p.Info.CurrentRefine = refining;
     p.RefineItem(1);
     Check(p.Info.CurrentRefine == refining && p.Info.Inventory[0] == a,
         "Second refine request overwrote an item in progress");
-    AtNPC(p, NPCScript.AwakeningKey);
+    AtNPC(p, ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Awakening));
     p.Awakening(1, (AwakeType)255);
     p.AwakeningNeedMaterials(1, (AwakeType)255);
     Check(p.Info.Inventory[0] == a && p.Account.Gold == 1000, "Invalid awakening type changed inventory");

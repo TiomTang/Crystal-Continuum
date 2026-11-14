@@ -1150,7 +1150,7 @@ namespace Server.MirNetwork
         {
             if (Player == null) return false;
 
-            if (Player.NPCPage == null || !String.Equals(Player.NPCPage.Key, NPCScript.StorageKey, StringComparison.CurrentCultureIgnoreCase))
+            if (Player.NPCPage == null || !ScriptSpecialPageCatalog.IsPage(Player.NPCPage.Key, ScriptSpecialPageKind.Storage))
                 return false;
 
             NPCObject ob = null;

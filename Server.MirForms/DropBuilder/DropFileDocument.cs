@@ -407,7 +407,7 @@ namespace Server.MirForms.DropBuilder
                 // Legacy encoding (typical for Chinese Mir data): read it, but never lose bytes.
                 try
                 {
-                    return Encoding.GetEncoding(54936);
+                    return TextEncodings.Gb18030;
                 }
                 catch (Exception)
                 {
