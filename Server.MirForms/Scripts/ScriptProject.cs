@@ -186,6 +186,22 @@ namespace Server.MirForms.Scripts
             return directory ?? ".";
         }
 
+        /// <summary>
+        /// Directory a CALL is resolved in, relative to the Envir root the file belongs to: a script
+        /// under Events calls other event scripts, not NPC ones.
+        /// </summary>
+        public static string ScriptDirectory(string path)
+        {
+            string root = IncludeRoot(path);
+            string directory = string.IsNullOrEmpty(path) ? null : Path.GetDirectoryName(Path.GetFullPath(path));
+
+            if (string.IsNullOrEmpty(directory)) return "NPCs";
+
+            string relative = Path.GetRelativePath(root, directory);
+
+            return relative == "." ? "NPCs" : relative;
+        }
+
         /// <summary>Section the given 1-based line belongs to, if any.</summary>
         public ScriptSectionKind SectionAt(int line)
         {
@@ -312,7 +328,7 @@ namespace Server.MirForms.Scripts
             {
                 fileName = Path.GetFullPath(string.IsNullOrEmpty(fileName)
                     ? Path.Combine("Envir", "NPCs", "__editor__.txt") : fileName);
-                validation = NPCScript.Validate(string.Join("\n", Lines), fileName, IncludeRoot(fileName), Type);
+                validation = NPCScript.Validate(string.Join("\n", Lines), fileName, IncludeRoot(fileName), Type, ScriptDirectory(fileName));
             }
             catch (Exception exception)
             {

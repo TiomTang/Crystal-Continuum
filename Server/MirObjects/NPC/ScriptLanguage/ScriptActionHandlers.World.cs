@@ -23,9 +23,11 @@ namespace Server.MirObjects
             if (quoteMatch.Success)
                 listPath = quoteMatch.Groups[1].Captures[0].Value;
 
-            string root = ScriptValidationScope.Current == null
+            ScriptValidationScope validation = ScriptValidationScope.Current;
+
+            string root = validation == null
                 ? ScriptParseScope.Root ?? Settings.NPCPath
-                : Path.Combine(ScriptValidationScope.Current.EnvirPath, "NPCs");
+                : Path.Combine(validation.EnvirPath, validation.ScriptDirectory);
 
             string fileName = Path.Combine(root, listPath + ".txt");
 

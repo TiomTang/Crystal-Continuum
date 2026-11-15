@@ -31,12 +31,12 @@ namespace Server.MirObjects
         /// not applied here; the returned source lets tools check their data against an available DB.
         /// </summary>
         public static ScriptValidationResult Validate(string text, string fileName, string envirPath,
-            NPCScriptType type = NPCScriptType.Normal)
+            NPCScriptType type = NPCScriptType.Normal, string scriptDirectory = "NPCs")
         {
             fileName = Path.GetFullPath(fileName);
             var script = new NPCScript(Path.ChangeExtension(fileName, null), type);
             var source = ScriptSourceLine.Bind((text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'), fileName);
-            using var scope = new ScriptValidationScope(envirPath, fileName, source.Select(line => line.Text).ToArray());
+            using var scope = new ScriptValidationScope(envirPath, fileName, source.Select(line => line.Text).ToArray(), scriptDirectory);
             try
             {
                 scope.ConsumeLines(source.Count);

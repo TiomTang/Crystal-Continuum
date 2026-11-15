@@ -24,11 +24,15 @@ namespace Server.MirObjects
         internal readonly List<ScriptDiagnostic> Diagnostics = new List<ScriptDiagnostic>();
         internal readonly List<ScriptValidationResult> CalledScripts = new List<ScriptValidationResult>();
         internal readonly string EnvirPath;
+
+        /// <summary>Directory under Envir a CALL is resolved in: NPCs, Events or SystemScripts.</summary>
+        internal readonly string ScriptDirectory;
         internal readonly string BatchId = Guid.NewGuid().ToString("N");
 
-        internal ScriptValidationScope(string envirPath, string fileName, string[] buffer)
+        internal ScriptValidationScope(string envirPath, string fileName, string[] buffer, string scriptDirectory = "NPCs")
         {
             EnvirPath = Path.GetFullPath(envirPath);
+            ScriptDirectory = string.IsNullOrEmpty(scriptDirectory) ? "NPCs" : scriptDirectory;
             _previous = _current;
             _previousFile = ScriptParseScope.FileName;
             _depth = (_previous?._depth ?? -1) + 1;
@@ -37,7 +41,7 @@ namespace Server.MirObjects
             _files[fileName] = (buffer, _files.TryGetValue(fileName, out var cached) && cached.Legacy);
             _calls.Add(fileName);
             _current = this;
-            ScriptParseScope.Set(fileName);
+            ScriptParseScope.Set(fileName, Path.Combine(EnvirPath, ScriptDirectory));
         }
 
         internal string Resolve(string directory, string name) => Path.Combine(EnvirPath, directory, name);
@@ -113,7 +117,7 @@ namespace Server.MirObjects
                 string[] lines = ReadFile(path, out bool legacy);
                 if (legacy) ScriptDiagnostics.Report(ScriptDiagnosticKind.LegacyEncoding, context, "CALL",
                     "file is not UTF-8, read as GBK: " + path);
-                CalledScripts.Add(NPCScript.Validate(string.Join(Environment.NewLine, lines), path, EnvirPath, NPCScriptType.Called));
+                CalledScripts.Add(NPCScript.Validate(string.Join(Environment.NewLine, lines), path, EnvirPath, NPCScriptType.Called, ScriptDirectory));
             }
             catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException || exception is ArgumentException)
             {
