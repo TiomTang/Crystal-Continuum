@@ -67,6 +67,21 @@ namespace Server.MirForms.Scripts
             return rows;
         }
 
+        /// <summary>Rows a data section line can still add: pages and sections belong to the file.</summary>
+        public static List<StructureCandidate> TopLevel(ScriptProject project, NPCScriptType? type = null)
+        {
+            // Inside a data section only rows that belong to the whole file make sense; a block tag or
+            // an INCLUDE would be inserted into the section body and never be loaded.
+            var rows = new List<StructureCandidate>();
+
+            AddSections(rows, project);
+            AddPages(rows);
+            AddHeader(rows, GameLanguage.Get("Automatic pages"));
+            rows.AddRange(AutoMarkers(type));
+
+            return rows;
+        }
+
         /// <summary>All block tags for menus, or the tags not yet used in the caret's segment.</summary>
         public static List<StructureCandidate> Blocks(ScriptProject project = null, int line = 0)
         {

@@ -22,6 +22,8 @@ namespace Server.MirForms.Scripts
         private static readonly Regex TagPattern = new Regex(@"^#[A-Za-z]+", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex CommentPattern = new Regex(@"^[ \t]*(;|//).*$", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex ValuePattern = new Regex(@"<\$[^>\r\n]+>", RegexOptions.Compiled);
+        // The client splits this on '/' and renders the first part in the second part's colour name.
+        private static readonly Regex ColourTextPattern = new Regex(@"\{[^{}\r\n]*?/[^{}\r\n]*?\}", RegexOptions.Compiled);
         private static readonly Regex LineKeywordPattern = new Regex(@"^[ \t]*([A-Za-z][A-Za-z0-9_()]*)", RegexOptions.Compiled);
 
         private static readonly Color PageColor = Color.FromArgb(0, 51, 153);
@@ -29,6 +31,7 @@ namespace Server.MirForms.Scripts
         private static readonly Color CommentColor = Color.FromArgb(128, 128, 128);
         private static readonly Color ButtonColor = Color.FromArgb(0, 102, 204);
         private static readonly Color ValueColor = Color.FromArgb(153, 51, 0);
+        private static readonly Color ColourTextColor = Color.FromArgb(0, 102, 102);
         private static readonly Color KeywordColor = Color.FromArgb(0, 102, 51);
 
         private const int WmSetRedraw = 0x000B;
@@ -522,6 +525,8 @@ namespace Server.MirForms.Scripts
 
             if (sectionPage != null)
             {
+                // A data section has no blocks, but its file can still gain pages and sections.
+                _structureCandidates.AddRange(ScriptStructureCatalog.TopLevel(project, CurrentScriptType()));
                 _paletteHint = SectionHint(sectionPage.Section);
                 _valueCandidates.AddRange(ValueCandidates(sectionPage, project));
                 FillPalette();
@@ -1007,6 +1012,7 @@ namespace Server.MirForms.Scripts
                 Colorize(text, TagPattern, TagColor);
                 Colorize(text, ScriptLexer.Button, ButtonColor);
                 Colorize(text, ValuePattern, ValueColor);
+                ColorizeColourText(text);
                 ColorizeKeywords(text);
 
                 _highlightRevision = _textRevision;
@@ -1049,6 +1055,20 @@ namespace Server.MirForms.Scripts
             }
         }
 
+        /// <summary>
+        /// Text written as {content/ColourName}, which the client removes from the line and draws in that
+        /// colour. It consumes the construct even when the name is misspelled, so the caret must see it
+        /// as markup either way.
+        /// </summary>
+        private void ColorizeColourText(string text)
+        {
+            foreach (Match match in ColourTextPattern.Matches(text))
+            {
+                _editor.Select(match.Index, match.Length);
+                _editor.SelectionColor = ColourTextColor;
+            }
+        }
+
         private void ColorizeKeywords(string text)
         {
             int[] lineStarts = BuildLineStarts(text);
@@ -1057,7 +1077,8 @@ namespace Server.MirForms.Scripts
             {
                 if (block.Kind != ScriptBlockKind.Check && block.Kind != ScriptBlockKind.Act && block.Kind != ScriptBlockKind.ElseAct) continue;
 
-                for (int line = block.StartLine; line < block.EndLine && line - 1 < lineStarts.Length; line++)
+                // EndLine is the last line of the block itself, so a one-line block still gets a colour.
+                for (int line = block.StartLine; line <= block.EndLine && line - 1 < lineStarts.Length; line++)
                 {
                     int start = lineStarts[line - 1];
                     int end = line < lineStarts.Length ? lineStarts[line] : text.Length;
