@@ -23,8 +23,11 @@ namespace Server.MirObjects
             if (quoteMatch.Success)
                 listPath = quoteMatch.Groups[1].Captures[0].Value;
 
-            string fileName = Path.Combine(ScriptValidationScope.Current == null
-                ? Settings.NPCPath : Path.Combine(ScriptValidationScope.Current.EnvirPath, "NPCs"), listPath + ".txt");
+            string root = ScriptValidationScope.Current == null
+                ? ScriptParseScope.Root ?? Settings.NPCPath
+                : Path.Combine(ScriptValidationScope.Current.EnvirPath, "NPCs");
+
+            string fileName = Path.Combine(root, listPath + ".txt");
 
             // The root script may still be an unsaved buffer, so ask the session before the disk.
             if (!ScriptValidationScope.Exists(fileName))
@@ -35,18 +38,12 @@ namespace Server.MirObjects
                 return ScriptParseOutcome.Skipped;
             }
 
+            // The path is the only thing the parser records. Binding it to a loaded script (and to its
+            // runtime id) is the loader's job, so compiling an unsaved buffer never registers anything.
             if (ScriptValidationScope.IsActive)
-            {
                 ScriptValidationScope.Current.ValidateCall(fileName, ctx);
-                ctx.Acts.Add(new NPCActions(ScriptActionKind.Call, listPath));
-                return ScriptParseOutcome.Handled;
-            }
 
-            NPCScript script = NPCScript.GetOrAdd(0, listPath, NPCScriptType.Called);
-
-            ctx.Segment.Page.ScriptCalls.Add(script.ScriptID);
-
-            ctx.Acts.Add(new NPCActions(ScriptActionKind.Call, script.ScriptID.ToString()));
+            ctx.Acts.Add(new NPCActions(ScriptActionKind.Call, listPath));
             return ScriptParseOutcome.Handled;
         }
 

@@ -24,22 +24,30 @@ namespace Server.MirObjects
             return Envir.Scripts[index];
         }
 
-        public static NPCScript GetOrAdd(uint loadedObjectID, string fileName, NPCScriptType type)
+        public static NPCScript GetOrAdd(uint loadedObjectID, string fileName, NPCScriptType type, string loadRoot = null)
         {
-            var script = Envir.Scripts.SingleOrDefault(x => x.Value.FileName.Equals(fileName, StringComparison.OrdinalIgnoreCase) && x.Value.LoadedObjectID == loadedObjectID).Value;
+            // The same name can exist under NPCs and under Events, so the root is part of the identity.
+            string root = loadRoot ?? Settings.NPCPath;
+
+            var script = Envir.Scripts.SingleOrDefault(x => x.Value.FileName.Equals(fileName, StringComparison.OrdinalIgnoreCase)
+                                                             && x.Value.LoadedObjectID == loadedObjectID
+                                                             && string.Equals(x.Value.LoadRoot, root, StringComparison.OrdinalIgnoreCase)).Value;
 
             if (script != null)
             {
                 return script;
             }
 
-            return new NPCScript(loadedObjectID, fileName, type);
+            return new NPCScript(loadedObjectID, fileName, type, root);
         }
 
         public readonly int ScriptID;
         public readonly uint LoadedObjectID;
         public readonly NPCScriptType Type;
         public readonly string FileName;
+
+        /// <summary>Directory this file is read from. Events live outside NPCPath, so it is not global.</summary>
+        public readonly string LoadRoot;
 
         public List<ItemType> Types = new List<ItemType>();
         public List<ItemType> UsedTypes = new List<ItemType>();
@@ -49,13 +57,14 @@ namespace Server.MirObjects
         public List<NPCPage> NPCSections = new List<NPCPage>();
         public List<NPCPage> NPCPages = new List<NPCPage>();
 
-        private NPCScript(uint loadedObjectID, string fileName, NPCScriptType type)
+        private NPCScript(uint loadedObjectID, string fileName, NPCScriptType type, string loadRoot)
         {
             ScriptID = ++Envir.ScriptIndex;
 
             LoadedObjectID = loadedObjectID;
             FileName = fileName;
             Type = type;
+            LoadRoot = loadRoot;
 
             Load();
 
@@ -319,6 +328,89 @@ namespace Server.MirObjects
             if (special?.Executor == null) return;
 
             special.Executor(this, player, page);
+        }
+
+        /// <summary>True when the file defines this page, whether or not it is reachable by a button.</summary>
+        public bool HasPage(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return false;
+
+            foreach (NPCPage page in NPCPages)
+            {
+                if (string.Equals(page.Key, key, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Runs one page for a player with no NPC conversation: no button authorization, no panel
+        /// state and no dialog packet. An event or a quest callback uses this, and the player's open
+        /// NPC window stays exactly as it was. Says are collected and discarded, because nothing here
+        /// may deliver a dialog.
+        /// </summary>
+        public bool RunDetached(PlayerObject player, string key)
+        {
+            if (player == null || string.IsNullOrEmpty(key)) return false;
+
+            key = key.ToUpperInvariant();
+
+            using var scope = ScriptInteraction.Enter(player, new ScriptInteraction(false), FileName + ":" + key);
+            using var boundary = ScriptDiagnostics.BeginExecution(ScriptInteraction.Current.CreateEvidence(
+                ScriptDiagnostics.CaptureExecution(), FileName + ".txt", key));
+            ScriptInteraction interaction = ScriptInteraction.Current;
+
+            var call = new ScriptCallContext();
+            List<string> speech = player.NPCSpeech;
+            bool found = false;
+
+            // SAY appends to the player's dialog buffer. Give the page an empty one and hand the
+            // original back afterwards, so a detached run cannot leak text into the next dialog.
+            player.NPCSpeech = new List<string>();
+
+            try
+            {
+                foreach (NPCPage page in NPCPages)
+                {
+                    if (!string.Equals(page.Key, key, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    found = true;
+
+                    foreach (NPCSegment segment in page.SegmentList)
+                    {
+                        if (call.BreakRequested || call.ExecutionAborted || interaction.Failed) break;
+
+                        try
+                        {
+                            segment.Check(player, call);
+                        }
+                        catch (Exception ex)
+                        {
+                            // Same rule as a page call: an execution error stops the chain and never
+                            // authorizes the ELSE buttons.
+                            ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, key, "NPC",
+                                "Detached page execution failed.", FileName + ".txt", ex.GetType().FullName, ex);
+                            call.ExecutionAborted = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                player.NPCSpeech = speech;
+                player.NPCData.Remove("NPCInputStr");
+                interaction.LastCompletedAction = call.LastCompletedAction;
+                interaction.HasSideEffects |= call.HasSideEffects;
+            }
+
+            if (!found)
+            {
+                ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingPage, key, "NPC",
+                    "Requested page is unavailable; the detached call was stopped.", FileName + ".txt");
+            }
+
+            return found && !call.ExecutionAborted && !interaction.Failed;
         }
 
     }

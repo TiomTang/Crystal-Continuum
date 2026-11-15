@@ -28,7 +28,9 @@ namespace Server.MirObjects
 
     /// <summary>
     /// One automatic marker the loader acts on: which script type owns it, the marker in the page key,
-    /// and the effect. A marker that only opens a page, such as LEVELUP, is not listed here on purpose.
+    /// how it is read, and how its effect is published. Reading is separate from publishing so a tool
+    /// can walk the same row without changing the world, and the loader never looks a map or a monster
+    /// up twice for one line.
     /// </summary>
     public sealed class ScriptAutoMarkerEntry
     {
@@ -36,22 +38,36 @@ namespace Server.MirObjects
         public readonly string Marker;
         public readonly string Arguments;
         public readonly string Description;
-        public readonly Func<NPCScript, ScriptAutoMarkerLine, bool> Apply;
+
+        /// <summary>Reads the line; returns the effect to publish, or null when it does not apply.</summary>
+        private readonly Func<ScriptAutoMarkerLine, object> _plan;
+
+        /// <summary>Publishes one effect produced by <see cref="_plan"/>.</summary>
+        private readonly Action<object> _activate;
+
         internal readonly Func<ScriptAutoMarkerLine, string> ValidateArguments;
 
         /// <summary>Editable page header; arguments use the same order as the loader.</summary>
         public string Key => ScriptPageKeyCatalog.Auto.Prefix + Marker + "(" + Arguments + ")]";
 
-        public ScriptAutoMarkerEntry(NPCScriptType type, string marker, Func<NPCScript, ScriptAutoMarkerLine, bool> apply,
-            string arguments = "", string description = "", Func<ScriptAutoMarkerLine, string> validateArguments = null)
+        internal ScriptAutoMarkerEntry(NPCScriptType type, string marker, Func<ScriptAutoMarkerLine, object> plan,
+            Action<object> activate, string arguments = "", string description = "",
+            Func<ScriptAutoMarkerLine, string> validateArguments = null)
         {
             Type = type;
             Marker = marker;
-            Apply = apply;
+            _plan = plan;
+            _activate = activate;
             ValidateArguments = validateArguments;
             Arguments = arguments;
             Description = description;
         }
+
+        /// <summary>Reads the marker without publishing anything.</summary>
+        internal object ReadPlan(ScriptAutoMarkerLine line) => _plan(line);
+
+        /// <summary>Publishes one already-read marker.</summary>
+        internal void Publish(object payload) => _activate(payload);
     }
 
     /// <summary>
@@ -62,27 +78,32 @@ namespace Server.MirObjects
     public static class ScriptAutoMarkerCatalog
     {
         public static readonly ScriptAutoMarkerEntry MapCoord = new ScriptAutoMarkerEntry(
-            NPCScriptType.AutoPlayer, "MAPCOORD", (script, line) => script.ApplyAutoMapCoord(line),
+            NPCScriptType.AutoPlayer, "MAPCOORD", line => NPCScript.PlanAutoMapCoord(line),
+            payload => NPCScript.ActivateAutoMapCoord(payload),
             arguments: "<map>,<x>,<y>", description: "AutoPlayer: run when the player reaches this map coordinate.",
             validateArguments: NPCScript.ValidateAutoMapCoordArguments);
 
         public static readonly ScriptAutoMarkerEntry CustomCommand = new ScriptAutoMarkerEntry(
-            NPCScriptType.AutoPlayer, "CUSTOMCOMMAND", (script, line) => script.ApplyAutoCustomCommand(line),
+            NPCScriptType.AutoPlayer, "CUSTOMCOMMAND", line => NPCScript.PlanAutoCustomCommand(line),
+            payload => NPCScript.ActivateAutoCustomCommand(payload),
             arguments: "<command>", description: "AutoPlayer: register a custom command and run its page.",
             validateArguments: NPCScript.ValidateAutoCustomCommandArguments);
 
         public static readonly ScriptAutoMarkerEntry Spawn = new ScriptAutoMarkerEntry(
-            NPCScriptType.AutoMonster, "SPAWN", (script, line) => script.ApplyAutoSpawn(line),
+            NPCScriptType.AutoMonster, "SPAWN", line => NPCScript.PlanAutoSpawn(line),
+            payload => NPCScript.ActivateAutoSpawn(payload),
             arguments: "<monster index>", description: "AutoMonster: run when this monster definition spawns.",
             validateArguments: NPCScript.ValidateAutoMonsterArguments);
 
         public static readonly ScriptAutoMarkerEntry Die = new ScriptAutoMarkerEntry(
-            NPCScriptType.AutoMonster, "DIE", (script, line) => script.ApplyAutoDie(line),
+            NPCScriptType.AutoMonster, "DIE", line => NPCScript.PlanAutoDie(line),
+            payload => NPCScript.ActivateAutoDie(payload),
             arguments: "<monster index>", description: "AutoMonster: run when this monster definition dies.",
             validateArguments: NPCScript.ValidateAutoMonsterArguments);
 
         public static readonly ScriptAutoMarkerEntry Time = new ScriptAutoMarkerEntry(
-            NPCScriptType.Robot, "TIME", (script, line) => script.ApplyAutoTime(line),
+            NPCScriptType.Robot, "TIME", line => NPCScript.PlanAutoTime(line),
+            payload => NPCScript.ActivateAutoTime(payload),
             arguments: "#,#,#,#,#", description: "Robot: month, day, hour, minute and English weekday; # matches any value.",
             validateArguments: NPCScript.ValidateAutoTimeArguments);
 

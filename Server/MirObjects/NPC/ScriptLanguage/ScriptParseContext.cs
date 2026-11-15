@@ -78,14 +78,24 @@ namespace Server.MirObjects
         [System.ThreadStatic]
         private static string _fileName;
 
+        [System.ThreadStatic]
+        private static string _root;
+
         public static string FileName
         {
             get { return _fileName; }
         }
 
-        public static void Set(string fileName)
+        /// <summary>Directory of the file being parsed, so CALL resolves inside the same one.</summary>
+        public static string Root
+        {
+            get { return _root; }
+        }
+
+        public static void Set(string fileName, string root = null)
         {
             _fileName = fileName;
+            _root = root;
         }
     }
 }

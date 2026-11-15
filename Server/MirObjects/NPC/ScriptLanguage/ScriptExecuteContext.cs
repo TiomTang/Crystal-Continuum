@@ -3,6 +3,17 @@ using Server.MirEnvir;
 
 namespace Server.MirObjects
 {
+    /// <summary>
+    /// Values one page call shares between its segments. PARAM1-3 are written by one action and read by
+    /// MONGEN in a later segment of the same page, so they live here instead of on the parsed segment:
+    /// a page template is shared by every caller and must never carry one caller's values.
+    /// </summary>
+    public sealed class ScriptPageState
+    {
+        public string Param1;
+        public int Param1Instance, Param2, Param3;
+    }
+
     /// <summary>Mutable control flow belongs to one invocation, never to a shared page.</summary>
     internal sealed class ScriptCallContext
     {
@@ -12,6 +23,9 @@ namespace Server.MirObjects
         public string LastCompletedAction;
         public bool HasSideEffects;
         public ScriptDiagnostic FailureDiagnostic;
+
+        /// <summary>PARAM1-3 of the page this invocation is running.</summary>
+        public readonly ScriptPageState PageState = new ScriptPageState();
 
         public void Abort(ScriptDiagnostic diagnostic)
         {

@@ -22,6 +22,7 @@ namespace Server.MirObjects
         {
             FileName = fileName;
             Type = type;
+            LoadRoot = null;
         }
 
         /// <summary>
@@ -41,18 +42,8 @@ namespace Server.MirObjects
                 scope.ConsumeLines(source.Count);
                 foreach (ScriptDirectiveEntry directive in ScriptDirectiveCatalog.Ordered)
                     directive.ApplySource(source);
-                script.PrepareScriptSourceLines(source);
-                var lines = source.Select(line => line.Text).ToList();
-                script.ReportDuplicatePages(lines);
-                if (type == NPCScriptType.Normal || type == NPCScriptType.Called)
-                    script.NPCPages.AddRange(script.ParsePages(lines));
-                else
-                    foreach (ScriptSourceLine line in source)
-                        if (ScriptPageKeyCatalog.Find(line.Text) == ScriptPageKeyCatalog.Auto)
-                        {
-                            script.ValidateAutoMarker(line.Text, line);
-                            script.NPCPages.AddRange(script.ParsePages(lines, line.Text));
-                        }
+
+                ScriptCompilation compilation = script.Compile(source, ScriptCompileMode.Tool);
 
                 // Check unlinked pages too, without changing DeepScan or its runtime counters.
                 var parsed = new HashSet<string>(script.NPCPages.Select(page =>
@@ -62,7 +53,7 @@ namespace Server.MirObjects
                     if (!ScriptPageKeyCatalog.TryParseHeader(line.Text, out string key) ||
                         ScriptSectionCatalog.Find(key) != null ||
                         !parsed.Add(NPCPage.NormalizeSectionName(key, out _))) continue;
-                    List<NPCPage> additional = script.ParsePages(lines, key);
+                    List<NPCPage> additional = script.ParsePages(compilation.Lines, key);
                     script.NPCPages.AddRange(additional);
                     foreach (NPCPage page in additional) parsed.Add(NPCPage.NormalizeSectionName(page.Key, out _));
                 }

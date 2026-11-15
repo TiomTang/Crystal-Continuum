@@ -25,6 +25,7 @@ namespace Server
             GoodsPath = Path.Combine(EnvirPath, "Goods"),
             RecipePath = Path.Combine(EnvirPath, "Recipe"),
             QuestPath = Path.Combine(EnvirPath, "Quests"),
+            EventsPath = Path.Combine(EnvirPath, "Events"),
             DropPath = Path.Combine(EnvirPath, "Drops"),
             RoutePath = Path.Combine(EnvirPath, "Routes"),
             NameListPath = Path.Combine(EnvirPath, "NameLists"),

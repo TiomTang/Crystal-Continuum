@@ -8,6 +8,9 @@ namespace Server.MirObjects
 {
     public partial class NPCScript
     {
+        /// <summary>Directory this script is read from; a called script is looked up in the same one.</summary>
+        public string Root => LoadRoot ?? Settings.NPCPath;
+
         /// <summary>Source lines with their file numbers, shared by every page of one load.</summary>
         private List<ScriptSourceLine> _scriptLines;
         private List<ScriptSourceLine> _expandedSourceLines;
@@ -19,9 +22,9 @@ namespace Server.MirObjects
         {
             ClearInfo();
 
-            if (!Directory.Exists(Settings.NPCPath)) return;
+            if (!Directory.Exists(Root)) return;
 
-            string fileName = Path.Combine(Settings.NPCPath, FileName + ".txt");
+            string fileName = Path.Combine(Root, FileName + ".txt");
 
             if (!File.Exists(fileName))
             {
@@ -31,7 +34,7 @@ namespace Server.MirObjects
                 return;
             }
 
-            ScriptParseScope.Set(FileName + ".txt");
+            ScriptParseScope.Set(FileName + ".txt", Root);
 
             try
             {
@@ -47,23 +50,16 @@ namespace Server.MirObjects
                 foreach (ScriptDirectiveEntry directive in ScriptDirectiveCatalog.Ordered)
                     directive.ApplySource(sourceLines);
 
-                PrepareScriptSourceLines(sourceLines);
-                List<string> lines = sourceLines.Select(line => line.Text).ToList();
+                ScriptCompilation compilation = Compile(sourceLines, ScriptCompileMode.Live);
 
-                switch (Type)
-                {
-                    case NPCScriptType.Normal:
-                    default:
-                        ParseScript(lines);
+                // The three steps below may touch the world, so they run only here and never in a tool.
+                BindCalls();
+                ParseSections(compilation.Lines);
 
-                        if (ScriptDiagnostics.DeepScan) ReportUnreachablePages(lines);
-                        break;
-                    case NPCScriptType.AutoPlayer:
-                    case NPCScriptType.AutoMonster:
-                    case NPCScriptType.Robot:
-                        ParseDefault(lines);
-                        break;
-                }
+                if (ScriptDiagnostics.DeepScan && (Type == NPCScriptType.Normal || Type == NPCScriptType.Called))
+                    ReportUnreachablePages(compilation.Lines);
+
+                ActivateAutoMarkers(compilation);
             }
             catch (Exception ex)
             {
@@ -211,8 +207,33 @@ namespace Server.MirObjects
             loadedNPC.UsedGoods.AddRange(loaded);
         }
 
-        private void ParseDefault(List<string> lines)
+        /// <summary>
+        /// Parses one file into pages and, for automatic scripts, records the markers the loader has to
+        /// apply. A tool compiles the same way but only checks arguments, so it never looks up a map, a
+        /// monster or a robot: those reads are what the live plan exists for.
+        /// </summary>
+        internal ScriptCompilation Compile(List<ScriptSourceLine> sourceLines, ScriptCompileMode mode)
         {
+            PrepareScriptSourceLines(sourceLines);
+
+            var compilation = new ScriptCompilation
+            {
+                FileName = FileName + ".txt",
+                Type = Type,
+                SourceLines = sourceLines,
+                Lines = sourceLines.Select(line => line.Text).ToList(),
+            };
+
+            List<string> lines = compilation.Lines;
+
+            ReportDuplicatePages(lines);
+
+            if (Type == NPCScriptType.Normal || Type == NPCScriptType.Called)
+            {
+                NPCPages.AddRange(ParsePages(lines));
+                return compilation;
+            }
+
             for (int i = 0; i < lines.Count; i++)
             {
                 if (ScriptPageKeyCatalog.Find(lines[i]) != ScriptPageKeyCatalog.Auto) continue;
@@ -220,10 +241,84 @@ namespace Server.MirObjects
                 ScriptAutoMarkerLine markerLine;
                 ScriptAutoMarkerEntry marker = ScriptAutoMarkerCatalog.Find(Type, lines[i], out markerLine);
 
-                if (marker != null && !marker.Apply(this, markerLine)) continue;
+                if (marker != null)
+                {
+                    if (mode == ScriptCompileMode.Tool)
+                    {
+                        // Same row, same argument checks, no world read.
+                        marker.ValidateArguments?.Invoke(markerLine);
+                        NPCPages.AddRange(ParsePages(lines, lines[i]));
+                        continue;
+                    }
+
+                    object payload = marker.ReadPlan(markerLine);
+
+                    if (payload != null)
+                    {
+                        compilation.AutoPlans.Add(new ScriptAutoMarkerPlan(marker, markerLine, payload));
+                        continue;
+                    }
+                }
 
                 NPCPages.AddRange(ParsePages(lines, lines[i]));
             }
+
+            return compilation;
+        }
+
+        /// <summary>
+        /// Registers every script a page calls and replaces the written path with its runtime id. The
+        /// parser stores the path only, so compiling a buffer in the editor registers nothing.
+        /// </summary>
+        private void BindCalls()
+        {
+            foreach (NPCPage page in NPCPages)
+            {
+                if (page == null) continue;
+
+                foreach (NPCSegment segment in page.SegmentList)
+                {
+                    if (segment == null) continue;
+
+                    foreach (NPCActions action in segment.ActList)
+                    {
+                        if (action.Type != ScriptActionKind.Call || action.Params.Count == 0) continue;
+
+                        string path = action.Params[0];
+
+                        if (int.TryParse(path, out _)) continue;
+
+                        NPCScript called = GetOrAdd(0, path, NPCScriptType.Called, Root);
+
+                        page.ScriptCalls.Add(called.ScriptID);
+
+                        action.Params[0] = called.ScriptID.ToString();
+                    }
+                }
+            }
+        }
+
+        /// <summary>Data sections are world data, so only a live load reads them.</summary>
+        private void ParseSections(IList<string> lines)
+        {
+            foreach (ScriptSectionEntry section in ScriptSectionCatalog.Ordered)
+            {
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    if (!section.MatchesHeader(lines[i])) continue;
+
+                    section.Parse(this, lines, i);
+                }
+            }
+        }
+
+        /// <summary>Publishes what the live plan recorded while compiling.</summary>
+        private static void ActivateAutoMarkers(ScriptCompilation compilation)
+        {
+            foreach (ScriptAutoMarkerPlan plan in compilation.AutoPlans)
+                plan.Entry.Publish(plan.Payload);
+
+            compilation.AutoPlans.Clear();
         }
 
         /// <summary>
@@ -246,23 +341,6 @@ namespace Server.MirObjects
                 ScriptDiagnostics.DeepScanned++;
 
                 ParsePage(lines, key);
-            }
-        }
-
-        private void ParseScript(IList<string> lines)
-        {
-            ReportDuplicatePages(lines);
-
-            NPCPages.AddRange(ParsePages(lines));
-
-            foreach (ScriptSectionEntry section in ScriptSectionCatalog.Ordered)
-            {
-                for (int i = 0; i < lines.Count; i++)
-                {
-                    if (!section.MatchesHeader(lines[i])) continue;
-
-                    section.Parse(this, lines, i);
-                }
             }
         }
 
@@ -547,30 +625,31 @@ namespace Server.MirObjects
             }
 
             string previousFile = ScriptParseScope.FileName;
+            string root = ScriptParseScope.Root ?? Settings.NPCPath;
 
             try
             {
                 foreach (ScriptSourceLine line in checks)
                 {
-                    ScriptParseScope.Set(line.FileName ?? previousFile);
+                    ScriptParseScope.Set(line.FileName ?? previousFile, root);
                     segment.ParseCheck(line.Text, line.Number, line.Source);
                 }
 
                 foreach (ScriptSourceLine line in acts)
                 {
-                    ScriptParseScope.Set(line.FileName ?? previousFile);
+                    ScriptParseScope.Set(line.FileName ?? previousFile, root);
                     segment.ParseAct(segment.ActList, line.Text, line.Number, line.Source);
                 }
 
                 foreach (ScriptSourceLine line in elseActs)
                 {
-                    ScriptParseScope.Set(line.FileName ?? previousFile);
+                    ScriptParseScope.Set(line.FileName ?? previousFile, root);
                     segment.ParseAct(segment.ElseActList, line.Text, line.Number, line.Source);
                 }
             }
             finally
             {
-                ScriptParseScope.Set(previousFile);
+                ScriptParseScope.Set(previousFile, root);
             }
 
             CollectActionButtons(segment.ActList, buttons, gotoButtons);
@@ -750,61 +829,70 @@ namespace Server.MirObjects
             }
         }
 
-        internal bool ApplyAutoMapCoord(ScriptAutoMarkerLine line)
+        /// <summary>
+        /// Reads a MAPCOORD line into the coordinate it would activate, or null when it is not one the
+        /// loader would act on. Reading is all this does: publishing stays in Activate.
+        /// </summary>
+        internal static object PlanAutoMapCoord(ScriptAutoMarkerLine line)
         {
-            if (!TryParseAutoMapCoord(line, out int x, out int y)) return false;
+            if (!TryParseAutoMapCoord(line, out int x, out int y)) return null;
 
             Map map = Envir.MapList.FirstOrDefault(m => m.Info.FileName == line.Args[0]);
 
-            if (map == null) return false;
+            if (map == null) return null;
 
-            Point point = new Point((short)x, (short)y);
+            return (map, new Point((short)x, (short)y));
+        }
+
+        internal static void ActivateAutoMapCoord(object payload)
+        {
+            (Map map, Point point) = ((Map, Point))payload;
 
             if (!map.Info.ActiveCoords.Contains(point)) map.Info.ActiveCoords.Add(point);
-
-            return true;
         }
 
-        internal bool ApplyAutoCustomCommand(ScriptAutoMarkerLine line)
+        internal static object PlanAutoCustomCommand(ScriptAutoMarkerLine line)
         {
-            if (!HasAutoCustomCommand(line)) return false;
-
-            Envir.CustomCommands.Add(line.Body);
-
-            return true;
+            return HasAutoCustomCommand(line) ? line.Body : null;
         }
 
-        internal bool ApplyAutoSpawn(ScriptAutoMarkerLine line)
+        internal static void ActivateAutoCustomCommand(object payload)
         {
-            if (!TryParseAutoMonsterIndex(line, out int index)) return false;
-
-            MonsterInfo info = Envir.GetMonsterInfo((short)index);
-
-            if (info == null) return false;
-
-            info.HasSpawnScript = true;
-
-            return true;
+            Envir.CustomCommands.Add((string)payload);
         }
 
-        internal bool ApplyAutoDie(ScriptAutoMarkerLine line)
+        internal static object PlanAutoSpawn(ScriptAutoMarkerLine line)
         {
-            if (!TryParseAutoMonsterIndex(line, out int index)) return false;
+            if (!TryParseAutoMonsterIndex(line, out int index)) return null;
 
-            MonsterInfo info = Envir.GetMonsterInfo((short)index);
-
-            if (info == null) return false;
-
-            info.HasDieScript = true;
-
-            return true;
+            return Envir.GetMonsterInfo((short)index);
         }
 
-        internal bool ApplyAutoTime(ScriptAutoMarkerLine line)
+        internal static void ActivateAutoSpawn(object payload)
         {
-            Robot.AddRobot(line.Line.ToUpperInvariant());
+            ((MonsterInfo)payload).HasSpawnScript = true;
+        }
 
-            return true;
+        internal static object PlanAutoDie(ScriptAutoMarkerLine line)
+        {
+            if (!TryParseAutoMonsterIndex(line, out int index)) return null;
+
+            return Envir.GetMonsterInfo((short)index);
+        }
+
+        internal static void ActivateAutoDie(object payload)
+        {
+            ((MonsterInfo)payload).HasDieScript = true;
+        }
+
+        internal static object PlanAutoTime(ScriptAutoMarkerLine line)
+        {
+            return line.Line.ToUpperInvariant();
+        }
+
+        internal static void ActivateAutoTime(object payload)
+        {
+            Robot.AddRobot((string)payload);
         }
     }
 }

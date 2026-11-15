@@ -824,49 +824,49 @@ namespace Server.MirObjects
 
         internal static ScriptOutcome Exec_Param1(ScriptExecuteContext ctx)
         {
-            NPCSegment seg = ctx.Segment;
+            ScriptPageState state = ctx.Call?.PageState;
             List<string> param = ctx.Params;
             MapObject obj = (MapObject)ctx.Player ?? ctx.Monster;
 
-            if (obj == null) return ScriptOutcome.Pass;
+            if (obj == null || state == null) return ScriptOutcome.Pass;
 
             {
                 if (!int.TryParse(param[1], out int tempInt)) return ScriptOutcome.InvalidArguments;
 
-                seg.Param1 = param[0];
-                seg.Param1Instance = tempInt;
+                state.Param1 = param[0];
+                state.Param1Instance = tempInt;
             }
             return ScriptOutcome.Pass;
         }
 
         internal static ScriptOutcome Exec_Param2(ScriptExecuteContext ctx)
         {
-            NPCSegment seg = ctx.Segment;
+            ScriptPageState state = ctx.Call?.PageState;
             List<string> param = ctx.Params;
             MapObject obj = (MapObject)ctx.Player ?? ctx.Monster;
 
-            if (obj == null) return ScriptOutcome.Pass;
+            if (obj == null || state == null) return ScriptOutcome.Pass;
 
             {
                 if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
 
-                seg.Param2 = tempInt;
+                state.Param2 = tempInt;
             }
             return ScriptOutcome.Pass;
         }
 
         internal static ScriptOutcome Exec_Param3(ScriptExecuteContext ctx)
         {
-            NPCSegment seg = ctx.Segment;
+            ScriptPageState state = ctx.Call?.PageState;
             List<string> param = ctx.Params;
             MapObject obj = (MapObject)ctx.Player ?? ctx.Monster;
 
-            if (obj == null) return ScriptOutcome.Pass;
+            if (obj == null || state == null) return ScriptOutcome.Pass;
 
             {
                 if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
 
-                seg.Param3 = tempInt;
+                state.Param3 = tempInt;
             }
             return ScriptOutcome.Pass;
         }

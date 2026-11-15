@@ -421,17 +421,17 @@ namespace Server.MirObjects
 
         internal static ScriptOutcome Exec_Mongen(ScriptExecuteContext ctx)
         {
-            NPCSegment seg = ctx.Segment;
+            ScriptPageState state = ctx.Call?.PageState;
             List<string> param = ctx.Params;
             PlayerObject player = ctx.Player;
 
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (seg.Param1 == null || seg.Param2 == 0 || seg.Param3 == 0) return ScriptOutcome.Abort;
+                if (state == null || state.Param1 == null || state.Param2 == 0 || state.Param3 == 0) return ScriptOutcome.Abort;
                 if (!byte.TryParse(param[1], out byte tempByte)) return ScriptOutcome.InvalidArguments;
 
-                Map targetmap = Envir.GetMapByNameAndInstance(seg.Param1, seg.Param1Instance);
+                Map targetmap = Envir.GetMapByNameAndInstance(state.Param1, state.Param1Instance);
                 if (targetmap == null) return ScriptOutcome.Abort;
 
                 var monInfo = Envir.GetMonsterInfo(param[0]);
@@ -443,7 +443,7 @@ namespace Server.MirObjects
                     if (monster == null) return ScriptOutcome.Abort;
                     monster.Direction = 0;
                     monster.ActionTime = Envir.Time + 1000;
-                    monster.Spawn(targetmap, new Point(seg.Param2, seg.Param3));
+                    monster.Spawn(targetmap, new Point(state.Param2, state.Param3));
                 }
             }
             return ScriptOutcome.Pass;
@@ -486,17 +486,17 @@ namespace Server.MirObjects
 
         internal static ScriptOutcome ExecMonster_Mongen(ScriptExecuteContext ctx)
         {
-            NPCSegment seg = ctx.Segment;
+            ScriptPageState state = ctx.Call?.PageState;
             List<string> param = ctx.Params;
             MonsterObject monster = ctx.Monster;
 
             if (monster == null) return ScriptOutcome.Pass;
 
             {
-                if (seg.Param1 == null || seg.Param2 == 0 || seg.Param3 == 0) return ScriptOutcome.Abort;
+                if (state == null || state.Param1 == null || state.Param2 == 0 || state.Param3 == 0) return ScriptOutcome.Abort;
                 if (!byte.TryParse(param[1], out byte tempByte)) return ScriptOutcome.InvalidArguments;
 
-                var map = Envir.GetMapByNameAndInstance(seg.Param1, seg.Param1Instance);
+                var map = Envir.GetMapByNameAndInstance(state.Param1, state.Param1Instance);
                 if (map == null) return ScriptOutcome.Abort;
 
                 var monInfo = Envir.GetMonsterInfo(param[0]);
@@ -508,7 +508,7 @@ namespace Server.MirObjects
                     if (mob == null) return ScriptOutcome.Abort;
                     mob.Direction = 0;
                     mob.ActionTime = Envir.Time + 1000;
-                    mob.Spawn(map, new Point(seg.Param2, seg.Param3));
+                    mob.Spawn(map, new Point(state.Param2, state.Param3));
                 }
             }
             return ScriptOutcome.Pass;

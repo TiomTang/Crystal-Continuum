@@ -33,9 +33,6 @@ namespace Server.MirObjects
         public List<ScriptSourceInfo> SaySources = new List<ScriptSourceInfo>();
         public List<ScriptSourceInfo> ElseSaySources = new List<ScriptSourceInfo>();
 
-        public string Param1;
-        public int Param1Instance, Param2, Param3;
-
         public List<string> Args = new List<string>();
 
         internal bool HasInvalidChecks { get; private set; }
