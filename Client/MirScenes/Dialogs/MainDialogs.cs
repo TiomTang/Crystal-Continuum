@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Client.MirControls;
 using Client.MirGraphics;
 using Client.MirNetwork;
@@ -562,6 +563,11 @@ namespace Client.MirScenes.Dialogs
     }
     public sealed class ChatDialog : MirImageControl
     {
+        private const string ChatInputCharacters = "@! /\r";
+
+        [DllImport("user32.dll", EntryPoint = "VkKeyScanW", CharSet = CharSet.Unicode, ExactSpelling = true)]
+        private static extern short VkKeyScan(char character);
+
         public List<ChatHistory> FullHistory = new List<ChatHistory>();
         public List<ChatHistory> History = new List<ChatHistory>();
         public List<MirLabel> ChatLines = new List<MirLabel>();
@@ -1059,6 +1065,21 @@ namespace Client.MirScenes.Dialogs
         }
 
 
+        internal bool IsChatInputKey(KeyEventArgs e)
+        {
+            int modifiers = (e.Shift ? 1 : 0) | (e.Control ? 2 : 0) | (e.Alt ? 4 : 0);
+
+            foreach (char character in ChatInputCharacters)
+            {
+                // Resolve against the current keyboard layout rather than assuming Shift+2 is @.
+                short key = VkKeyScan(character);
+                if (key != -1 && (key & 0xFF) == e.KeyValue && (key >> 8) == modifiers)
+                    return true;
+            }
+
+            return false;
+        }
+
         private void ChatPanel_KeyDown(object sender, KeyEventArgs e)
         {
             switch (e.KeyCode)
@@ -1095,31 +1116,23 @@ namespace Client.MirScenes.Dialogs
         }
         private void ChatPanel_KeyPress(object sender, KeyPressEventArgs e)
         {
-            switch (e.KeyChar)
-            {
-                case '@':
-                case '!':
-                case ' ':
-                case (char)Keys.Enter:
-                    ChatTextBox.SetFocus();
-                    if (e.KeyChar == '!') ChatTextBox.Text = "!";
-                    if (e.KeyChar == '@') ChatTextBox.Text = "@";
-                    if (ChatPrefix != "") ChatTextBox.Text = ChatPrefix;
+            if (!ChatInputCharacters.Contains(e.KeyChar)) return;
 
-                    ChatTextBox.Visible = true;
-                    ChatTextBox.TextBox.SelectionLength = 0;
-                    ChatTextBox.TextBox.SelectionStart = ChatTextBox.Text.Length;
-                    e.Handled = true;
-                    break;
-                case '/':
-                    ChatTextBox.SetFocus();
-                    ChatTextBox.Text = LastPM + " ";
-                    ChatTextBox.Visible = true;
-                    ChatTextBox.TextBox.SelectionLength = 0;
-                    ChatTextBox.TextBox.SelectionStart = ChatTextBox.Text.Length;
-                    e.Handled = true;
-                    break;
+            ChatTextBox.SetFocus();
+            if (e.KeyChar == '/')
+            {
+                ChatTextBox.Text = LastPM + " ";
             }
+            else
+            {
+                if (e.KeyChar == '!' || e.KeyChar == '@') ChatTextBox.Text = e.KeyChar.ToString();
+                if (ChatPrefix != "") ChatTextBox.Text = ChatPrefix;
+            }
+
+            ChatTextBox.Visible = true;
+            ChatTextBox.TextBox.SelectionLength = 0;
+            ChatTextBox.TextBox.SelectionStart = ChatTextBox.Text.Length;
+            e.Handled = true;
         }
         private void ChatPanel_MouseWheel(object sender, MouseEventArgs e)
         {

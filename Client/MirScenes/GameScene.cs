@@ -552,6 +552,13 @@ namespace Client.MirScenes
                 return;
             }
 
+            if (ChatDialog.IsChatInputKey(e))
+            {
+                // Reserve chat starters before gameplay shortcuts, but keep KeyPress for the text.
+                e.Handled = true;
+                return;
+            }
+
             foreach (KeyBind KeyCheck in CMain.InputKeys.Keylist)
             {
                 if (KeyCheck.Key == Keys.None)
