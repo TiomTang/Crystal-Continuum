@@ -1150,7 +1150,7 @@ namespace Server.MirNetwork
         {
             if (Player == null) return false;
 
-            if (Player.NPCPage == null || !ScriptSpecialPageCatalog.IsPage(Player.NPCPage.Key, ScriptSpecialPageKind.Storage))
+            if (Player.ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(Player.ScriptPage.Key, ScriptSpecialPageKind.Storage))
                 return false;
 
             NPCObject ob = null;

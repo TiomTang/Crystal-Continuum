@@ -315,7 +315,7 @@ namespace Server.MirForms.Scripts
             if (string.IsNullOrEmpty(pageKey)) return string.Empty;
             string key = pageKey.Trim();
             if (!key.StartsWith("[")) key = "[" + key + "]";
-            return NPCPage.NormalizeSectionName(key, out _).Trim('[', ']').ToUpperInvariant();
+            return ScriptPage.NormalizeSectionName(key, out _).Trim('[', ']').ToUpperInvariant();
         }
 
         /// <summary>Engine diagnostics, plus read-only database and value facts it cannot check at load time.</summary>
@@ -364,15 +364,15 @@ namespace Server.MirForms.Scripts
                 CheckSections(validation.SourceLines, rules, issues);
 
             var seen = new HashSet<(string File, int Line, string Page, string Message)>();
-            foreach (NPCPage page in validation.Pages)
+            foreach (ScriptPage page in validation.Pages)
             {
-                foreach (NPCSegment segment in page.SegmentList)
+                foreach (ScriptSegment segment in page.SegmentList)
                 {
                     foreach (ScriptSourceInfo source in segment.SaySources.Concat(segment.ElseSaySources))
                         CheckValues(source, segment, true, issues, seen);
-                    foreach (NPCChecks check in segment.CheckList)
+                    foreach (ScriptChecks check in segment.CheckList)
                         CheckStatement(check.Source, check.Params, segment, ScriptCheckCatalog.Find(check.Type), rules, issues, seen);
-                    foreach (NPCActions action in segment.ActList.Concat(segment.ElseActList))
+                    foreach (ScriptActions action in segment.ActList.Concat(segment.ElseActList))
                         CheckStatement(action.Source, action.Params, segment, ScriptActionCatalog.Find(action.Type), rules, issues, seen);
                 }
             }
@@ -493,7 +493,7 @@ namespace Server.MirForms.Scripts
             });
         }
 
-        private void CheckStatement(ScriptSourceInfo source, IList<string> parameters, NPCSegment segment, ScriptKeywordEntry keyword,
+        private void CheckStatement(ScriptSourceInfo source, IList<string> parameters, ScriptSegment segment, ScriptKeywordEntry keyword,
             ScriptRules rules, List<ScriptIssue> issues, HashSet<(string File, int Line, string Page, string Message)> seen)
         {
             if (source == null) return;
@@ -529,7 +529,7 @@ namespace Server.MirForms.Scripts
             return !string.IsNullOrEmpty(value) && (value.Contains("<$") || value.Contains('%'));
         }
 
-        private void CheckValues(ScriptSourceInfo source, NPCSegment segment, bool display, List<ScriptIssue> issues,
+        private void CheckValues(ScriptSourceInfo source, ScriptSegment segment, bool display, List<ScriptIssue> issues,
             HashSet<(string File, int Line, string Page, string Message)> seen,
             ScriptDiagnosticPhase phase = ScriptDiagnosticPhase.Action, string consumedText = null)
         {

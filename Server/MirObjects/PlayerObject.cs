@@ -121,8 +121,8 @@ namespace Server.MirObjects
 
         public uint NPCObjectID;
         public int NPCScriptID;
-        public NPCPage NPCPage;
-        public Dictionary<NPCSegment, bool> NPCSuccess = new Dictionary<NPCSegment, bool>();
+        public ScriptPage ScriptPage;
+        public Dictionary<ScriptSegment, bool> NPCSuccess = new Dictionary<ScriptSegment, bool>();
 
         public bool NPCDialogClose;
         public List<string> NPCSpeech = new List<string>();
@@ -2413,8 +2413,8 @@ namespace Server.MirObjects
             }
             catch (Exception ex)
             {
-                ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, NPCPage?.Key, "NPC",
-                    "Queued NPC operation failed; the call chain was stopped.", NPCPage?.FileName,
+                ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, ScriptPage?.Key, "NPC",
+                    "Queued NPC operation failed; the call chain was stopped.", ScriptPage?.FileName,
                     ex.GetType().FullName, ex);
             }
         }
@@ -2931,7 +2931,7 @@ namespace Server.MirObjects
                     array = Info.Inventory;
                     break;
                 case MirGridType.Storage:
-                    if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+                    if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
                     {
                         Enqueue(p);
                         return;
@@ -3115,7 +3115,7 @@ namespace Server.MirObjects
                     fromGrid = fromHero ? MirGridType.HeroEquipment : MirGridType.Equipment;
                     break;
                 case MirGridType.Storage:
-                    if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+                    if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
                     {
                         Enqueue(p);
                         return;
@@ -3261,7 +3261,7 @@ namespace Server.MirObjects
                     array = Info.Inventory;
                     break;
                 case MirGridType.Storage:
-                    if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+                    if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
                     {
                         Enqueue(p);
                         return;
@@ -3412,7 +3412,7 @@ namespace Server.MirObjects
                     array = Info.Inventory;
                     break;
                 case MirGridType.Storage:
-                    if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+                    if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
                     {
                         Enqueue(p);
                         return;
@@ -3495,7 +3495,7 @@ namespace Server.MirObjects
         {
             S.StoreItem p = new S.StoreItem { From = from, To = to, Success = false };
 
-            if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+            if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
             {
                 Enqueue(p);
                 return;
@@ -3576,7 +3576,7 @@ namespace Server.MirObjects
         {
             S.TakeBackItem p = new S.TakeBackItem { From = from, To = to, Success = false };
 
-            if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+            if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
             {
                 Enqueue(p);
                 return;
@@ -3700,7 +3700,7 @@ namespace Server.MirObjects
                     array = Info.Inventory;
                     break;
                 case MirGridType.Storage:
-                    if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+                    if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
                     {
                         Enqueue(p);
                         return;
@@ -4516,7 +4516,7 @@ namespace Server.MirObjects
                     array = Info.Inventory;
                     break;
                 case MirGridType.Storage:
-                    if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+                    if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
                     {
                         Enqueue(p);
                         return;
@@ -4654,7 +4654,7 @@ namespace Server.MirObjects
                     arrayFrom = Info.Inventory;
                     break;
                 case MirGridType.Storage:
-                    if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+                    if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
                     {
                         Enqueue(p);
                         return;
@@ -4718,7 +4718,7 @@ namespace Server.MirObjects
                     arrayTo = Info.Inventory;
                     break;
                 case MirGridType.Storage:
-                    if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Storage))
+                    if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Storage))
                     {
                         Enqueue(p);
                         return;
@@ -6258,24 +6258,24 @@ namespace Server.MirObjects
                 ActionList.RemoveAt(i);
             }
 
-            string page = NPCPage == null ? string.Empty : NPCPage.Key;
+            string page = ScriptPage == null ? string.Empty : ScriptPage.Key;
 
             ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.ChainLimit, page, "NPC",
-                "NPC page chain stopped after " + MaxNpcChainSteps + " steps", NPCPage?.FileName);
+                "NPC page chain stopped after " + MaxNpcChainSteps + " steps", ScriptPage?.FileName);
         }
 
         public void BuyItem(ulong index, ushort count, PanelType type)
         {
             if (Dead || count < 1) return;
 
-            if (NPCPage == null ||
-                !(ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.BuySell) ||
-                ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Buy) ||
-                ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.BuyBack) ||
-                ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.BuyUsed) ||
-                ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.PearlBuy) ||
-                ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.BuyNew) ||
-                ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.BuySellNew))) return;
+            if (ScriptPage == null ||
+                !(ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.BuySell) ||
+                ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Buy) ||
+                ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.BuyBack) ||
+                ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.BuyUsed) ||
+                ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.PearlBuy) ||
+                ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.BuyNew) ||
+                ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.BuySellNew))) return;
 
             for (int i = 0; i < CurrentMap.NPCs.Count; i++)
             {
@@ -6318,7 +6318,7 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (NPCPage == null || !(ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.BuySell) || ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Sell)))
+            if (ScriptPage == null || !(ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.BuySell) || ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Sell)))
             {
                 Enqueue(p);
                 return;
@@ -6428,7 +6428,7 @@ namespace Server.MirObjects
 
             if (Dead) return;
 
-            if (NPCPage == null || (!ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Repair) && !special) || (!ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.SRepair) && special)) return;
+            if (ScriptPage == null || (!ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Repair) && !special) || (!ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.SRepair) && special)) return;
 
             for (int n = 0; n < CurrentMap.NPCs.Count; n++)
             {
@@ -6547,8 +6547,8 @@ namespace Server.MirObjects
 
         private bool IsAtNPC(ScriptSpecialPageKind page)
         {
-            return !Dead && NPCPage != null &&
-                ScriptSpecialPageCatalog.IsPage(NPCPage.Key, page) &&
+            return !Dead && ScriptPage != null &&
+                ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, page) &&
                 CurrentMap != null && CurrentMap.NPCs.Any(npc => npc.ObjectID == NPCObjectID &&
                     Functions.InRange(npc.CurrentLocation, CurrentLocation, Globals.DataRange));
         }
@@ -6676,7 +6676,7 @@ namespace Server.MirObjects
             {
                 bool failed = true;
 
-                if (NPCPage == null || (!ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Market)) || page <= PageSent) return;
+                if (ScriptPage == null || (!ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Market)) || page <= PageSent) return;
 
                 SearchTime = Envir.Time + Globals.SearchDelay;
 
@@ -6777,7 +6777,7 @@ namespace Server.MirObjects
             }
             else
             {
-                if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Market)) return;
+                if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Market)) return;
 
                 for (int n = 0; n < CurrentMap.NPCs.Count; n++)
                 {
@@ -6830,7 +6830,7 @@ namespace Server.MirObjects
             }
             else
             {
-                if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Market))
+                if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Market))
                 {
                     Enqueue(new S.MarketFail { Reason = 1 });
                     return;
@@ -6940,7 +6940,7 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Market))
+            if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Market))
             {
                 Enqueue(new S.MarketFail { Reason = 1 });
                 return;
@@ -7078,7 +7078,7 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Market))
+            if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Market))
             {
                 Enqueue(new S.MarketFail { Reason = 1 });
                 return;
@@ -10886,7 +10886,7 @@ namespace Server.MirObjects
 
             S.DepositRefineItem p = new S.DepositRefineItem { From = from, To = to, Success = false };
 
-            if (NPCPage == null || !ScriptSpecialPageCatalog.IsPage(NPCPage.Key, ScriptSpecialPageKind.Refine))
+            if (ScriptPage == null || !ScriptSpecialPageCatalog.IsPage(ScriptPage.Key, ScriptSpecialPageKind.Refine))
             {
                 Enqueue(p);
                 return;

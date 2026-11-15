@@ -17,11 +17,11 @@ namespace Server.MirObjects
         public static bool CanOpenPage(PlayerObject player, uint objectID, string key)
         {
             if (player.NPCObjectID != objectID) return false;
-            if (player.NPCPage == null) return false;
+            if (player.ScriptPage == null) return false;
 
             bool found = false;
 
-            foreach (NPCSegment segment in player.NPCPage.SegmentList)
+            foreach (ScriptSegment segment in player.ScriptPage.SegmentList)
             {
                 if (!player.NPCSuccess.TryGetValue(segment, out bool result)) continue;
 
@@ -52,12 +52,12 @@ namespace Server.MirObjects
         }
 
         /// <summary>Starts a page: the previous speech and button results no longer answer for it.</summary>
-        public static void BeginPage(PlayerObject player, NPCPage page)
+        public static void BeginPage(PlayerObject player, ScriptPage page)
         {
             player.NPCSpeech = new List<string>();
             player.NPCSuccess.Clear();
             player.NPCDialogClose = false;
-            player.NPCPage = page;
+            player.ScriptPage = page;
         }
 
         /// <summary>Records which NPC and which script the running segments belong to.</summary>
@@ -67,10 +67,10 @@ namespace Server.MirObjects
             player.NPCScriptID = scriptId;
         }
 
-        public static void RecordSegment(PlayerObject player, NPCPage page, NPCSegment segment, bool success)
+        public static void RecordSegment(PlayerObject player, ScriptPage page, ScriptSegment segment, bool success)
         {
             player.NPCSuccess.Add(segment, success);
-            player.NPCPage = page;
+            player.ScriptPage = page;
         }
 
         /// <summary>Stops the page and hides the window by sending an empty page.</summary>
@@ -89,7 +89,7 @@ namespace Server.MirObjects
         }
 
         /// <summary>Sends the page to the client and runs its special page, if it has one.</summary>
-        public static void Finish(NPCScript script, PlayerObject player, NPCPage page)
+        public static void Finish(NPCScript script, PlayerObject player, ScriptPage page)
         {
             // A CLOSE action ends the page without dialogue: the client hides the
             // window when it receives an empty page.
@@ -119,9 +119,9 @@ namespace Server.MirObjects
         /// </summary>
         public static void CloseForReload(PlayerObject player)
         {
-            if (player == null || player.NPCPage == null) return;
+            if (player == null || player.ScriptPage == null) return;
 
-            player.NPCPage = null;
+            player.ScriptPage = null;
             player.NPCSuccess.Clear();
             player.NPCDialogClose = false;
             player.NPCSpeech = new List<string>();

@@ -38,7 +38,7 @@ void AtNPC(TestPlayer p, string key)
     map.NPCs = new List<NPCObject> { npc };
     p.CurrentMap = map;
     p.NPCObjectID = npc.ObjectID;
-    p.NPCPage = new NPCPage(key);
+    p.ScriptPage = new ScriptPage(key);
 }
 
 MirGridType[] grids = { MirGridType.Inventory, MirGridType.Storage, MirGridType.Equipment,
@@ -308,7 +308,7 @@ foreach (var restrict in restrictions)
     var goods = Item(1, 90, new ItemInfo { Name = "ShopStock", StackSize = 100, Price = 10 });
     script.Goods = new() { goods };
     var p = Player(); p.Account.Gold = 0;
-    p.NPCPage = new NPCPage(ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Buy));
+    p.ScriptPage = new ScriptPage(ScriptSpecialPageCatalog.Key(ScriptSpecialPageKind.Buy));
     script.Buy(p, 1, 50);
     Check(goods.Count == 90 && p.Info.Inventory.All(item => item == null),
         "Failed NPC purchase changed shared stock");
