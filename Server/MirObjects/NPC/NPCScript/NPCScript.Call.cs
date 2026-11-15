@@ -69,18 +69,19 @@ namespace Server.MirObjects
             call.LastCompletedAction = interaction.LastCompletedAction;
             call.HasSideEffects = interaction.HasSideEffects;
             key = key.ToUpperInvariant();
+            bool isMainPage = ScriptSpecialPageCatalog.IsPage(key, ScriptSpecialPageKind.Main);
 
             try
             {
-                // A page kept from before a reload no longer belongs to this script's pages, so the
-                // click cannot be authorized against buttons that are not in the current file.
-                if (!internalCall && player.ScriptPage != null && !NPCPages.Contains(player.ScriptPage))
+                // Main starts a new conversation and does not use the previous page's buttons.
+                // Only button calls must reject a page kept from before a reload.
+                if (!internalCall && !isMainPage && player.ScriptPage != null && !NPCPages.Contains(player.ScriptPage))
                 {
                     NPCConversation.CloseForReload(player);
                     return;
                 }
 
-                if (!internalCall && !ScriptSpecialPageCatalog.IsPage(key, ScriptSpecialPageKind.Main) &&
+                if (!internalCall && !isMainPage &&
                     !NPCConversation.CanOpenPage(player, objectID, key))
                 {
                     return;
