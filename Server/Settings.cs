@@ -40,14 +40,7 @@ namespace Server
         // without an extension keep working, and only new lists are created as "<name>.txt".
         public static string GetNameListPath(string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) return name;
-
-            var path = Path.Combine(NameListPath, name);
-            if (name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) return path;
-
-            if (File.Exists(path)) return path;
-
-            return path + ".txt";
+            return ScriptPaths.NameList(NameListPath, name);
         }
         public static Notice Notice;
 

@@ -33,16 +33,18 @@ namespace Server.MirObjects
         public readonly ScriptBlockKind Kind;
         public readonly string Text;
         public readonly ScriptBlockRole Role;
+        public readonly string Description;
 
         /// <summary>True when this tag starts a new segment inside a page.</summary>
         public readonly bool SplitsSegment;
 
-        public ScriptBlockEntry(ScriptBlockKind kind, string text, ScriptBlockRole role, bool splitsSegment = false)
+        public ScriptBlockEntry(ScriptBlockKind kind, string text, ScriptBlockRole role, bool splitsSegment = false, string description = "")
         {
             Kind = kind;
             Text = text;
             Role = role;
             SplitsSegment = splitsSegment;
+            Description = description;
         }
     }
 
@@ -54,11 +56,11 @@ namespace Server.MirObjects
     {
         public static readonly ScriptBlockEntry[] Entries =
         {
-            new ScriptBlockEntry(ScriptBlockKind.Check, "#IF", ScriptBlockRole.Check, true),
-            new ScriptBlockEntry(ScriptBlockKind.Say, "#SAY", ScriptBlockRole.Say),
-            new ScriptBlockEntry(ScriptBlockKind.Act, "#ACT", ScriptBlockRole.Act),
-            new ScriptBlockEntry(ScriptBlockKind.ElseSay, "#ELSESAY", ScriptBlockRole.ElseSay),
-            new ScriptBlockEntry(ScriptBlockKind.ElseAct, "#ELSEACT", ScriptBlockRole.ElseAct),
+            new ScriptBlockEntry(ScriptBlockKind.Check, "#IF", ScriptBlockRole.Check, true, description: "Start a condition block."),
+            new ScriptBlockEntry(ScriptBlockKind.Say, "#SAY", ScriptBlockRole.Say, description: "Text the NPC says."),
+            new ScriptBlockEntry(ScriptBlockKind.Act, "#ACT", ScriptBlockRole.Act, description: "Actions that run when the checks pass."),
+            new ScriptBlockEntry(ScriptBlockKind.ElseSay, "#ELSESAY", ScriptBlockRole.ElseSay, description: "Text when the checks fail."),
+            new ScriptBlockEntry(ScriptBlockKind.ElseAct, "#ELSEACT", ScriptBlockRole.ElseAct, description: "Actions when the checks fail."),
         };
 
         private static readonly Dictionary<string, ScriptBlockKind> Index = BuildIndex();
@@ -91,7 +93,7 @@ namespace Server.MirObjects
         }
 
         /// <summary>
-        /// Reads a tag from a token ("IF"), a tag ("#IF") or a whole line ("#IF CHECKLEVEL 1").
+        /// Reads a tag from a token ("IF"), a tag ("#IF") or a whole line ("#IF LEVEL >= 1").
         /// </summary>
         public static bool TryParse(string text, out ScriptBlockKind kind)
         {

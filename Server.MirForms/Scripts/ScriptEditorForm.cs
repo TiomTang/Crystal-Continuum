@@ -19,10 +19,8 @@ namespace Server.MirForms.Scripts
     /// </summary>
     public sealed class ScriptEditorForm : Form
     {
-        private static readonly Regex PageHeaderPattern = new Regex(@"^\[[^\]\r\n]+\]", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex TagPattern = new Regex(@"^#[A-Za-z]+", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex CommentPattern = new Regex(@"^[ \t]*(;|//).*$", RegexOptions.Compiled | RegexOptions.Multiline);
-        private static readonly Regex ButtonPattern = new Regex(@"<[^<>\r\n]*/@[A-Za-z0-9_\-]+[^<>\r\n]*>", RegexOptions.Compiled);
         private static readonly Regex ValuePattern = new Regex(@"<\$[^>\r\n]+>", RegexOptions.Compiled);
         private static readonly Regex LineKeywordPattern = new Regex(@"^[ \t]*([A-Za-z][A-Za-z0-9_()]*)", RegexOptions.Compiled);
 
@@ -58,6 +56,8 @@ namespace Server.MirForms.Scripts
         private readonly TextBox _paletteFilter = new TextBox();
         private readonly TreeView _structure = new TreeView();
         private readonly ListView _problems = new ListView();
+        private readonly TextBox _problemDetail = new TextBox();
+        private readonly ToolStripComboBox _scriptType = new ToolStripComboBox();
         private readonly ToolStripStatusLabel _statusText = new ToolStripStatusLabel();
         private readonly ToolStripStatusLabel _statusIssues = new ToolStripStatusLabel();
         private readonly System.Windows.Forms.Timer _idleTimer = new System.Windows.Forms.Timer { Interval = 700 };
@@ -105,25 +105,23 @@ namespace Server.MirForms.Scripts
             toolbar.Items.Add(Button(GameLanguage.Get("Open"), (s, e) => OpenSelectedFile()));
             toolbar.Items.Add(Button(GameLanguage.Get("Save"), (s, e) => SaveFile()));
             toolbar.Items.Add(new ToolStripSeparator());
-            toolbar.Items.Add(Button(GameLanguage.Get("Check"), (s, e) => CheckBuffer(true, true)));
+            toolbar.Items.Add(Button(GameLanguage.Get("Check"), (s, e) => CheckBuffer(true)));
             toolbar.Items.Add(new ToolStripSeparator());
 
             var templates = new ToolStripDropDownButton(GameLanguage.Get("Templates"));
 
-            templates.DropDownItems.Add(new ToolStripMenuItem(GameLanguage.Get("Dialog Page"), null, (s, e) =>
-                InsertSnippet("[@NewPage]\r\n#SAY\r\n\r\n\r\n#ACT\r\n\r\n")));
-
-            templates.DropDownItems.Add(new ToolStripMenuItem(GameLanguage.Get("Conditional Page"), null, (s, e) =>
-                InsertSnippet("[@NewPage]\r\n#IF\r\nCHECKLEVEL 1\r\n#ACT\r\n\r\n#ELSESAY\r\n\r\n")));
-
-            templates.DropDownItems.Add(new ToolStripMenuItem(GameLanguage.Get("Input Page"), null, (s, e) =>
-                InsertSnippet("[@@NewPage]\r\n#SAY\r\n\r\n#ACT\r\n\r\n")));
-
-            templates.DropDownItems.Add(new ToolStripMenuItem(GameLanguage.Get("Teleport Page"), null, (s, e) =>
-                InsertSnippet("[@NewPage]\r\n#ACT\r\nMOVE map x y\r\n")));
+            foreach (ScriptTemplateEntry template in ScriptTemplateCatalog.Entries)
+                templates.DropDownItems.Add(new ToolStripMenuItem(GameLanguage.Get(template.Label), null,
+                    (s, e) => AppendText(template.Text)));
 
             toolbar.Items.Add(templates);
             toolbar.Items.Add(new ToolStripSeparator());
+            _scriptType.DropDownStyle = ComboBoxStyle.DropDownList;
+            _scriptType.Items.Add(GameLanguage.Get("Automatic script type"));
+            foreach (NPCScriptType type in Enum.GetValues(typeof(NPCScriptType))) _scriptType.Items.Add(type);
+            _scriptType.SelectedIndex = 0;
+            _scriptType.SelectedIndexChanged += (s, e) => { RefreshPalette(); CheckBuffer(false); };
+            toolbar.Items.Add(_scriptType);
 
             var highlight = new ToolStripButton(GameLanguage.Get("Highlight")) { Checked = true, CheckOnClick = true };
             highlight.CheckedChanged += (s, e) => { _highlight = highlight.Checked; ApplyHighlight(true); };
@@ -168,8 +166,9 @@ namespace Server.MirForms.Scripts
             {
                 if (_suppress) return;
 
-                _dirty = true;
+                _dirty = _editor.Text != _savedText;
                 _textRevision++;
+                UpdateTitle();
                 RefreshPalette();
                 ScheduleIdle();
             };
@@ -226,10 +225,27 @@ namespace Server.MirForms.Scripts
             _problems.Dock = DockStyle.Fill;
             _problems.View = View.Details;
             _problems.FullRowSelect = true;
-            _problems.Columns.Add(GameLanguage.Get("Line"), 60);
+            _problems.ShowItemToolTips = true;
+            _problems.Columns.Add(GameLanguage.Get("Severity"), 65);
+            _problems.Columns.Add(GameLanguage.Get("Source file"), 150);
+            _problems.Columns.Add(GameLanguage.Get("Line"), 50);
+            _problems.Columns.Add(GameLanguage.Get("Page"), 100);
+            _problems.Columns.Add(GameLanguage.Get("Diagnostic category"), 110);
+            _problems.Columns.Add(GameLanguage.Get("Execution impact"), 120);
             _problems.Columns.Add(GameLanguage.Get("Message"), 420);
-            _problems.DoubleClick += (s, e) => JumpToProblem();
+            _problemDetail.Dock = DockStyle.Bottom;
+            _problemDetail.Height = 150;
+            _problemDetail.Multiline = true;
+            _problemDetail.ReadOnly = true;
+            _problemDetail.ScrollBars = ScrollBars.Both;
+            _problems.SelectedIndexChanged += (s, e) =>
+            {
+                _problemDetail.Text = _problems.SelectedItems.Count == 0 ? string.Empty
+                    : ProblemDetail((ScriptIssue)_problems.SelectedItems[0].Tag);
+            };
+            _problems.ItemActivate += (s, e) => JumpToProblem();
             problemPage.Controls.Add(_problems);
+            problemPage.Controls.Add(_problemDetail);
 
             _side.Dock = DockStyle.Fill;
             _side.TabPages.Add(palettePage);
@@ -243,7 +259,7 @@ namespace Server.MirForms.Scripts
             Controls.Add(toolbar);
             Controls.Add(status);
 
-            _idleTimer.Tick += (s, e) => { _idleTimer.Stop(); ApplyHighlight(false); if (_autoCheck) CheckBuffer(false, false); };
+            _idleTimer.Tick += (s, e) => { _idleTimer.Stop(); ApplyHighlight(false); if (_autoCheck) CheckBuffer(false); };
 
             Shown += (s, e) =>
             {
@@ -396,6 +412,9 @@ namespace Server.MirForms.Scripts
         {
             base.OnActivated(e);
             RefreshReferenceMarks();
+            _itemNames = null;
+            _questCandidates = _itemCandidates = _recipeCandidates = null;
+            RefreshPalette();
         }
 
         private void OpenSelectedFile()
@@ -405,7 +424,11 @@ namespace Server.MirForms.Scripts
             if (node == null || !(node.Tag is string path) || !File.Exists(path)) return;
 
             if (!ConfirmDiscard()) return;
+            OpenFile(path);
+        }
 
+        private void OpenFile(string path)
+        {
             byte[] bytes = File.ReadAllBytes(path);
             _hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
 
@@ -438,7 +461,8 @@ namespace Server.MirForms.Scripts
             _statusText.Text = _encoding.CodePage == Encoding.UTF8.CodePage ? path : path + "  [GBK]";
             RefreshStructure();
             ApplyHighlight(true);
-            CheckBuffer(false, true);
+            RefreshPalette();
+            CheckBuffer(false);
             UpdateTitle();
         }
 
@@ -455,7 +479,7 @@ namespace Server.MirForms.Scripts
             _savedText = _editor.Text;
             UpdateTitle();
             _statusIssues.Text = GameLanguage.Get("Saved");
-            CheckBuffer(false, true);
+            CheckBuffer(false);
         }
 
         private bool ConfirmDiscard()
@@ -488,7 +512,7 @@ namespace Server.MirForms.Scripts
         private void RefreshPalette()
         {
             int line = _editor.GetLineFromCharIndex(_editor.SelectionStart) + 1;
-            ScriptProject project = ScriptProject.Parse(_editor.Text, _path);
+            ScriptProject project = ScriptProject.Parse(_editor.Text, _path, CurrentScriptType());
 
             _paletteSource.Clear();
             _structureCandidates.Clear();
@@ -508,24 +532,50 @@ namespace Server.MirForms.Scripts
 
             ScriptBlockKind kind = project.ContextAt(line, out _);
 
-            _structureCandidates.AddRange(ScriptStructureCatalog.Build(project, line));
+            _structureCandidates.AddRange(ScriptStructureCatalog.Build(project, line, CurrentScriptType()));
 
             switch (kind)
             {
                 case ScriptBlockKind.Check:
                     _paletteSource.AddRange(ScriptKeywordRegistry.Checks);
+                    AddVariables();
                     break;
                 case ScriptBlockKind.Act:
                 case ScriptBlockKind.ElseAct:
                     _paletteSource.AddRange(ScriptKeywordRegistry.Actions);
+                    AddVariables();
                     break;
                 case ScriptBlockKind.Say:
                 case ScriptBlockKind.ElseSay:
-                    _paletteSource.AddRange(ScriptKeywordRegistry.Variables);
+                    AddVariables();
                     break;
             }
 
             FillPalette();
+        }
+
+        private void AddVariables()
+        {
+            _paletteSource.AddRange(CurrentScriptType() == NPCScriptType.AutoMonster
+                ? ScriptKeywordRegistry.MonsterVariables : ScriptKeywordRegistry.Variables);
+        }
+
+        private NPCScriptType CurrentScriptType()
+        {
+            if (_scriptType.SelectedItem is NPCScriptType type) return type;
+            if (_path == null) return NPCScriptType.Normal;
+            string relative = Path.GetRelativePath(Settings.NPCPath, _path);
+            relative = Path.ChangeExtension(relative, null).Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            if (SameScript(relative, Settings.DefaultNPCFilename)) return NPCScriptType.AutoPlayer;
+            if (SameScript(relative, Settings.MonsterNPCFilename)) return NPCScriptType.AutoMonster;
+            if (SameScript(relative, Settings.RobotNPCFilename)) return NPCScriptType.Robot;
+            return NPCScriptType.Normal;
+        }
+
+        private static bool SameScript(string first, string second)
+        {
+            return string.Equals(first, second?.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar),
+                StringComparison.OrdinalIgnoreCase);
         }
 
         private void FillPalette()
@@ -678,7 +728,8 @@ namespace Server.MirForms.Scripts
             {
                 signature.Append(page.Key).Append(':').Append(page.Line);
 
-                foreach (ScriptBlock block in page.Blocks) signature.Append('@').Append(block.StartLine);
+                foreach (ScriptBlock block in page.Blocks)
+                    signature.Append('@').Append(block.StartLine).Append(':').Append(block.Tag);
             }
 
             if (signature.ToString() == _structureSignature) return;
@@ -714,8 +765,33 @@ namespace Server.MirForms.Scripts
         private void JumpToProblem()
         {
             if (_problems.SelectedItems.Count == 0) return;
-
-            if (_problems.SelectedItems[0].Tag is int line) JumpToLine(line);
+            if (!(_problems.SelectedItems[0].Tag is ScriptIssue issue)) return;
+            if (string.IsNullOrEmpty(issue.FileName) || _path == null ||
+                string.Equals(Path.GetFullPath(issue.FileName), Path.GetFullPath(_path), StringComparison.OrdinalIgnoreCase))
+            {
+                JumpToLine(issue.Line);
+                return;
+            }
+            try
+            {
+                // Preserve the root's unsaved buffer and issue selection in its own window.
+                var external = new ScriptEditorForm();
+                try
+                {
+                    // Carry the effective type, not "Automatic": a library file infers Normal otherwise.
+                    int typeIndex = external._scriptType.Items.IndexOf(CurrentScriptType());
+                    external._scriptType.SelectedIndex = typeIndex >= 0 ? typeIndex : 0;
+                    external.OpenFile(issue.FileName);
+                    external.Show(this);
+                    external.JumpToLine(issue.Line);
+                }
+                catch { external.Dispose(); throw; }
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(this, exception.Message, GameLanguage.Get("Script Editor"),
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void JumpToLine(int line)
@@ -749,24 +825,23 @@ namespace Server.MirForms.Scripts
             _statusIssues.Text = "找不到页面 " + key;
         }
 
-        private void CheckBuffer(bool report, bool engine)
+        private void CheckBuffer(bool report)
         {
-            ScriptProject project = ScriptProject.Parse(_editor.Text, _path);
-            List<ScriptIssue> issues = project.Check(BuildRules());
-
-            if (engine)
+            ScriptProject project = ScriptProject.Parse(_editor.Text, _path, CurrentScriptType());
+            List<ScriptIssue> issues;
+            try
             {
-                string engineError = EngineCheck();
-
-                if (engineError != null)
-                {
-                    issues.Insert(0, new ScriptIssue { Line = 0, IsError = true, Message = engineError });
-                }
+                issues = project.Check(BuildRules());
+            }
+            catch (Exception exception)
+            {
+                issues = new List<ScriptIssue> { new ScriptIssue { FileName = _path, IsError = true,
+                    Message = GameLanguage.Get("Engine rejected the script:") + " " + exception.Message } };
             }
 
             var problemSignature = new StringBuilder();
 
-            foreach (ScriptIssue issue in issues) problemSignature.Append(issue.Line).Append(':').Append(issue.Message).Append('|');
+            foreach (ScriptIssue issue in issues) problemSignature.Append(ProblemDetail(issue)).Append('|');
 
             if (problemSignature.ToString() != _problemsSignature)
             {
@@ -774,13 +849,21 @@ namespace Server.MirForms.Scripts
 
                 _problems.BeginUpdate();
                 _problems.Items.Clear();
+                _problemDetail.Clear();
 
-                foreach (ScriptIssue issue in issues.OrderBy(x => x.Line))
+                foreach (ScriptIssue issue in issues.OrderBy(x => x.FileName).ThenBy(x => x.Line))
                 {
-                    var item = new ListViewItem(issue.Line > 0 ? issue.Line.ToString() : "-");
+                    var item = new ListViewItem(GameLanguage.Get(issue.IsError ? "Error" : "Warning"));
+                    item.SubItems.Add(Path.GetFileName(issue.FileName));
+                    item.SubItems.Add(issue.Line > 0 ? issue.Line.ToString() : "-");
+                    item.SubItems.Add(issue.PageKey ?? string.Empty);
+                    item.SubItems.Add(issue.Diagnostic == null ? GameLanguage.Get("Authoring notice")
+                        : GameLanguage.Get(issue.Diagnostic.Category.ToString()));
+                    item.SubItems.Add(issue.Diagnostic == null ? string.Empty : GameLanguage.Get(issue.Diagnostic.Effect.ToString()));
                     item.SubItems.Add(issue.Message);
                     item.ForeColor = issue.IsError ? Color.Firebrick : Color.DimGray;
-                    item.Tag = issue.Line;
+                    item.Tag = issue;
+                    item.ToolTipText = ProblemDetail(issue);
                     _problems.Items.Add(item);
                 }
 
@@ -813,7 +896,7 @@ namespace Server.MirForms.Scripts
 
             try
             {
-                var maps = Envir.Main?.MapInfoList;
+                var maps = NonEmpty(Envir.Main?.MapInfoList, Envir.Edit?.MapInfoList);
 
                 if (maps != null && maps.Count > 0)
                 {
@@ -823,17 +906,22 @@ namespace Server.MirForms.Scripts
                 }
 
                 var items = NonEmpty(Envir.Main?.ItemInfoList, Envir.Edit?.ItemInfoList);
+                var itemIndices = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
                 if (items != null && items.Count > 0)
                 {
-                    var names = new HashSet<string>(items.Select(x => x.Name.Replace(" ", "")), StringComparer.OrdinalIgnoreCase);
+                    // GetItemInfo resolves the first item with this space-normalized name.
+                    foreach (var item in items) itemIndices.TryAdd(item.Name.Replace(" ", ""), item.Index);
 
-                    rules.ItemExists = name => names.Contains(name.Replace(" ", ""));
+                    rules.ItemExists = name => itemIndices.ContainsKey(name.Replace(" ", ""));
                 }
 
-                if (Envir.Main != null && Envir.Main.Scripts.Count > 0)
+                var recipes = NonEmpty(Envir.Main?.RecipeInfoList, Envir.Edit?.RecipeInfoList);
+                if (recipes != null && recipes.Count > 0 && itemIndices.Count > 0)
                 {
-                    rules.ScriptExists = id => Envir.Main.Scripts.ContainsKey(id);
+                    var indices = new HashSet<int>(recipes.Where(x => x.Item?.Info != null && x.Ingredients?.Count > 0)
+                        .Select(x => x.Item.Info.Index));
+                    rules.RecipeExists = name => itemIndices.TryGetValue(name.Replace(" ", ""), out int index) && indices.Contains(index);
                 }
 
                 var quests = NonEmpty(Envir.Main?.QuestInfoList, Envir.Edit?.QuestInfoList);
@@ -852,68 +940,15 @@ namespace Server.MirForms.Scripts
             return rules;
         }
 
-        /// <summary>
-        /// Runs the buffer through the real parser. The loader reports what it cannot read through
-        /// <see cref="ScriptDiagnostics"/> instead of throwing, so the check reads that collection
-        /// rather than waiting for an exception. The temporary file sits in the NPC folder because the
-        /// loader resolves scripts relative to it, and it is deleted straight after parsing.
-        /// </summary>
-        private string EngineCheck()
+        private static string ProblemDetail(ScriptIssue issue)
         {
-            if (string.IsNullOrWhiteSpace(Settings.NPCPath) || !Directory.Exists(Settings.NPCPath)) return null;
-
-            string path = Path.Combine(Settings.NPCPath, "_editor_check.txt");
-
-            try
-            {
-                File.WriteAllText(path, _editor.Text, _encoding);
-
-                ScriptDiagnostics.Clear();
-
-                NPCScript script = NPCScript.GetOrAdd(0u, "_editor_check", NPCScriptType.Normal);
-                script.LoadInfo();
-
-                var message = new StringBuilder();
-
-                int total = 0, shown = 0;
-
-                foreach (ScriptDiagnostic diagnostic in ScriptDiagnostics.Snapshot())
-                {
-                    if (!string.Equals(diagnostic.FileName, "_editor_check.txt", StringComparison.OrdinalIgnoreCase)) continue;
-
-                    total++;
-
-                    if (shown >= 5) continue;
-
-                    shown++;
-
-                    if (message.Length > 0) message.Append("; ");
-
-                    if (diagnostic.Line > 0) message.Append("第 ").Append(diagnostic.Line).Append(" 行 ");
-
-                    message.Append(diagnostic.Message);
-                }
-
-                if (total == 0) return null;
-
-                if (total > shown) message.Append(" …");
-
-                return message.ToString();
-            }
-            catch (Exception exception)
-            {
-                return GameLanguage.Get("Engine rejected the script:") + " " + exception.Message;
-            }
-            finally
-            {
-                try
-                {
-                    if (File.Exists(path)) File.Delete(path);
-                }
-                catch (IOException)
-                {
-                }
-            }
+            string location = issue.FileName + ":" + issue.Line + " " + issue.PageKey;
+            ScriptDiagnostic diagnostic = issue.Diagnostic;
+            if (diagnostic == null) return location + Environment.NewLine + issue.Message;
+            return location + Environment.NewLine + GameLanguage.Get(diagnostic.Category.ToString()) + " / "
+                + GameLanguage.Get(diagnostic.Effect.ToString()) + " / " + diagnostic.Phase + " / " + diagnostic.Kind
+                + Environment.NewLine + issue.Message + Environment.NewLine + diagnostic.Text
+                + Environment.NewLine + diagnostic.SourceContext;
         }
 
         private void UpdateStatus()
@@ -960,9 +995,17 @@ namespace Server.MirForms.Scripts
                 _editor.SelectionColor = _editor.ForeColor;
 
                 Colorize(text, CommentPattern, CommentColor);
-                Colorize(text, PageHeaderPattern, PageColor);
+                int[] starts = BuildLineStarts(text);
+                string[] lines = _editor.Lines;
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    if (!ScriptPageKeyCatalog.TryParseHeader(lines[i], out _) &&
+                        !ScriptSectionCatalog.Ordered.Any(section => section.MatchesHeader(lines[i]))) continue;
+                    _editor.Select(starts[i], lines[i].Length);
+                    _editor.SelectionColor = PageColor;
+                }
                 Colorize(text, TagPattern, TagColor);
-                Colorize(text, ButtonPattern, ButtonColor);
+                Colorize(text, ScriptLexer.Button, ButtonColor);
                 Colorize(text, ValuePattern, ValueColor);
                 ColorizeKeywords(text);
 
@@ -1051,14 +1094,15 @@ namespace Server.MirForms.Scripts
             string line = _editor.Lines[lineIndex];
             int lineStart = _editor.GetFirstCharIndexFromLine(lineIndex);
 
-            foreach (Match match in Regex.Matches(line, @"/@[A-Za-z0-9_\-]+"))
+            foreach (Match match in ScriptLexer.Button.Matches(line))
             {
-                int from = lineStart + match.Index + 1;
-                int to = from + match.Length - 1;
+                Group target = match.Groups[1];
+                int from = lineStart + target.Index;
+                int to = from + target.Length;
 
                 if (index < from || index > to) continue;
 
-                JumpToPage(match.Value.Substring(1));
+                JumpToPage(target.Value);
                 return;
             }
         }
@@ -1069,9 +1113,15 @@ namespace Server.MirForms.Scripts
             base.OnFormClosing(e);
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _idleTimer.Dispose();
+            base.Dispose(disposing);
+        }
+
         /// <summary>
-        /// Legal values for the section the caret sits in. Values already written there are left out:
-        /// every line of these sections has to be unique, a repeat does nothing.
+        /// Legal values for the section the caret sits in. Identical authoring candidates are hidden
+        /// without claiming that repeated goods or weighted speech have no runtime effect.
         /// </summary>
         private List<StructureCandidate> ValueCandidates(ScriptPageInfo section, ScriptProject project)
         {
@@ -1235,7 +1285,7 @@ namespace Server.MirForms.Scripts
                 case ScriptSectionKind.Quests:
                     return GameLanguage.Get("Quest number per line: positive offers it here, negative turns it in here.");
                 case ScriptSectionKind.Speech:
-                    return GameLanguage.Get("Speech number per line.");
+                    return GameLanguage.Get("Speech weight followed by a space and text.");
                 default:
                     return GameLanguage.Get("No keyword here");
             }

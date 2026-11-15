@@ -32,7 +32,11 @@ namespace Server.MirForms.Scripts
         public Func<string, bool> SpellExists;
         public Func<string, bool> MapExists;
         public Func<string, bool> ItemExists;
+        // Retained for existing callers; CALL resolves a file path, never a database script ID.
         public Func<int, bool> ScriptExists;
+
+        /// <summary>Whether the item has a usable recipe with ingredients; null means unavailable.</summary>
+        public Func<string, bool> RecipeExists;
 
         /// <summary>Null when the quest list is unavailable.</summary>
         public Func<int, bool> QuestExists;
@@ -43,37 +47,25 @@ namespace Server.MirForms.Scripts
         public int Line;
         public bool IsError;
         public string Message;
+        public string FileName;
+        public string PageKey;
+        public ScriptDiagnostic Diagnostic;
 
         public override string ToString()
         {
-            return (Line > 0 ? "第 " + Line + " 行  " : string.Empty) + Message;
+            return (!string.IsNullOrEmpty(FileName) ? FileName + "  " : string.Empty) +
+                (Line > 0 ? "第 " + Line + " 行  " : string.Empty) + Message;
         }
     }
 
     /// <summary>
-    /// Line model of one NPC script file: pages, blocks, the caret context and the rule checks the
-    /// editor runs before the engine parser sees the buffer.
+    /// Buffer-local navigation and caret context. Validation uses the engine's isolated loader;
+    /// database and value checks only inspect its source-bound result, never activate NPC data.
     /// </summary>
     public sealed class ScriptProject
     {
-        private static readonly HashSet<string> KnownTags = BuildKnownTags();
-
-        /// <summary>Page keys of the files #INSERT names, kept until the file itself changes.</summary>
-        private static readonly Dictionary<string, KeyValuePair<DateTime, HashSet<string>>> IncludeFileCache =
-            new Dictionary<string, KeyValuePair<DateTime, HashSet<string>>>(StringComparer.OrdinalIgnoreCase);
-
-        private static HashSet<string> BuildKnownTags()
-        {
-            // INCLUDE and INSERT are read by the loader before a page is split, so they never reach
-            // ParseSegment and have no block of their own.
-            var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (ScriptDirectiveEntry directive in ScriptDirectiveCatalog.Entries) tags.Add(directive.Tag.Substring(1));
-
-            foreach (ScriptBlockEntry tag in ScriptBlockCatalog.Entries) tags.Add(tag.Text.Substring(1));
-
-            return tags;
-        }
+        private string _path;
+        public NPCScriptType Type { get; private set; }
 
         public string[] Lines = new string[0];
         public readonly List<ScriptBlock> Blocks = new List<ScriptBlock>();
@@ -81,10 +73,10 @@ namespace Server.MirForms.Scripts
         public readonly List<ScriptPageInfo> Sections = new List<ScriptPageInfo>();
         public readonly HashSet<string> PageKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public static ScriptProject Parse(string text, string path = null)
+        public static ScriptProject Parse(string text, string path = null, NPCScriptType type = NPCScriptType.Normal)
         {
-            var project = new ScriptProject();
-            project.Lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            var project = new ScriptProject { _path = path, Type = type };
+            project.Lines = (text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
 
             ScriptBlock current = null;
             ScriptPageInfo page = null;
@@ -93,10 +85,10 @@ namespace Server.MirForms.Scripts
             {
                 // The engine reads a key exactly as written: "[@MAIN] " with a trailing space is text to
                 // the loader, so the editor must not show it as a page.
-                string raw = project.Lines[i].TrimStart('\uFEFF');
+                string raw = project.Lines[i];
                 string trimmed = raw.Trim();
 
-                ScriptSectionEntry section = FindSection(trimmed);
+                ScriptSectionEntry section = FindSection(raw);
 
                 if (section != null)
                 {
@@ -104,7 +96,7 @@ namespace Server.MirForms.Scripts
 
                     current = null;
 
-                    page = new ScriptPageInfo { Key = trimmed, Line = i + 1, IsSection = true, Section = section.Kind };
+                    page = new ScriptPageInfo { Key = raw, Line = i + 1, IsSection = true, Section = section.Kind };
                     project.Pages.Add(page);
                     project.Sections.Add(page);
                     continue;
@@ -124,12 +116,10 @@ namespace Server.MirForms.Scripts
                     continue;
                 }
 
-                if (!trimmed.StartsWith("#")) continue;
+                if (page == null || page.IsSection || !trimmed.StartsWith("#")) continue;
 
-                string tag = trimmed.Substring(1).Split(' ', '\t')[0];
                 ScriptBlockKind kind;
-
-                if (!ScriptBlockCatalog.TryParse(tag, out kind)) continue;
+                if (ScriptBlockCatalog.TryFind(raw, out kind) == null) continue;
 
                 if (current != null) current.EndLine = i;
 
@@ -148,113 +138,52 @@ namespace Server.MirForms.Scripts
 
             for (int i = 0; i < project.Pages.Count; i++)
             {
-                project.Pages[i].EndLine = i + 1 < project.Pages.Count ? project.Pages[i + 1].Line - 1 : project.Lines.Length;
-            }
+                ScriptPageInfo entry = project.Pages[i];
+                entry.EndLine = i + 1 < project.Pages.Count ? project.Pages[i + 1].Line - 1 : project.Lines.Length;
+                if (!entry.IsSection) continue;
 
-            project.AddIncludedPageKeys(path);
+                // TYPES and SPEECH can stop before another header (including at a comment).
+                // Do not offer section values for lines the loader will never consume.
+                int end = entry.Line;
+                foreach (ScriptSectionLine body in ScriptSectionCatalog.Body(project.Lines, entry.Line - 1, entry.Section))
+                    end = body.Index + 1;
+                while (end < entry.EndLine && string.IsNullOrEmpty(project.Lines[end])) end++;
+                entry.EndLine = Math.Min(entry.EndLine, end);
+            }
 
             return project;
         }
 
         /// <summary>Section whose header the line is, by the loader's own rule.</summary>
-        private static ScriptSectionEntry FindSection(string trimmed)
+        private static ScriptSectionEntry FindSection(string line)
         {
             foreach (ScriptSectionEntry entry in ScriptSectionCatalog.Ordered)
             {
-                if (entry.MatchesHeader(trimmed)) return entry;
+                if (entry.MatchesHeader(line)) return entry;
             }
 
             return null;
         }
 
-        /// <summary>
-        /// Pages that come from #INSERT files are not in this text, so a button pointing at one would be
-        /// reported as missing. Read the files the directive names and register their keys; a file that
-        /// cannot be resolved is left for the server to report.
-        /// </summary>
-        private void AddIncludedPageKeys(string path)
+        /// <summary>The Envir root for NPCs and SystemScripts, including unsaved file paths.</summary>
+        public static string IncludeRoot(string path)
         {
-            if (string.IsNullOrEmpty(path)) return;
-
-            string envir = IncludeRoot(path);
-
-            foreach (string line in Lines)
-            {
-                ScriptDirectiveEntry directive;
-
-                if (!ScriptDirectiveCatalog.TryParse(line, out directive)) continue;
-                if (directive != ScriptDirectiveCatalog.Insert) continue;
-
-                string[] parts = ScriptLexer.Tokenize(line);
-
-                if (parts.Length < 2) continue;
-
-                string file;
-
-                try
-                {
-                    file = Path.GetFullPath(Path.Combine(envir, parts[1].Trim('"', '[', ']')));
-                }
-                catch (Exception)
-                {
-                    continue;
-                }
-
-                HashSet<string> keys = IncludedKeys(file);
-
-                if (keys != null) PageKeys.UnionWith(keys);
-            }
-        }
-
-        /// <summary>
-        /// Page keys of one inserted file, cached until the file changes. The editor parses on idle for
-        /// its palette, so a script that inserts ten files must not read them ten times per keystroke.
-        /// </summary>
-        private static HashSet<string> IncludedKeys(string file)
-        {
-            DateTime stamp;
-
-            try
-            {
-                if (!File.Exists(file)) return null;
-
-                stamp = File.GetLastWriteTimeUtc(file);
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-
-            KeyValuePair<DateTime, HashSet<string>> cached;
-
-            if (IncludeFileCache.TryGetValue(file, out cached) && cached.Key == stamp) return cached.Value;
-
-            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (string included in File.ReadAllLines(file))
-            {
-                string key;
-
-                if (ScriptPageKeyCatalog.TryParseHeader(included.TrimStart('\uFEFF'), out key))
-                    keys.Add(Normalize(key));
-            }
-
-            IncludeFileCache[file] = new KeyValuePair<DateTime, HashSet<string>>(stamp, keys);
-
-            return keys;
-        }
-
-        /// <summary>The Envir folder a directive path is relative to: the parent of the NPCs tree.</summary>
-        private static string IncludeRoot(string path)
-        {
-            string directory = Path.GetDirectoryName(path);
+            string directory = string.IsNullOrEmpty(path)
+                ? Path.GetFullPath("Envir")
+                : Path.GetDirectoryName(Path.GetFullPath(path));
 
             DirectoryInfo info = directory == null ? null : new DirectoryInfo(directory);
 
-            while (info != null && !string.Equals(info.Name, "NPCs", StringComparison.OrdinalIgnoreCase))
+            while (info != null)
+            {
+                if ((string.Equals(info.Name, "NPCs", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(info.Name, "SystemScripts", StringComparison.OrdinalIgnoreCase)) && info.Parent != null)
+                    return info.Parent.FullName;
+                if (string.Equals(info.Name, "Envir", StringComparison.OrdinalIgnoreCase)) return info.FullName;
                 info = info.Parent;
+            }
 
-            return info != null && info.Parent != null ? info.Parent.FullName : directory ?? ".";
+            return directory ?? ".";
         }
 
         /// <summary>Section the given 1-based line belongs to, if any.</summary>
@@ -273,19 +202,15 @@ namespace Server.MirForms.Scripts
             return null;
         }
 
-        /// <summary>
-        /// Lines already written in a section, used both to spot duplicates and to keep the candidate
-        /// list free of repeats. The whole line counts: the same potion with a different stack size is a
-        /// separate entry on purpose.
-        /// </summary>
+        /// <summary>Consumed data lines, for candidate filtering; repeated entries remain legal.</summary>
         public HashSet<string> SectionValues(ScriptPageInfo section)
         {
             var values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (section == null || !section.IsSection) return values;
 
-            for (int i = section.Line + 1; i <= section.EndLine && i <= Lines.Length; i++)
+            foreach (ScriptSectionLine line in ScriptSectionCatalog.Body(Lines, section.Line - 1, section.Section))
             {
-                string key = SectionKey(Lines[i - 1]);
-
+                string key = SectionKey(line.Text);
                 if (key.Length > 0) values.Add(key);
             }
 
@@ -327,7 +252,7 @@ namespace Server.MirForms.Scripts
 
             pageKey = page.Key;
 
-            ScriptBlockKind kind = ScriptBlockKind.Page;
+            ScriptBlockKind kind = line == page.Line || page.IsSection ? ScriptBlockKind.Page : ScriptBlockKind.Say;
 
             foreach (ScriptBlock block in page.Blocks)
             {
@@ -371,281 +296,276 @@ namespace Server.MirForms.Scripts
 
         public static string Normalize(string pageKey)
         {
-            string key = pageKey.Trim().Trim('[', ']');
-
-            int paren = key.IndexOf('(');
-            if (paren > 0) key = key.Substring(0, paren) + ")";
-
-            return key.ToUpperInvariant();
+            if (string.IsNullOrEmpty(pageKey)) return string.Empty;
+            string key = pageKey.Trim();
+            if (!key.StartsWith("[")) key = "[" + key + "]";
+            return NPCPage.NormalizeSectionName(key, out _).Trim('[', ']').ToUpperInvariant();
         }
 
-        /// <summary>Rule checks that do not need the engine: unknown keywords, arity, links and values.</summary>
+        /// <summary>Engine diagnostics, plus read-only database and value facts it cannot check at load time.</summary>
         public List<ScriptIssue> Check(ScriptRules rules = null)
         {
             var issues = new List<ScriptIssue>();
-            var seenPages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (ScriptPageInfo page in Pages)
+            ScriptValidationResult validation;
+            string fileName = _path;
+            try
             {
-                if (!seenPages.Add(Normalize(page.Key)))
+                fileName = Path.GetFullPath(string.IsNullOrEmpty(fileName)
+                    ? Path.Combine("Envir", "NPCs", "__editor__.txt") : fileName);
+                validation = NPCScript.Validate(string.Join("\n", Lines), fileName, IncludeRoot(fileName), Type);
+            }
+            catch (Exception exception)
+            {
+                // Invalid paths fail before the engine creates its scope. Keep even that failure local.
+                var diagnostic = new ScriptDiagnostic
                 {
-                    issues.Add(new ScriptIssue { Line = page.Line, Message = "页面重复定义：" + page.Key });
-                }
+                    Kind = ScriptDiagnosticKind.LoadFailed, FileName = fileName,
+                    Category = ScriptDiagnosticCategory.RuntimeFailure, Phase = ScriptDiagnosticPhase.Load,
+                    Effect = ScriptDiagnosticEffect.ScriptNotLoaded, Message = exception.Message,
+                    ExceptionType = exception.GetType().FullName,
+                };
+                issues.Add(FromDiagnostic(diagnostic));
+                return issues;
             }
 
-            foreach (ScriptPageInfo section in Sections)
-            {
-                CheckSection(section, rules, issues);
-            }
 
-            foreach (ScriptBlock block in Blocks)
-            {
-                for (int i = block.StartLine; i < block.EndLine; i++)
-                {
-                    string raw = Lines[i - 1];
-                    string trimmed = raw.Trim();
+            // This is the expanded source, not a second INSERT/INCLUDE implementation or stale cache.
+            // Navigation stays buffer-local: included line numbers must never become editor offsets.
+            PageKeys.Clear();
+            foreach (ScriptSourceLine line in validation.SourceLines)
+                if (ScriptPageKeyCatalog.TryParseHeader(line.Text, out string key) && FindSection(line.Text) == null)
+                    PageKeys.Add(Normalize(key));
 
-                    if (trimmed.Length == 0) continue;
-
-                    if (ScriptLexer.IsComment(trimmed)) continue;
-
-                    if (trimmed.StartsWith("#"))
-                    {
-                        string tag = trimmed.Substring(1).Split(' ', '\t')[0].ToUpperInvariant();
-
-                        if (!KnownTags.Contains(tag))
-                        {
-                            issues.Add(new ScriptIssue
-                            {
-                                Line = i,
-                                IsError = true,
-                                Message = "引擎不认识的指令：#" + tag + "（这一行会被跳过）",
-                            });
-                        }
-
-                        continue;
-                    }
-
-                    CheckKeywords(block, i, trimmed, rules, issues);
-                    CheckLinks(i, trimmed, rules, issues);
-                    CheckValues(i, trimmed, issues);
-                }
-            }
-
+            CollectValidationIssues(validation, rules, issues);
             return issues;
         }
 
-        /// <summary>
-        /// Sections are plain data: item type numbers, goods names, quest numbers. The engine drops
-        /// what it cannot read without a word, so they are worth checking here.
-        /// </summary>
-        private void CheckSection(ScriptPageInfo section, ScriptRules rules, List<ScriptIssue> issues)
+        private void CollectValidationIssues(ScriptValidationResult validation, ScriptRules rules, List<ScriptIssue> issues)
         {
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (ScriptDiagnostic diagnostic in validation.Diagnostics)
+                issues.Add(FromDiagnostic(diagnostic));
+            if (validation.Type == NPCScriptType.Normal || validation.Type == NPCScriptType.Called)
+                CheckSections(validation.SourceLines, rules, issues);
 
-            for (int i = section.Line + 1; i <= section.EndLine && i <= Lines.Length; i++)
+            var seen = new HashSet<(string File, int Line, string Page, string Message)>();
+            foreach (NPCPage page in validation.Pages)
             {
-                string line = Lines[i - 1].Trim();
-
-                if (line.Length == 0 || ScriptLexer.IsComment(line)) continue;
-
-                switch (section.Section)
+                foreach (NPCSegment segment in page.SegmentList)
                 {
-                    case ScriptSectionKind.Types:
-                    case ScriptSectionKind.UsedTypes:
-                        if (!int.TryParse(line, out int type))
-                        {
-                            issues.Add(new ScriptIssue { Line = i, IsError = true, Message = "物品种类只能填编号：" + line });
-                        }
-                        else if (!Enum.IsDefined(typeof(ItemType), (ItemType)type))
-                        {
-                            issues.Add(new ScriptIssue { Line = i, Message = "没有这个物品种类编号：" + type });
-                        }
+                    foreach (ScriptSourceInfo source in segment.SaySources.Concat(segment.ElseSaySources))
+                        CheckValues(source, segment, true, issues, seen);
+                    foreach (NPCChecks check in segment.CheckList)
+                        CheckStatement(check.Source, check.Params, segment, ScriptCheckCatalog.Find(check.Type), rules, issues, seen);
+                    foreach (NPCActions action in segment.ActList.Concat(segment.ElseActList))
+                        CheckStatement(action.Source, action.Params, segment, ScriptActionCatalog.Find(action.Type), rules, issues, seen);
+                }
+            }
 
-                        ReportDuplicate(seen, line, i, issues);
-                        break;
+            foreach (ScriptValidationResult called in validation.CalledScripts)
+                new ScriptProject { Type = called.Type }.CollectValidationIssues(called, rules, issues);
+        }
 
-                    case ScriptSectionKind.Quests:
-                        if (!int.TryParse(line, out int questIndex))
-                        {
-                            issues.Add(new ScriptIssue { Line = i, IsError = true, Message = "任务编号只能是数字：" + line });
-                        }
-                        else
-                        {
-                            int number = Math.Abs(questIndex);
+        private static ScriptIssue FromDiagnostic(ScriptDiagnostic diagnostic)
+        {
+            return new ScriptIssue
+            {
+                Line = diagnostic.Line, FileName = diagnostic.FileName, PageKey = diagnostic.PageKey,
+                Diagnostic = diagnostic, Message = diagnostic.Message,
+                IsError = diagnostic.Effect == ScriptDiagnosticEffect.SegmentDisabled ||
+                    diagnostic.Effect == ScriptDiagnosticEffect.SegmentAborted ||
+                    diagnostic.Effect == ScriptDiagnosticEffect.CallChainStopped ||
+                    diagnostic.Effect == ScriptDiagnosticEffect.ScriptNotLoaded ||
+                    diagnostic.Kind == ScriptDiagnosticKind.MissingPage || diagnostic.Suppressed,
+            };
+        }
 
-                            if (rules?.QuestExists != null && !rules.QuestExists(number))
-                            {
-                                issues.Add(new ScriptIssue
-                                {
-                                    Line = i,
-                                    IsError = true,
-                                    Message = "没有这个任务：" + number + "（引擎遇到它会直接丢掉后面所有任务行）",
-                                });
-                            }
+        /// <summary>Read the same bodies and conversions as the section loaders, without calling them.</summary>
+        private static void CheckSections(IReadOnlyList<ScriptSourceLine> source, ScriptRules rules, List<ScriptIssue> issues)
+        {
+            var lines = source.Select(line => line.Text).ToList();
+            var seen = new Dictionary<ScriptSectionKind, HashSet<string>>();
+            for (int header = 0; header < lines.Count; header++)
+            {
+                ScriptSectionEntry section = FindSection(lines[header]);
+                if (section == null) continue;
+                if (!seen.TryGetValue(section.Kind, out HashSet<string> values))
+                    seen.Add(section.Kind, values = new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+                ScriptSectionLine[] bodyLines = ScriptSectionCatalog.Body(lines, header, section.Kind).ToArray();
+                CheckSectionBoundary(source, lines, header, section, bodyLines, issues);
+                foreach (ScriptSectionLine body in bodyLines)
+                {
+                    ScriptSourceInfo location = source[body.Index].Source;
+                    string line = body.Text;
+                    if (ScriptLexer.IsComment(line)) continue;
+                    // Repetition is legal in these loaders. Surface it as an editing hint, not a no-op.
+                    string duplicateKey = string.Join(" ", line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+                    if (section.Kind == ScriptSectionKind.Types || section.Kind == ScriptSectionKind.UsedTypes ||
+                        section.Kind == ScriptSectionKind.Quests)
+                    {
+                        if (int.TryParse(line, out int number)) duplicateKey = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                    else if (section.Kind == ScriptSectionKind.Recipe)
+                    {
+                        string[] recipe = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (recipe.Length > 0) duplicateKey = recipe[0];
+                    }
+                    if (duplicateKey.Length > 0 && !values.Add(duplicateKey))
+                        AddSectionIssue(issues, location, section.Key,
+                            "重复编写的条目：" + duplicateKey + "（请确认是否有意重复；引擎仍按原规则处理）", false);
 
-                            ReportDuplicate(seen, line, i, issues);
-                        }
+                    switch (section.Kind)
+                    {
+                        case ScriptSectionKind.Types:
+                        case ScriptSectionKind.UsedTypes:
+                            // Body already guarantees an Int32; the loader casts it to the byte enum.
+                            int type = int.Parse(line);
+                            if (!Enum.IsDefined(typeof(ItemType), (ItemType)type) || type != (int)(ItemType)type)
+                                AddSectionIssue(issues, location, section.Key,
+                                    "物品种类编号 " + type + " 会被引擎转换为 " + (byte)(ItemType)type +
+                                    "（" + (ItemType)type + "）", false);
+                            break;
 
-                        break;
+                        case ScriptSectionKind.Quests:
+                            if (!int.TryParse(line, out int quest))
+                                AddSectionIssue(issues, location, section.Key, "无效任务编号，当前行会被忽略：" + line, false);
+                            else if (quest == int.MinValue)
+                                AddSectionIssue(issues, location, section.Key, "任务编号绝对值超出 Int32 范围：" + line, true);
+                            else if (quest != 0 && rules?.QuestExists != null && !rules.QuestExists(Math.Abs(quest)))
+                                AddSectionIssue(issues, location, section.Key, "没有这个任务，当前行会被忽略：" + Math.Abs(quest), false);
+                            break;
 
-                    case ScriptSectionKind.Trade:
-                    case ScriptSectionKind.Recipe:
-                        string[] parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-
-                        if (parts.Length == 0) break;
-
-                        if (parts.Length > 1 && !int.TryParse(parts[1], out _))
-                        {
-                            issues.Add(new ScriptIssue { Line = i, Message = "数量必须是数字：" + parts[1] });
-                        }
-
-                        if (rules?.ItemExists != null && !rules.ItemExists(parts[0]))
-                        {
-                            issues.Add(new ScriptIssue { Line = i, Message = "没有这个物品：" + parts[0] });
-                        }
-
-                        ReportDuplicate(seen, line, i, issues);
-                        break;
+                        case ScriptSectionKind.Trade:
+                        case ScriptSectionKind.Recipe:
+                            // These loaders split on spaces, not tabs; recipe suffixes are not counts.
+                            string[] parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            if (parts.Length == 0) break;
+                            bool missingItem = rules?.ItemExists != null && !rules.ItemExists(parts[0]);
+                            if (missingItem)
+                                AddSectionIssue(issues, location, section.Key, "没有这个物品，当前行不会加载：" + parts[0], false);
+                            if (section.Kind == ScriptSectionKind.Trade && parts.Length == 2 && !ushort.TryParse(parts[1], out _))
+                                AddSectionIssue(issues, location, section.Key,
+                                    "库存数量不是 UInt16（0–65535），引擎会将数量设为 0：" + parts[1], false);
+                            if (section.Kind == ScriptSectionKind.Recipe && !missingItem &&
+                                rules?.RecipeExists != null && !rules.RecipeExists(parts[0]))
+                                AddSectionIssue(issues, location, section.Key, "没有可用配方或配方没有材料，当前行不会加载：" + parts[0], false);
+                            break;
+                    }
                 }
             }
         }
 
-        private static void ReportDuplicate(HashSet<string> seen, string line, int number, List<ScriptIssue> issues)
+        private static void CheckSectionBoundary(IReadOnlyList<ScriptSourceLine> source, IList<string> lines,
+            int header, ScriptSectionEntry section, ScriptSectionLine[] body, List<ScriptIssue> issues)
         {
-            string key = SectionKey(line);
-
-            if (key.Length == 0 || seen.Add(key)) return;
-
-            issues.Add(new ScriptIssue { Line = number, Message = "重复的条目：" + key + "（这一行不起作用）" });
+            if (section.IsEntry == null) return;
+            int stop = body.Length == 0 ? header + 1 : body[body.Length - 1].Index + 1;
+            while (stop < lines.Count && string.IsNullOrEmpty(lines[stop])) stop++;
+            if (stop >= lines.Count || ScriptPageKeyCatalog.TryParseHeader(lines[stop], out _) ||
+                FindSection(lines[stop]) != null) return;
+            AddSectionIssue(issues, source[stop].Source, section.Key,
+                "该行不符合 " + section.Key + " 条目格式，数据段在此提前结束；后续条目不会由此数据段加载。", false);
         }
 
-        private void CheckKeywords(ScriptBlock block, int line, string trimmed, ScriptRules rules, List<ScriptIssue> issues)
+        private static void AddSectionIssue(List<ScriptIssue> issues, ScriptSourceInfo source, string page,
+            string message, bool error)
         {
-            if (block.Kind != ScriptBlockKind.Check &&
-                block.Kind != ScriptBlockKind.Act &&
-                block.Kind != ScriptBlockKind.ElseAct) return;
-
-            string[] parts = ScriptLexer.Tokenize(trimmed);
-
-            if (parts.Length == 0) return;
-
-            if (ScriptLexer.IsComment(parts[0])) return;
-
-            ScriptKeywordEntry keyword;
-
-            bool found = block.Kind == ScriptBlockKind.Check
-                ? ScriptKeywordRegistry.TryGetCheck(parts[0], out keyword)
-                : ScriptKeywordRegistry.TryGetAction(parts[0], out keyword);
-
-            if (!found)
+            issues.Add(new ScriptIssue
             {
-                issues.Add(new ScriptIssue
-                {
-                    Line = line,
-                    IsError = true,
-                    Message = (block.Kind == ScriptBlockKind.Check ? "未知条件：" : "未知动作：") + parts[0],
-                });
-
-                return;
-            }
-
-            if (parts.Length < keyword.MinParts)
-            {
-                issues.Add(new ScriptIssue
-                {
-                    Line = line,
-                    Message = keyword.Name + " 需要 " + (keyword.MinParts - 1) + " 个参数，当前 " + (parts.Length - 1) + " 个",
-                });
-            }
-
-            if (rules == null) return;
-
-            if (keyword.Argument == ScriptArgumentKind.Spell && parts.Length > 1 && rules.SpellExists != null && !rules.SpellExists(parts[1]))
-            {
-                issues.Add(new ScriptIssue { Line = line, Message = "引擎不认识这个技能：" + parts[1] });
-            }
-
-            if (keyword.Argument == ScriptArgumentKind.Map && parts.Length > 1 && rules.MapExists != null && !rules.MapExists(parts[1]))
-            {
-                issues.Add(new ScriptIssue { Line = line, Message = "找不到这个地图：" + parts[1] });
-            }
-
-            if (keyword.Argument == ScriptArgumentKind.Item && parts.Length > 1 && rules.ItemExists != null && !rules.ItemExists(parts[1]))
-            {
-                issues.Add(new ScriptIssue { Line = line, Message = "没有这个物品：" + parts[1] });
-            }
+                Line = source.Line, FileName = source.FileName, PageKey = page, Message = message, IsError = error,
+                Diagnostic = LocalDiagnostic(source, page, ScriptDiagnosticKind.MalformedSection, message,
+                    ScriptDiagnosticPhase.Load),
+            });
         }
 
-        private void CheckLinks(int line, string trimmed, ScriptRules rules, List<ScriptIssue> issues)
+        private void CheckStatement(ScriptSourceInfo source, IList<string> parameters, NPCSegment segment, ScriptKeywordEntry keyword,
+            ScriptRules rules, List<ScriptIssue> issues, HashSet<(string File, int Line, string Page, string Message)> seen)
         {
-            foreach (Match match in ScriptLexer.Button.Matches(trimmed))
+            if (source == null) return;
+            ScriptDiagnosticPhase phase = keyword?.Kind == ScriptKeywordKind.Check
+                ? ScriptDiagnosticPhase.Check : ScriptDiagnosticPhase.Action;
+            // Execution resolves only the arguments retained by the loader, not ignored trailing text.
+            foreach (string parameter in parameters)
+                CheckValues(source, segment, false, issues, seen, phase, parameter);
+            if (rules == null || keyword == null || keyword.Argument == ScriptArgumentKind.None) return;
+
+            string[] parts = segment.ParseArguments(ScriptLexer.Tokenize(source.Text));
+            if (parts.Length < 2 || IsDynamic(parts[1])) return;
+            string message = null;
+            switch (keyword.Argument)
             {
-                string target = match.Groups[1].Value.Split('/')[0];
-
-                if (string.Equals(target, "@Exit", StringComparison.OrdinalIgnoreCase)) continue;
-
-                if (!PageKeys.Contains(Normalize(target)))
-                {
-                    issues.Add(new ScriptIssue { Line = line, Message = "按钮指向不存在的页面：" + target });
-                }
+                case ScriptArgumentKind.Spell:
+                    if (rules.SpellExists != null && !rules.SpellExists(parts[1])) message = "引擎不认识这个技能：" + parts[1];
+                    break;
+                case ScriptArgumentKind.Map:
+                    if (rules.MapExists != null && !rules.MapExists(parts[1])) message = "找不到这个地图：" + parts[1];
+                    break;
+                case ScriptArgumentKind.Item:
+                    if (rules.ItemExists != null && !rules.ItemExists(parts[1])) message = "没有这个物品：" + parts[1];
+                    break;
             }
-
-            string[] parts = ScriptLexer.Tokenize(trimmed);
-
-            if (parts.Length == 0) return;
-
-            string targetKey = null;
-
-            ScriptKeywordEntry action = ScriptActionCatalog.Find(parts[0]);
-
-            if (action == null) return;
-
-            if (action.Action == ScriptActionKind.Call && parts.Length > 1)
-            {
-                int scriptID;
-
-                if (!int.TryParse(parts[1], out scriptID))
-                {
-                    issues.Add(new ScriptIssue { Line = line, Message = "CALL 需要脚本编号：" + parts[1] });
-                }
-                else if (rules?.ScriptExists != null && !rules.ScriptExists(scriptID))
-                {
-                    issues.Add(new ScriptIssue { Line = line, Message = "CALL 指向不存在的脚本：" + scriptID });
-                }
-            }
-
-            if (action.Button == ScriptButtonKind.DelayedPage && parts.Length > 2)
-                targetKey = parts[2];
-            else if ((action.Button == ScriptButtonKind.Page || action.Button == ScriptButtonKind.Roll) && parts.Length > 1)
-                targetKey = parts[1];
-
-            if (targetKey == null || targetKey.StartsWith("#")) return;
-
-            if (!PageKeys.Contains(Normalize(targetKey)))
-            {
-                issues.Add(new ScriptIssue { Line = line, Message = parts[0] + " 指向不存在的页面：" + targetKey });
-            }
+            if (message != null)
+                AddLocalIssue(issues, seen, source, segment.Page.Key, ScriptDiagnosticKind.InvalidArguments, message,
+                    keyword.Kind == ScriptKeywordKind.Check ? ScriptDiagnosticPhase.Check : ScriptDiagnosticPhase.Action, false);
         }
 
-        private void CheckValues(int line, string trimmed, List<ScriptIssue> issues)
+        private static bool IsDynamic(string value)
         {
-            if (!trimmed.Contains("<$")) return;
+            return !string.IsNullOrEmpty(value) && (value.Contains("<$") || value.Contains('%'));
+        }
 
-            foreach (Match match in ScriptLexer.Placeholder.Matches(trimmed))
+        private void CheckValues(ScriptSourceInfo source, NPCSegment segment, bool display, List<ScriptIssue> issues,
+            HashSet<(string File, int Line, string Page, string Message)> seen,
+            ScriptDiagnosticPhase phase = ScriptDiagnosticPhase.Action, string consumedText = null)
+        {
+            if (source == null) return;
+            string text = consumedText ?? segment.ParseArguments(new[] { source.Text })[0];
+            bool monster = Type == NPCScriptType.AutoMonster;
+            foreach (Match match in ScriptLexer.Placeholder.Matches(text))
             {
+                // Keep the resolver's normalisation, including its narrower monster value grammar.
                 string name = match.Groups[1].Value.ToUpperInvariant();
-                int paren = name.IndexOf('(');
-
-                if (paren >= 0) name = name.Substring(0, paren) + "()";
+                Match argument = ScriptLexer.StatementValue.Match(name);
+                if (!argument.Success && !monster) argument = ScriptLexer.TwoValue.Match(name);
+                if (!argument.Success && !monster) argument = ScriptLexer.OneValue.Match(name);
+                if (argument.Success) name = name.Replace(argument.Groups[2].Value, string.Empty);
+                if (IsDynamic(name)) continue;
 
                 ScriptKeywordEntry keyword;
-
-                if (ScriptKeywordRegistry.TryGetVariable(name, out keyword)) continue;
-                if (ScriptKeywordRegistry.TryGetMonsterVariable(name, out keyword)) continue;
-
-                issues.Add(new ScriptIssue { Line = line, Message = "未知变量：<$" + match.Groups[1].Value + ">" });
+                bool found = monster ? ScriptKeywordRegistry.TryGetMonsterVariable(name, out keyword)
+                    : ScriptKeywordRegistry.TryGetVariable(name, out keyword);
+                if (found) continue;
+                AddLocalIssue(issues, seen, source, segment.Page.Key, ScriptDiagnosticKind.UnknownValue,
+                    "当前脚本类型不支持这个变量：<$" + match.Groups[1].Value + ">",
+                    display ? ScriptDiagnosticPhase.Display : phase, !display);
             }
+        }
+
+        private static void AddLocalIssue(List<ScriptIssue> issues,
+            HashSet<(string File, int Line, string Page, string Message)> seen, ScriptSourceInfo source, string page,
+            ScriptDiagnosticKind kind, string message, ScriptDiagnosticPhase phase, bool error)
+        {
+            if (!seen.Add((source.FileName.ToUpperInvariant(), source.Line, page, message))) return;
+            issues.Add(new ScriptIssue
+            {
+                Line = source.Line, FileName = source.FileName, PageKey = page, Message = message, IsError = error,
+                Diagnostic = LocalDiagnostic(source, page, kind, message, phase),
+            });
+        }
+
+        private static ScriptDiagnostic LocalDiagnostic(ScriptSourceInfo source, string page,
+            ScriptDiagnosticKind kind, string message, ScriptDiagnosticPhase phase)
+        {
+            // Supplements belong to this check only: never use the global diagnostic collector.
+            return new ScriptDiagnostic
+            {
+                Kind = kind, Category = kind == ScriptDiagnosticKind.UnknownValue
+                    ? ScriptDiagnosticCategory.Unsupported : ScriptDiagnosticCategory.ScriptError,
+                Phase = phase, Effect = kind == ScriptDiagnosticKind.UnknownValue
+                    ? (phase == ScriptDiagnosticPhase.Display ? ScriptDiagnosticEffect.DisplayFallback : ScriptDiagnosticEffect.CallChainStopped)
+                    : ScriptDiagnosticEffect.Notice,
+                FileName = source.FileName, Line = source.Line, PageKey = page, Text = source.Text,
+                SourceContext = source.Context, SourceVersion = source.ContentVersion, Message = message,
+            };
         }
     }
 }

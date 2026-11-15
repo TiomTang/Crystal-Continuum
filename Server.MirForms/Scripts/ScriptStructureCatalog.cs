@@ -9,6 +9,7 @@ namespace Server.MirForms.Scripts
         Page,
         Block,
         Section,
+        Directive,
     }
 
     /// <summary>
@@ -47,25 +48,45 @@ namespace Server.MirForms.Scripts
         public bool IsJump { get { return JumpLine > 0; } }
     }
 
-    /// <summary>
-    /// Structure rows for the caret. The rules mirror NPCScript.ParseSegment: every #IF starts a new
-    /// segment, and one segment holds at most one SAY, ACT, ELSESAY and ELSEACT, so the palette only
-    /// offers what the loader can still accept at that point.
-    /// </summary>
+    /// <summary>Insertion rows derived from the same catalogs the loader dispatches.</summary>
     public static class ScriptStructureCatalog
     {
-        private const string NewPageText = "[@NewPage]\r\n#SAY\r\n\r\n#ACT\r\n\r\n";
-        private const string InputPageText = "[@@NewPage]\r\n#SAY\r\n\r\n#ACT\r\n\r\n";
-
-        public static List<StructureCandidate> Build(ScriptProject project, int line)
+        public static List<StructureCandidate> Build(ScriptProject project, int line, NPCScriptType? type = null)
         {
             var rows = new List<StructureCandidate>();
 
-            // Blocks come first: while writing a page they are what the caret needs, and the page
-            // list is long enough to bury anything below it.
-            AddBlocks(rows, project, line);
+            AddHeader(rows, GameLanguage.Get("Blocks"));
+            rows.AddRange(Blocks(project, line));
             AddSections(rows, project);
+            AddHeader(rows, GameLanguage.Get("Directives"));
+            rows.AddRange(Directives());
             AddPages(rows);
+            AddHeader(rows, GameLanguage.Get("Automatic pages"));
+            rows.AddRange(AutoMarkers(type));
+
+            return rows;
+        }
+
+        /// <summary>All block tags for menus, or the tags not yet used in the caret's segment.</summary>
+        public static List<StructureCandidate> Blocks(ScriptProject project = null, int line = 0)
+        {
+            var rows = new List<StructureCandidate>();
+            var used = new HashSet<ScriptBlockKind>();
+
+            if (project != null)
+            {
+                foreach (ScriptBlock block in project.SegmentAt(line)) used.Add(block.Kind);
+            }
+
+            foreach (ScriptBlockEntry entry in ScriptBlockCatalog.Entries)
+            {
+                // A splitting tag starts a fresh segment, so it is always available. ELSE blocks
+                // need no matching SAY/ACT: the engine accepts either branch independently.
+                if (!entry.SplitsSegment && used.Contains(entry.Kind)) continue;
+
+                rows.Add(new StructureCandidate(ScriptStructureGroup.Block, entry.Text,
+                    GameLanguage.Get(entry.Description), entry.Text + "\r\n", false));
+            }
 
             return rows;
         }
@@ -75,9 +96,37 @@ namespace Server.MirForms.Scripts
         {
             var rows = new List<StructureCandidate>();
 
-            foreach (ScriptSectionEntry info in ScriptSectionCatalog.Entries)
+            foreach (ScriptSectionEntry entry in ScriptSectionCatalog.Entries)
+                rows.Add(Section(entry));
+
+            return rows;
+        }
+
+        /// <summary>Loader directives insert at the caret, since INCLUDE may supply a block body.</summary>
+        public static List<StructureCandidate> Directives()
+        {
+            return new List<StructureCandidate>
             {
-                rows.Add(new StructureCandidate(ScriptStructureGroup.Section, info.Key, Description(info.Kind), info.Key + "\r\n", true));
+                new StructureCandidate(ScriptStructureGroup.Directive, ScriptDirectiveCatalog.Insert.Tag,
+                    GameLanguage.Get("Insert a whole file relative to EnvirPath; include its extension and use a path without spaces."),
+                    ScriptDirectiveCatalog.Insert.Tag + " [NPCs/Library.txt]\r\n", false),
+                new StructureCandidate(ScriptStructureGroup.Directive, ScriptDirectiveCatalog.Include.Tag,
+                    GameLanguage.Get("Include the brace-delimited body of a page from a file relative to EnvirPath; write the page without brackets."),
+                    ScriptDirectiveCatalog.Include.Tag + " [NPCs/Library.txt] @Library\r\n", false),
+            };
+        }
+
+        /// <summary>Automatic marker pages, optionally restricted to their actual owning script type.</summary>
+        public static List<StructureCandidate> AutoMarkers(NPCScriptType? type = null)
+        {
+            var rows = new List<StructureCandidate>();
+
+            foreach (ScriptAutoMarkerEntry entry in ScriptAutoMarkerCatalog.Entries)
+            {
+                if (type.HasValue && entry.Type != type.Value) continue;
+
+                rows.Add(Page(entry.Key, GameLanguage.Get(entry.Description),
+                    ScriptTemplateCatalog.PageText(entry.Key)));
             }
 
             return rows;
@@ -85,119 +134,56 @@ namespace Server.MirForms.Scripts
 
         public static StructureCandidate NewPage()
         {
-            return Page("[@NewPage]", GameLanguage.Get("Insert a new page."), NewPageText);
+            string key = ScriptPageKeyCatalog.Page.Prefix + "@NewPage]";
+            return Page(key, GameLanguage.Get("Insert a new page."), ScriptTemplateCatalog.PageText(key));
         }
 
         private static void AddPages(List<StructureCandidate> rows)
         {
-            AddHeader(rows, "Pages");
+            AddHeader(rows, GameLanguage.Get("Pages"));
+            rows.Add(NewPage());
 
-            rows.Add(Page("[@NewPage]", GameLanguage.Get("Insert a new page."), NewPageText));
-            rows.Add(Page("[@@NewPage]", GameLanguage.Get("Insert an input request page."), InputPageText));
+            string input = ScriptPageKeyCatalog.Input.Prefix + "NewPage]";
+            rows.Add(Page(input, GameLanguage.Get("Insert an input request page."), ScriptTemplateCatalog.PageText(input)));
 
-            foreach (ScriptSpecialPageEntry page in ScriptSpecialPageCatalog.Entries)
-            {
-                rows.Add(Page(page.Key, GameLanguage.Get(page.Description), page.Key + "\r\n"));
-            }
+            foreach (ScriptSpecialPageEntry entry in ScriptSpecialPageCatalog.Entries)
+                rows.Add(Page(entry.Key, GameLanguage.Get(entry.Description), ScriptTemplateCatalog.PageText(entry.Key)));
         }
 
-        private static void AddBlocks(List<StructureCandidate> rows, ScriptProject project, int line)
-        {
-            AddHeader(rows, "Blocks");
-
-            bool say = false, act = false, elseSay = false, elseAct = false;
-
-            foreach (ScriptBlock block in project.SegmentAt(line))
-            {
-                switch (block.Kind)
-                {
-                    case ScriptBlockKind.Say:
-                        say = true;
-                        break;
-                    case ScriptBlockKind.Act:
-                        act = true;
-                        break;
-                    case ScriptBlockKind.ElseSay:
-                        elseSay = true;
-                        break;
-                    case ScriptBlockKind.ElseAct:
-                        elseAct = true;
-                        break;
-                }
-            }
-
-            rows.Add(Block(ScriptBlockKind.Check, GameLanguage.Get("Start a condition block.")));
-
-            if (!say) rows.Add(Block(ScriptBlockKind.Say, GameLanguage.Get("Text the NPC says.")));
-
-            if (!act) rows.Add(Block(ScriptBlockKind.Act, GameLanguage.Get("Actions that run when the checks pass.")));
-
-            if (say && !elseSay) rows.Add(Block(ScriptBlockKind.ElseSay, GameLanguage.Get("Text when the checks fail.")));
-
-            if (act && !elseAct) rows.Add(Block(ScriptBlockKind.ElseAct, GameLanguage.Get("Actions when the checks fail.")));
-        }
-
-        /// <summary>
-        /// Every section the loader understands. A section that already exists in the file is offered
-        /// as a jump target: a second copy would feed the same list twice.
-        /// </summary>
+        /// <summary>A data section already present is a jump target rather than a second copy.</summary>
         private static void AddSections(List<StructureCandidate> rows, ScriptProject project)
         {
-            AddHeader(rows, "Sections");
+            AddHeader(rows, GameLanguage.Get("Sections"));
 
-            foreach (ScriptSectionEntry info in ScriptSectionCatalog.Entries)
+            foreach (ScriptSectionEntry entry in ScriptSectionCatalog.Entries)
             {
-                ScriptPageInfo existing = project.Sections.Find(x => x.Section == info.Kind);
-                string description = Description(info.Kind);
+                ScriptPageInfo existing = project.Sections.Find(x => x.Section == entry.Kind);
+                StructureCandidate candidate = Section(entry);
 
-                if (existing == null)
+                if (existing != null)
                 {
-                    rows.Add(new StructureCandidate(ScriptStructureGroup.Section, info.Key, description, info.Key + "\r\n", true));
-                    continue;
+                    candidate = new StructureCandidate(ScriptStructureGroup.Section, entry.Key,
+                        GameLanguage.Get(entry.Description) + " " + entry.Usage, null, true) { JumpLine = existing.Line };
                 }
 
-                var jump = new StructureCandidate(ScriptStructureGroup.Section, info.Key, description, null, true)
-                {
-                    JumpLine = existing.Line,
-                };
-
-                rows.Add(jump);
+                rows.Add(candidate);
             }
         }
 
-        /// <summary>
-        /// Display text for a section. The literals live here so the localization scan (which reads
-        /// GameLanguage.Get call sites) keeps them in the catalog.
-        /// </summary>
-        private static string Description(ScriptSectionKind kind)
+        private static StructureCandidate Section(ScriptSectionEntry entry)
         {
-            switch (kind)
-            {
-                case ScriptSectionKind.Types: return GameLanguage.Get("Item type numbers this NPC works with.");
-                case ScriptSectionKind.UsedTypes: return GameLanguage.Get("Item type numbers this NPC reacts to.");
-                case ScriptSectionKind.Trade: return GameLanguage.Get("Goods this NPC sells.");
-                case ScriptSectionKind.Recipe: return GameLanguage.Get("Items this NPC can craft.");
-                case ScriptSectionKind.Quests: return GameLanguage.Get("Quests this NPC handles.");
-                case ScriptSectionKind.Speech: return GameLanguage.Get("Speech numbers this NPC can say.");
-                default: return string.Empty;
-            }
+            return new StructureCandidate(ScriptStructureGroup.Section, entry.Key,
+                GameLanguage.Get(entry.Description) + " " + entry.Usage, entry.Key + "\r\n", true);
         }
 
         private static void AddHeader(List<StructureCandidate> rows, string text)
         {
-            rows.Add(new StructureCandidate(ScriptStructureGroup.Value, GameLanguage.Get(text), string.Empty, null, false));
+            rows.Add(new StructureCandidate(ScriptStructureGroup.Value, text, string.Empty, null, false));
         }
 
         private static StructureCandidate Page(string label, string description, string text)
         {
             return new StructureCandidate(ScriptStructureGroup.Page, label, description, text, true);
-        }
-
-        private static StructureCandidate Block(ScriptBlockKind kind, string description)
-        {
-            string tag = ScriptBlockCatalog.Tag(kind);
-
-            return new StructureCandidate(ScriptStructureGroup.Block, tag, description, tag + "\r\n", false);
         }
     }
 }

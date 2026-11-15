@@ -21,8 +21,8 @@ namespace Server.MirObjects
             new ScriptKeywordEntry("CONQUESTWALL()", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "(conquest index, wall index)",
                 "Name and repair cost of a conquest wall.", 1, null, valueExecutor: NPCSegment.ExecValue_CONQUESTWALL),
 
-            new ScriptKeywordEntry("CONQUESTSIEGE()", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "(conquest index, gate index)",
-                "Name and repair cost of a siege gate.", 1, null, valueExecutor: NPCSegment.ExecValue_CONQUESTSIEGE),
+            new ScriptKeywordEntry("CONQUESTSIEGE()", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "(conquest index, siege index)",
+                "Name and repair cost of a conquest siege structure.", 1, null, valueExecutor: NPCSegment.ExecValue_CONQUESTSIEGE),
 
             new ScriptKeywordEntry("CONQUESTOWNER()", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "(conquest index)",
                 "Guild that owns a conquest.", 1, null, valueExecutor: NPCSegment.ExecValue_CONQUESTOWNER),
@@ -34,7 +34,7 @@ namespace Server.MirObjects
                 "NPC rate of a conquest.", 1, null, valueExecutor: NPCSegment.ExecValue_CONQUESTRATE),
 
             new ScriptKeywordEntry("CONQUESTSCHEDULE()", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "(conquest index)",
-                "War scheduled for a conquest.", 1, null, valueExecutor: NPCSegment.ExecValue_CONQUESTSCHEDULE),
+                "Attacking guild scheduled for a conquest, or its scheduling status.", 1, null, valueExecutor: NPCSegment.ExecValue_CONQUESTSCHEDULE),
 
             new ScriptKeywordEntry("CASTLEWARDATE", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
                 "Date of the next castle war.", 1, null, valueExecutor: NPCSegment.ExecValue_CASTLEWARDATE),
@@ -52,7 +52,7 @@ namespace Server.MirObjects
                 "Player level.", 1, null, valueExecutor: NPCSegment.ExecValue_LEVEL),
 
             new ScriptKeywordEntry("CLASS", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
-                "Player class name.", 1, null, valueExecutor: NPCSegment.ExecValue_CLASS),
+                "Player class enum name.", 1, null, valueExecutor: NPCSegment.ExecValue_CLASS),
 
             new ScriptKeywordEntry("MAP", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
                 "Current map file name.", 1, null, valueExecutor: NPCSegment.ExecValue_MAP),
@@ -118,16 +118,16 @@ namespace Server.MirObjects
                 "Name of the amulet.", 1, null, valueExecutor: NPCSegment.ExecValue_AMULET),
 
             new ScriptKeywordEntry("STONE", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
-                "Name of the equipped stone, or the empty text.", 1, null, valueExecutor: NPCSegment.ExecValue_STONE),
+                "Name of the equipped stone, or a no-stone message.", 1, null, valueExecutor: NPCSegment.ExecValue_STONE),
 
             new ScriptKeywordEntry("TORCH", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
-                "Name of the equipped torch, or the empty text.", 1, null, valueExecutor: NPCSegment.ExecValue_TORCH),
+                "Name of the equipped torch, or a no-torch message.", 1, null, valueExecutor: NPCSegment.ExecValue_TORCH),
 
             new ScriptKeywordEntry("DATE", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
                 "Current server date.", 1, null, valueExecutor: NPCSegment.ExecValue_DATE),
 
             new ScriptKeywordEntry("MAPLIGHT", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
-                "Current map light setting.", 1, null, valueExecutor: NPCSegment.ExecValue_MAPLIGHT),
+                "Current server-wide light setting.", 1, null, valueExecutor: NPCSegment.ExecValue_MAPLIGHT),
 
             new ScriptKeywordEntry("USERCOUNT", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
                 "Number of players online.", 1, null, valueExecutor: NPCSegment.ExecValue_USERCOUNT),
@@ -151,13 +151,13 @@ namespace Server.MirObjects
                 "Result of the last die roll.", 1, null, valueExecutor: NPCSegment.ExecValue_ROLLRESULT),
 
             new ScriptKeywordEntry("MOUNTLOYALTY", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
-                "Loyalty of the equipped mount.", 1, null, valueExecutor: NPCSegment.ExecValue_MOUNTLOYALTY),
+                "Current and maximum raw durability of the equipped mount, or a no-mount message.", 1, null, valueExecutor: NPCSegment.ExecValue_MOUNTLOYALTY),
 
             new ScriptKeywordEntry("MOUNT", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
                 "Name of the equipped mount.", 1, null, valueExecutor: NPCSegment.ExecValue_MOUNT),
 
             new ScriptKeywordEntry("GUILDEXTENDFEE", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
-                "Cost of extending the guild territory.", 1, null, valueExecutor: NPCSegment.ExecValue_GUILDEXTENDFEE),
+                "Guild territory expiry and extension fee, or a none message.", 1, null, valueExecutor: NPCSegment.ExecValue_GUILDEXTENDFEE),
 
             new ScriptKeywordEntry("GUILDRENTFEE", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
                 "Rent of the guild territory.", 1, null, valueExecutor: NPCSegment.ExecValue_GUILDRENTFEE),
@@ -166,7 +166,7 @@ namespace Server.MirObjects
                 "Days left on the guild territory rental.", 1, null, valueExecutor: NPCSegment.ExecValue_GUILDGTRENTALDAYSLEFT),
 
             new ScriptKeywordEntry("AGITGUILDNAME", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
-                "Guild that owns the territory.", 1, null, valueExecutor: NPCSegment.ExecValue_AGITGUILDNAME),
+                "Name of the player's guild, or a no-guild message.", 1, null, valueExecutor: NPCSegment.ExecValue_AGITGUILDNAME),
         };
 
         /// <summary>Values available when the script runs for a monster.</summary>
@@ -197,7 +197,7 @@ namespace Server.MirObjects
                 "Current server date.", 1, null, valueExecutor: NPCSegment.ExecMonsterValue_DATE),
 
             new ScriptKeywordEntry("MAPLIGHT", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
-                "Current map light setting.", 1, null, valueExecutor: NPCSegment.ExecMonsterValue_MAPLIGHT),
+                "Current server-wide light setting.", 1, null, valueExecutor: NPCSegment.ExecMonsterValue_MAPLIGHT),
 
             new ScriptKeywordEntry("USERCOUNT", ScriptKeywordKind.Variable, ScriptKeywordCategory.Variable, "",
                 "Number of players online.", 1, null, valueExecutor: NPCSegment.ExecMonsterValue_USERCOUNT),

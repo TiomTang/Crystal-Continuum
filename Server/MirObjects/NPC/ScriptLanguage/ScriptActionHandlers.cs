@@ -21,12 +21,13 @@ namespace Server.MirObjects
             if (quoteMatch.Success)
                 listPath = quoteMatch.Groups[1].Captures[0].Value;
 
-            string fileName = Settings.GetNameListPath(listPath);
+            string fileName = ScriptValidationScope.Current != null
+                ? ScriptValidationScope.Current.NameListPath(listPath) : Settings.GetNameListPath(listPath);
             string directory = System.IO.Path.GetDirectoryName(fileName);
 
-            System.IO.Directory.CreateDirectory(directory);
+            if (!ScriptValidationScope.IsActive) System.IO.Directory.CreateDirectory(directory);
 
-            if (createFile && !System.IO.File.Exists(fileName))
+            if (!ScriptValidationScope.IsActive && createFile && !System.IO.File.Exists(fileName))
                 System.IO.File.Create(fileName).Close();
 
             ctx.Acts.Add(new NPCActions(action, fileName));

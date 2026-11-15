@@ -116,6 +116,8 @@ namespace Server.MirObjects
 
         private static bool RuntimeValue(string value)
         {
+            // %ARG(n) is substituted while the page is parsed; one left over disables the segment at
+            // load, so it is never a run-time value.
             return ScriptLexer.Placeholder.IsMatch(value)
                 || value.Length == 3 && value[0] == '%' && ScriptLexer.IsVariableKey(value);
         }
@@ -261,10 +263,11 @@ namespace Server.MirObjects
             if (quoteMatch.Success)
                 listPath = quoteMatch.Groups[1].Captures[0].Value;
 
-            string fileName = Settings.GetNameListPath(listPath);
+            string fileName = ScriptValidationScope.Current != null
+                ? ScriptValidationScope.Current.NameListPath(listPath) : Settings.GetNameListPath(listPath);
             string directory = Path.GetDirectoryName(fileName);
 
-            Directory.CreateDirectory(directory);
+            if (!ScriptValidationScope.IsActive) Directory.CreateDirectory(directory);
 
             ctx.Segment.CheckList.Add(new NPCChecks(type, fileName));
 

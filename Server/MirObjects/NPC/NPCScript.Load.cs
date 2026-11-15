@@ -299,6 +299,8 @@ namespace Server.MirObjects
         {
             // A key built from a run-time value has no page yet; only a literal target can be dead.
             if (string.IsNullOrEmpty(key) || key.IndexOf("<$", StringComparison.Ordinal) >= 0) return;
+            if (ScriptValidationScope.IsActive && (ScriptLexer.Argument.IsMatch(key) ||
+                key.IndexOf("%INPUTSTR", StringComparison.Ordinal) >= 0)) return;
 
             string target = key.Trim('[', ']');
             ScriptSourceInfo source = _scriptLines?.FirstOrDefault(line =>
@@ -319,6 +321,8 @@ namespace Server.MirObjects
             var visited = new HashSet<string>(NPCPages.Select(existing => existing.Key), StringComparer.OrdinalIgnoreCase);
 
             if (!visited.Add(key)) return pages;
+            if (ScriptValidationScope.Current?.TryConsumePage(lines.Count, key,
+                _scriptLines?.FirstOrDefault().Source) == false) return pages;
 
             NPCPage page = ParsePage(lines, key);
 
@@ -341,6 +345,7 @@ namespace Server.MirObjects
                 string section = buttons[i];
 
                 if (!visited.Add(section)) continue;
+                if (ScriptValidationScope.Current?.TryConsumePage(lines.Count, section, page?.Source) == false) break;
 
                 page = ParsePage(lines, section);
 
@@ -747,11 +752,7 @@ namespace Server.MirObjects
 
         internal bool ApplyAutoMapCoord(ScriptAutoMarkerLine line)
         {
-            if (line.Args.Length != 3) return false;
-
-            int x, y;
-
-            if (!int.TryParse(line.Args[1], out x) || !int.TryParse(line.Args[2], out y)) return false;
+            if (!TryParseAutoMapCoord(line, out int x, out int y)) return false;
 
             Map map = Envir.MapList.FirstOrDefault(m => m.Info.FileName == line.Args[0]);
 
@@ -766,7 +767,7 @@ namespace Server.MirObjects
 
         internal bool ApplyAutoCustomCommand(ScriptAutoMarkerLine line)
         {
-            if (string.IsNullOrEmpty(line.Body)) return false;
+            if (!HasAutoCustomCommand(line)) return false;
 
             Envir.CustomCommands.Add(line.Body);
 
@@ -775,9 +776,7 @@ namespace Server.MirObjects
 
         internal bool ApplyAutoSpawn(ScriptAutoMarkerLine line)
         {
-            int index;
-
-            if (!int.TryParse(line.Body, out index)) return false;
+            if (!TryParseAutoMonsterIndex(line, out int index)) return false;
 
             MonsterInfo info = Envir.GetMonsterInfo((short)index);
 
@@ -790,9 +789,7 @@ namespace Server.MirObjects
 
         internal bool ApplyAutoDie(ScriptAutoMarkerLine line)
         {
-            int index;
-
-            if (!int.TryParse(line.Body, out index)) return false;
+            if (!TryParseAutoMonsterIndex(line, out int index)) return false;
 
             MonsterInfo info = Envir.GetMonsterInfo((short)index);
 

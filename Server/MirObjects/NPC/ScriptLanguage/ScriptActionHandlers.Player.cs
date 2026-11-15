@@ -150,7 +150,8 @@ namespace Server.MirObjects
             if (quoteMatch.Success)
                 listPath = quoteMatch.Groups[1].Captures[0].Value;
 
-            string fileName = Path.Combine(Settings.DropPath, listPath);
+            string fileName = ScriptValidationScope.Current != null
+                ? ScriptValidationScope.Current.Resolve("Drops", listPath) : Path.Combine(Settings.DropPath, listPath);
 
             ctx.Acts.Add(new NPCActions(ScriptActionKind.Drop, fileName));
             return ScriptParseOutcome.Handled;

@@ -23,14 +23,23 @@ namespace Server.MirObjects
             if (quoteMatch.Success)
                 listPath = quoteMatch.Groups[1].Captures[0].Value;
 
-            string fileName = Path.Combine(Settings.NPCPath, listPath + ".txt");
+            string fileName = Path.Combine(ScriptValidationScope.Current == null
+                ? Settings.NPCPath : Path.Combine(ScriptValidationScope.Current.EnvirPath, "NPCs"), listPath + ".txt");
 
-            if (!File.Exists(fileName))
+            // The root script may still be an unsaved buffer, so ask the session before the disk.
+            if (!ScriptValidationScope.Exists(fileName))
             {
                 ScriptDiagnostics.Report(ScriptDiagnosticKind.MissingScript, ctx, listPath,
                     "Called script not found: " + listPath);
 
                 return ScriptParseOutcome.Skipped;
+            }
+
+            if (ScriptValidationScope.IsActive)
+            {
+                ScriptValidationScope.Current.ValidateCall(fileName, ctx);
+                ctx.Acts.Add(new NPCActions(ScriptActionKind.Call, listPath));
+                return ScriptParseOutcome.Handled;
             }
 
             NPCScript script = NPCScript.GetOrAdd(0, listPath, NPCScriptType.Called);
@@ -141,15 +150,17 @@ namespace Server.MirObjects
 
             if (!quoteMatch.Success) return ScriptParseOutcome.Skipped;
 
-            string fileName = Path.Combine(Settings.ValuePath, quoteMatch.Groups[1].Captures[0].Value);
+            string fileName = ScriptValidationScope.Current != null
+                ? ScriptValidationScope.Current.Resolve("Values", quoteMatch.Groups[1].Captures[0].Value)
+                : Path.Combine(Settings.ValuePath, quoteMatch.Groups[1].Captures[0].Value);
 
             string group = ctx.Parts[ctx.Parts.Length - 2];
             string key = ctx.Parts[ctx.Parts.Length - 1];
 
             string directory = Path.GetDirectoryName(fileName);
-            Directory.CreateDirectory(directory);
+            if (!ScriptValidationScope.IsActive) Directory.CreateDirectory(directory);
 
-            if (!File.Exists(fileName))
+            if (!ScriptValidationScope.IsActive && !File.Exists(fileName))
                 File.Create(fileName).Close();
 
             ctx.Acts.Add(new NPCActions(ScriptActionKind.LoadValue, ctx.Parts[1], fileName, group, key));
@@ -162,7 +173,9 @@ namespace Server.MirObjects
 
             if (matches.Count == 0 || !matches[0].Success) return ScriptParseOutcome.Skipped;
 
-            string fileName = Path.Combine(Settings.ValuePath, matches[0].Groups[1].Captures[0].Value);
+            string fileName = ScriptValidationScope.Current != null
+                ? ScriptValidationScope.Current.Resolve("Values", matches[0].Groups[1].Captures[0].Value)
+                : Path.Combine(Settings.ValuePath, matches[0].Groups[1].Captures[0].Value);
 
             string value = ctx.Parts[ctx.Parts.Length - 1];
 
@@ -175,9 +188,9 @@ namespace Server.MirObjects
             string key = newParts[newParts.Length - 1];
 
             string directory = Path.GetDirectoryName(fileName);
-            Directory.CreateDirectory(directory);
+            if (!ScriptValidationScope.IsActive) Directory.CreateDirectory(directory);
 
-            if (!File.Exists(fileName))
+            if (!ScriptValidationScope.IsActive && !File.Exists(fileName))
                 File.Create(fileName).Close();
 
             ctx.Acts.Add(new NPCActions(ScriptActionKind.SaveValue, fileName, group, key, value));

@@ -80,6 +80,9 @@ namespace Server.MirObjects
                     List<ScriptSourceLine> content = ReadContent(line, entry, out identity);
                     if (content == null) continue;
 
+                    // Charge every dependency use, including cache hits, before recursively expanding it.
+                    ScriptValidationScope.Current?.ConsumeLines(content.Count);
+
                     if (!open.Add(identity))
                         Report(ScriptDiagnosticKind.MalformedDirective, line,
                             ScriptDirectiveCatalog.Tag(entry) + " reads content that is already being read: " + identity);
@@ -91,6 +94,18 @@ namespace Server.MirObjects
                 {
                     // Keep a source-bound failure marker so only its containing segment is disabled.
                     result.Add(new ScriptSourceLine(line.Text, line.Number, line.FileName, line.Source, exception.Diagnostic));
+                }
+                catch (Exception exception) when (ScriptValidationScope.IsActive &&
+                    (exception is ArgumentException || exception is NotSupportedException ||
+                     exception is IOException || exception is UnauthorizedAccessException ||
+                     exception is System.Security.SecurityException))
+                {
+                    // An editor dependency failure must not abort unrelated pages or lose its location.
+                    ScriptDiagnosticKind kind = exception is ArgumentException || exception is NotSupportedException ||
+                        exception is PathTooLongException
+                        ? ScriptDiagnosticKind.MalformedDirective : ScriptDiagnosticKind.LoadFailed;
+                    ScriptDiagnostic diagnostic = ReportDiagnostic(kind, line, exception.Message, exception);
+                    result.Add(new ScriptSourceLine(line.Text, line.Number, line.FileName, line.Source, diagnostic));
                 }
             }
 
@@ -125,9 +140,9 @@ namespace Server.MirObjects
                 string insertPath = Resolve(parts[1]);
                 identity = "INSERT|" + insertPath;
 
-                if (!File.Exists(insertPath))
+                if (!ScriptValidationScope.Exists(insertPath))
                 {
-                    MessageQueue.Instance.Enqueue(GameLanguage.Get("INSERT Script Not Found: {0}", insertPath));
+                    if (!ScriptValidationScope.IsActive) MessageQueue.Instance.Enqueue(GameLanguage.Get("INSERT Script Not Found: {0}", insertPath));
                     Report(ScriptDiagnosticKind.MissingScript, line, "INSERT file not found: " + insertPath);
 
                     return null;
@@ -147,9 +162,9 @@ namespace Server.MirObjects
             string page = "[" + parts[2] + "]";
             identity = "INCLUDE|" + path + "|" + page;
 
-            if (!File.Exists(path))
+            if (!ScriptValidationScope.Exists(path))
             {
-                MessageQueue.Instance.Enqueue(GameLanguage.Get("INCLUDE Script Not Found: {0}", path));
+                if (!ScriptValidationScope.IsActive) MessageQueue.Instance.Enqueue(GameLanguage.Get("INCLUDE Script Not Found: {0}", path));
                 Report(ScriptDiagnosticKind.MissingScript, line, "INCLUDE file not found: " + path);
 
                 return null;
@@ -199,7 +214,7 @@ namespace Server.MirObjects
                 break;
             }
 
-            MessageQueue.Instance.Enqueue(GameLanguage.Get("INCLUDE Page Not Found: {0} in {1}", page, path));
+            if (!ScriptValidationScope.IsActive) MessageQueue.Instance.Enqueue(GameLanguage.Get("INCLUDE Page Not Found: {0} in {1}", page, path));
             Report(ScriptDiagnosticKind.MissingPage, line, "INCLUDE page " + page + " not found in " + path);
 
             return null;
@@ -213,7 +228,9 @@ namespace Server.MirObjects
         {
             bool legacy;
 
-            IList<string> lines = ScriptTextFile.ReadAllLines(path, out legacy);
+            IList<string> lines = ScriptValidationScope.Current != null
+                ? ScriptValidationScope.Current.ReadFile(path, out legacy)
+                : ScriptTextFile.ReadAllLines(path, out legacy);
 
             if (legacy)
                 Report(ScriptDiagnosticKind.LegacyEncoding, line, "file is not UTF-8, read as GBK: " + path);
@@ -223,20 +240,26 @@ namespace Server.MirObjects
 
         private static string Resolve(string argument)
         {
-            return Path.GetFullPath(Path.Combine(Settings.EnvirPath, Unquote(argument)));
+            return Path.GetFullPath(Path.Combine(ScriptValidationScope.Current?.EnvirPath ?? Settings.EnvirPath, Unquote(argument)));
         }
 
         private static void Report(ScriptDiagnosticKind kind, ScriptSourceLine line, string message)
         {
-            ScriptDiagnostic diagnostic = ScriptDiagnostics.Report(kind, new ScriptParseContext
+            ScriptDiagnostic diagnostic = ReportDiagnostic(kind, line, message);
+            if (kind != ScriptDiagnosticKind.LegacyEncoding)
+                throw new DependencyException(diagnostic);
+        }
+
+        private static ScriptDiagnostic ReportDiagnostic(ScriptDiagnosticKind kind, ScriptSourceLine line, string message,
+            Exception exception = null)
+        {
+            return ScriptDiagnostics.Report(kind, new ScriptParseContext
             {
                 Line = line.Text,
                 LineNumber = line.Number,
                 FileName = line.FileName ?? ScriptParseScope.FileName,
                 Source = line.Source,
-            }, Tag(line.Text), message);
-            if (kind != ScriptDiagnosticKind.LegacyEncoding)
-                throw new DependencyException(diagnostic);
+            }, Tag(line.Text), message, exception);
         }
 
         private static string Tag(string line)

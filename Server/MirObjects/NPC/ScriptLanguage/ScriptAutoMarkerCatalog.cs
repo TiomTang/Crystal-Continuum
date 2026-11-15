@@ -34,13 +34,23 @@ namespace Server.MirObjects
     {
         public readonly NPCScriptType Type;
         public readonly string Marker;
+        public readonly string Arguments;
+        public readonly string Description;
         public readonly Func<NPCScript, ScriptAutoMarkerLine, bool> Apply;
+        internal readonly Func<ScriptAutoMarkerLine, string> ValidateArguments;
 
-        public ScriptAutoMarkerEntry(NPCScriptType type, string marker, Func<NPCScript, ScriptAutoMarkerLine, bool> apply)
+        /// <summary>Editable page header; arguments use the same order as the loader.</summary>
+        public string Key => ScriptPageKeyCatalog.Auto.Prefix + Marker + "(" + Arguments + ")]";
+
+        public ScriptAutoMarkerEntry(NPCScriptType type, string marker, Func<NPCScript, ScriptAutoMarkerLine, bool> apply,
+            string arguments = "", string description = "", Func<ScriptAutoMarkerLine, string> validateArguments = null)
         {
             Type = type;
             Marker = marker;
             Apply = apply;
+            ValidateArguments = validateArguments;
+            Arguments = arguments;
+            Description = description;
         }
     }
 
@@ -52,19 +62,29 @@ namespace Server.MirObjects
     public static class ScriptAutoMarkerCatalog
     {
         public static readonly ScriptAutoMarkerEntry MapCoord = new ScriptAutoMarkerEntry(
-            NPCScriptType.AutoPlayer, "MAPCOORD", (script, line) => script.ApplyAutoMapCoord(line));
+            NPCScriptType.AutoPlayer, "MAPCOORD", (script, line) => script.ApplyAutoMapCoord(line),
+            arguments: "<map>,<x>,<y>", description: "AutoPlayer: run when the player reaches this map coordinate.",
+            validateArguments: NPCScript.ValidateAutoMapCoordArguments);
 
         public static readonly ScriptAutoMarkerEntry CustomCommand = new ScriptAutoMarkerEntry(
-            NPCScriptType.AutoPlayer, "CUSTOMCOMMAND", (script, line) => script.ApplyAutoCustomCommand(line));
+            NPCScriptType.AutoPlayer, "CUSTOMCOMMAND", (script, line) => script.ApplyAutoCustomCommand(line),
+            arguments: "<command>", description: "AutoPlayer: register a custom command and run its page.",
+            validateArguments: NPCScript.ValidateAutoCustomCommandArguments);
 
         public static readonly ScriptAutoMarkerEntry Spawn = new ScriptAutoMarkerEntry(
-            NPCScriptType.AutoMonster, "SPAWN", (script, line) => script.ApplyAutoSpawn(line));
+            NPCScriptType.AutoMonster, "SPAWN", (script, line) => script.ApplyAutoSpawn(line),
+            arguments: "<monster index>", description: "AutoMonster: run when this monster definition spawns.",
+            validateArguments: NPCScript.ValidateAutoMonsterArguments);
 
         public static readonly ScriptAutoMarkerEntry Die = new ScriptAutoMarkerEntry(
-            NPCScriptType.AutoMonster, "DIE", (script, line) => script.ApplyAutoDie(line));
+            NPCScriptType.AutoMonster, "DIE", (script, line) => script.ApplyAutoDie(line),
+            arguments: "<monster index>", description: "AutoMonster: run when this monster definition dies.",
+            validateArguments: NPCScript.ValidateAutoMonsterArguments);
 
         public static readonly ScriptAutoMarkerEntry Time = new ScriptAutoMarkerEntry(
-            NPCScriptType.Robot, "TIME", (script, line) => script.ApplyAutoTime(line));
+            NPCScriptType.Robot, "TIME", (script, line) => script.ApplyAutoTime(line),
+            arguments: "#,#,#,#,#", description: "Robot: month, day, hour, minute and English weekday; # matches any value.",
+            validateArguments: NPCScript.ValidateAutoTimeArguments);
 
         public static readonly ScriptAutoMarkerEntry[] Entries = { MapCoord, CustomCommand, Spawn, Die, Time };
 

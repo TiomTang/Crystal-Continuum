@@ -38,6 +38,8 @@ namespace Server.MirObjects
         public readonly ScriptSectionKind Kind;
         public readonly string Key;
         public readonly int Order;
+        public readonly string Description;
+        public readonly string Usage;
 
         /// <summary>True when the body ends at the next "[" header, as [Trade] and [Recipe] do.</summary>
         public readonly bool EndsAtHeader;
@@ -49,7 +51,8 @@ namespace Server.MirObjects
         public readonly Action<NPCScript, IList<string>, int> Parse;
 
         public ScriptSectionEntry(ScriptSectionKind kind, string key, int order,
-            Action<NPCScript, IList<string>, int> parse, bool endsAtHeader = false, Func<string, bool> isEntry = null)
+            Action<NPCScript, IList<string>, int> parse, bool endsAtHeader = false, Func<string, bool> isEntry = null,
+            string description = "", string usage = "")
         {
             Kind = kind;
             Key = key;
@@ -57,6 +60,8 @@ namespace Server.MirObjects
             Parse = parse;
             EndsAtHeader = endsAtHeader;
             IsEntry = isEntry;
+            Description = description;
+            Usage = usage;
         }
 
         /// <summary>True when this line is the header of the section.</summary>
@@ -75,17 +80,23 @@ namespace Server.MirObjects
         public static readonly ScriptSectionEntry[] Entries =
         {
             new ScriptSectionEntry(ScriptSectionKind.Types, "[TYPES]", 10,
-                (script, lines, index) => script.ParseTypeSection(lines, index), isEntry: IsInteger),
+                (script, lines, index) => script.ParseTypeSection(lines, index), isEntry: IsInteger,
+                description: "Item type numbers accepted by this NPC for selling and services.", usage: "<item type number>"),
             new ScriptSectionEntry(ScriptSectionKind.UsedTypes, "[USEDTYPES]", 20,
-                (script, lines, index) => script.ParseUsedTypeSection(lines, index), isEntry: IsInteger),
+                (script, lines, index) => script.ParseUsedTypeSection(lines, index), isEntry: IsInteger,
+                description: "Item type numbers this NPC accepts as used goods.", usage: "<item type number>"),
             new ScriptSectionEntry(ScriptSectionKind.Trade, "[TRADE]", 30,
-                (script, lines, index) => script.ParseGoodsSection(lines, index), endsAtHeader: true),
+                (script, lines, index) => script.ParseGoodsSection(lines, index), endsAtHeader: true,
+                description: "Goods this NPC sells: item name and optional stock count.", usage: "<item> [count]"),
             new ScriptSectionEntry(ScriptSectionKind.Recipe, "[RECIPE]", 40,
-                (script, lines, index) => script.ParseCraftingSection(lines, index), endsAtHeader: true),
+                (script, lines, index) => script.ParseCraftingSection(lines, index), endsAtHeader: true,
+                description: "Craftable item names resolved against the recipe definitions.", usage: "<crafted item>"),
             new ScriptSectionEntry(ScriptSectionKind.Quests, "[QUESTS]", 50,
-                (script, lines, index) => script.ParseQuestsSection(lines, index), endsAtHeader: true),
+                (script, lines, index) => script.ParseQuestsSection(lines, index), endsAtHeader: true,
+                description: "Quest indexes: positive starts a quest here, negative finishes it here.", usage: "<signed quest index>"),
             new ScriptSectionEntry(ScriptSectionKind.Speech, "[SPEECH]", 60,
-                (script, lines, index) => script.ParseSpeechSection(lines, index), isEntry: IsSpeech),
+                (script, lines, index) => script.ParseSpeechSection(lines, index), isEntry: IsSpeech,
+                description: "Ambient speech lines: relative weight followed by the spoken text.", usage: "<weight> <text>"),
         };
 
         /// <summary>Sections in the order the loader runs them.</summary>

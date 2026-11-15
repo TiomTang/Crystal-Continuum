@@ -15028,6 +15028,74 @@
     "Source": "Script Editor",
     "Text": "脚本编辑器"
   },
+  "Automatic script type": {
+    "Source": "Automatic script type",
+    "Text": "自动识别脚本类型"
+  },
+  "Diagnostic category": {
+    "Source": "Diagnostic category",
+    "Text": "诊断归因"
+  },
+  "Execution impact": {
+    "Source": "Execution impact",
+    "Text": "执行影响"
+  },
+  "Source file": {
+    "Source": "Source file",
+    "Text": "来源文件"
+  },
+  "Severity": {
+    "Source": "Severity",
+    "Text": "严重程度"
+  },
+  "Authoring notice": {
+    "Source": "Authoring notice",
+    "Text": "编写提示"
+  },
+  "ScriptError": {
+    "Source": "ScriptError",
+    "Text": "脚本错误"
+  },
+  "Unsupported": {
+    "Source": "Unsupported",
+    "Text": "不支持的语法"
+  },
+  "EngineFault": {
+    "Source": "EngineFault",
+    "Text": "引擎故障"
+  },
+  "RuntimeFailure": {
+    "Source": "RuntimeFailure",
+    "Text": "运行失败"
+  },
+  "SegmentDisabled": {
+    "Source": "SegmentDisabled",
+    "Text": "禁用受影响段"
+  },
+  "SegmentAborted": {
+    "Source": "SegmentAborted",
+    "Text": "中止当前段"
+  },
+  "CallChainStopped": {
+    "Source": "CallChainStopped",
+    "Text": "停止当前调用链"
+  },
+  "ScriptNotLoaded": {
+    "Source": "ScriptNotLoaded",
+    "Text": "脚本未加载"
+  },
+  "DisplayFallback": {
+    "Source": "DisplayFallback",
+    "Text": "显示回退"
+  },
+  "Notice": {
+    "Source": "Notice",
+    "Text": "提示"
+  },
+  "Speech weight followed by a space and text.": {
+    "Source": "Speech weight followed by a space and text.",
+    "Text": "喊话权重，后跟空格与喊话内容。"
+  },
   "Open": {
     "Source": "Open",
     "Text": "打开"
@@ -15359,5 +15427,265 @@
   "Speech numbers this NPC can say.": {
     "Source": "这个 NPC 会说的对白编号。",
     "Text": "这个 NPC 会说的对白编号。"
+  },
+  "Automatic pages": {
+    "Source": "Automatic pages",
+    "Text": "自动脚本页"
+  },
+  "Directives": {
+    "Source": "Directives",
+    "Text": "文件指令"
+  },
+  "Include library template": {
+    "Source": "Include library template",
+    "Text": "包含库模板"
+  },
+  "Ambient speech lines: relative weight followed by the spoken text.": {
+    "Source": "Ambient speech lines: relative weight followed by the spoken text.",
+    "Text": "NPC 随机发言：相对权重后填写发言文本。"
+  },
+  "Attacking guild scheduled for a conquest, or its scheduling status.": {
+    "Source": "Attacking guild scheduled for a conquest, or its scheduling status.",
+    "Text": "已登记攻城的攻击行会，或攻城预约状态。"
+  },
+  "AutoMonster: run when this monster definition dies.": {
+    "Source": "AutoMonster: run when this monster definition dies.",
+    "Text": "自动怪物脚本：指定怪物定义的怪物死亡时执行。"
+  },
+  "AutoMonster: run when this monster definition spawns.": {
+    "Source": "AutoMonster: run when this monster definition spawns.",
+    "Text": "自动怪物脚本：指定怪物定义的怪物生成时执行。"
+  },
+  "AutoPlayer: register a custom command and run its page.": {
+    "Source": "AutoPlayer: register a custom command and run its page.",
+    "Text": "自动玩家脚本：注册自定义命令并执行对应页面。"
+  },
+  "AutoPlayer: run when the player reaches this map coordinate.": {
+    "Source": "AutoPlayer: run when the player reaches this map coordinate.",
+    "Text": "自动玩家脚本：玩家到达指定地图坐标时执行。"
+  },
+  "Broadcast a message to every player using a ChatType channel.": {
+    "Source": "Broadcast a message to every player using a ChatType channel.",
+    "Text": "使用 ChatType 频道向所有玩家广播消息。"
+  },
+  "Cancel all pending NPC delayed actions for the player.": {
+    "Source": "Cancel all pending NPC delayed actions for the player.",
+    "Text": "取消该玩家所有待执行的 NPC 延迟动作。"
+  },
+  "Check a player flag; 0 is false and any nonzero unsigned value is true.": {
+    "Source": "Check a player flag; 0 is false and any nonzero unsigned value is true.",
+    "Text": "检查玩家标记：0 为假，非零无符号整数为真。"
+  },
+  "Check a quest: ACTIVE checks current quests; every other state token checks completed quests.": {
+    "Source": "Check a quest: ACTIVE checks current quests; every other state token checks completed quests.",
+    "Text": "检查任务：ACTIVE 检查进行中的任务，其他状态值均检查已完成任务。"
+  },
+  "Check carried items, optionally requiring minimum durability in whole points.": {
+    "Source": "Check carried items, optionally requiring minimum durability in whole points.",
+    "Text": "检查背包物品，可选填最低耐久度（以整点计）。"
+  },
+  "Check hero inventory items, optionally requiring minimum durability in whole points.": {
+    "Source": "Check hero inventory items, optionally requiring minimum durability in whole points.",
+    "Text": "检查英雄背包物品，可选填最低耐久度（以整点计）。"
+  },
+  "Check the server day of the week by its English name.": {
+    "Source": "Check the server day of the week by its English name.",
+    "Text": "按英文星期名称检查服务器当前星期。"
+  },
+  "Check the server-wide light setting.": {
+    "Source": "Check the server-wide light setting.",
+    "Text": "检查全服当前光照设置。"
+  },
+  "Compare integers when both operands are numeric, otherwise compare text.": {
+    "Source": "Compare integers when both operands are numeric, otherwise compare text.",
+    "Text": "两侧均为整数时比较数值，否则比较文本。"
+  },
+  "Compare the last pet level in the pet list; an empty pet list passes.": {
+    "Source": "Compare the last pet level in the pet list; an empty pet list passes.",
+    "Text": "比较宠物列表中最后一只宠物的等级；没有宠物时通过。"
+  },
+  "Craftable item names resolved against the recipe definitions.": {
+    "Source": "Craftable item names resolved against the recipe definitions.",
+    "Text": "可制作的成品物品名称，须能匹配配方定义。"
+  },
+  "Current and maximum raw durability of the equipped mount, or a no-mount message.": {
+    "Source": "Current and maximum raw durability of the equipped mount, or a no-mount message.",
+    "Text": "已装备坐骑的当前与最大耐久原始值，未装备时显示无坐骑提示。"
+  },
+  "Current server-wide light setting.": {
+    "Source": "Current server-wide light setting.",
+    "Text": "全服当前光照设置。"
+  },
+  "Give a buff: players accept Stat=amount pairs and use BuffInfo properties; monsters use the legacy visible flag. Infinite and stackable flags are retained but ignored.": {
+    "Source": "Give a buff: players accept Stat=amount pairs and use BuffInfo properties; monsters use the legacy visible flag. Infinite and stackable flags are retained but ignored.",
+    "Text": "给予增益：玩家接受 Stat=amount 属性并使用 BuffInfo 配置；怪物使用旧版 visible 标记。infinite 与 stackable 参数保留但不生效。"
+  },
+  "Goods this NPC sells: item name and optional stock count.": {
+    "Source": "Goods this NPC sells: item name and optional stock count.",
+    "Text": "此 NPC 出售的商品：物品名称及可选库存数量。"
+  },
+  "Guild territory expiry and extension fee, or a none message.": {
+    "Source": "Guild territory expiry and extension fee, or a none message.",
+    "Text": "行会领地到期时间与续租费用，没有领地时显示无领地提示。"
+  },
+  "Include the brace-delimited body of a page from a file relative to EnvirPath; write the page without brackets.": {
+    "Source": "Include the brace-delimited body of a page from a file relative to EnvirPath; write the page without brackets.",
+    "Text": "从相对于 EnvirPath 的文件中包含指定页面花括号内的内容；页面名称不带方括号。"
+  },
+  "Insert a whole file relative to EnvirPath; include its extension and use a path without spaces.": {
+    "Source": "Insert a whole file relative to EnvirPath; include its extension and use a path without spaces.",
+    "Text": "插入相对于 EnvirPath 的整个文件；路径须包含扩展名且不能有空格。"
+  },
+  "Item type numbers accepted by this NPC for selling and services.": {
+    "Source": "Item type numbers accepted by this NPC for selling and services.",
+    "Text": "此 NPC 接受出售及维修等服务的物品类型编号。"
+  },
+  "Item type numbers this NPC accepts as used goods.": {
+    "Source": "Item type numbers this NPC accepts as used goods.",
+    "Text": "此 NPC 接受存入旧货列表的物品类型编号。"
+  },
+  "Move removable equipment into free inventory slots; omit the slot to process all slots.": {
+    "Source": "Move removable equipment into free inventory slots; omit the slot to process all slots.",
+    "Text": "将可卸下的装备放入背包空格；省略部位则处理所有装备部位。"
+  },
+  "Move to a map position; omitted or nonpositive coordinates choose a random position.": {
+    "Source": "Move to a map position; omitted or nonpositive coordinates choose a random position.",
+    "Text": "移动到指定地图坐标；省略坐标或任一坐标不大于 0 时随机传送。"
+  },
+  "Name and repair cost of a conquest siege structure.": {
+    "Source": "Name and repair cost of a conquest siege structure.",
+    "Text": "攻城器械的名称及维修费用。"
+  },
+  "Name of the equipped stone, or a no-stone message.": {
+    "Source": "Name of the equipped stone, or a no-stone message.",
+    "Text": "已装备宝石的名称，未装备时显示无宝石提示。"
+  },
+  "Name of the equipped torch, or a no-torch message.": {
+    "Source": "Name of the equipped torch, or a no-torch message.",
+    "Text": "已装备火把的名称，未装备时显示无火把提示。"
+  },
+  "Name of the player's guild, or a no-guild message.": {
+    "Source": "Name of the player's guild, or a no-guild message.",
+    "Text": "玩家所属行会名称，无行会时显示无行会提示。"
+  },
+  "Open the buy panel with new stock only, excluding used goods.": {
+    "Source": "Open the buy panel with new stock only, excluding used goods.",
+    "Text": "打开仅含新品库存的购买面板，不包含旧货。"
+  },
+  "Open the main page of a script relative to NPCPath; omit the .txt extension.": {
+    "Source": "Open the main page of a script relative to NPCPath; omit the .txt extension.",
+    "Text": "打开相对于 NPCPath 的脚本主页；脚本路径不带 .txt 扩展名。"
+  },
+  "Open the new-stock buy panel and the sell panel together.": {
+    "Source": "Open the new-stock buy panel and the sell panel together.",
+    "Text": "同时打开新品购买面板和出售面板。"
+  },
+  "Player class enum name.": {
+    "Source": "Player class enum name.",
+    "Text": "玩家职业的枚举名称。"
+  },
+  "Quest indexes: positive starts a quest here, negative finishes it here.": {
+    "Source": "Quest indexes: positive starts a quest here, negative finishes it here.",
+    "Text": "任务编号：正数表示在此接受任务，负数表示在此完成任务。"
+  },
+  "Recall the group to the acting player's recorded position after a delay, optionally opening a page.": {
+    "Source": "Recall the group to the acting player's recorded position after a delay, optionally opening a page.",
+    "Text": "延迟后将队伍召回至执行者记录的位置，可选打开指定页面。"
+  },
+  "Record the current position and recall the player after a delay, optionally opening a page.": {
+    "Source": "Record the current position and recall the player after a delay, optionally opening a page.",
+    "Text": "记录当前位置并在延迟后召回玩家，可选打开指定页面。"
+  },
+  "Remove a buff using its exact, case-sensitive BuffType name.": {
+    "Source": "Remove a buff using its exact, case-sensitive BuffType name.",
+    "Text": "按区分大小写的准确 BuffType 名称移除增益。"
+  },
+  "Remove the player from their current guild; the required legacy argument is ignored.": {
+    "Source": "Remove the player from their current guild; the required legacy argument is ignored.",
+    "Text": "将玩家移出当前行会；必须保留的旧版参数不参与执行。"
+  },
+  "Repair every structure of a conquest; GM only.": {
+    "Source": "Repair every structure of a conquest; GM only.",
+    "Text": "维修攻城区域的全部设施，仅 GM 可用。"
+  },
+  "Require the conquest to exist and no conquest war to be running.": {
+    "Source": "Require the conquest to exist and no conquest war to be running.",
+    "Text": "要求攻城区域存在且当前未进行攻城战。"
+  },
+  "Require the current server hour to equal the value (0-23).": {
+    "Source": "Require the current server hour to equal the value (0-23).",
+    "Text": "要求服务器当前小时等于指定值（0–23）。"
+  },
+  "Require the current server minute to equal the value (0-59).": {
+    "Source": "Require the current server minute to equal the value (0-59).",
+    "Text": "要求服务器当前分钟等于指定值（0–59）。"
+  },
+  "Robot: month, day, hour, minute and English weekday; # matches any value.": {
+    "Source": "Robot: month, day, hour, minute and English weekday; # matches any value.",
+    "Text": "机器人脚本：依次填写月、日、时、分、英文星期；# 匹配任意值。"
+  },
+  "Roll a drop file and give its gold and eligible items directly to the player.": {
+    "Source": "Roll a drop file and give its gold and eligible items directly to the player.",
+    "Text": "按掉落文件抽取奖励，并直接给予玩家金币与符合条件的物品。"
+  },
+  "Set a player flag; 0 is false and any nonzero unsigned value is true.": {
+    "Source": "Set a player flag; 0 is false and any nonzero unsigned value is true.",
+    "Text": "设置玩家标记：0 为假，非零无符号整数为真。"
+  },
+  "Set the X coordinate used by MONGEN.": {
+    "Source": "Set the X coordinate used by MONGEN.",
+    "Text": "设置 MONGEN 使用的 X 坐标。"
+  },
+  "Set the Y coordinate used by MONGEN.": {
+    "Source": "Set the Y coordinate used by MONGEN.",
+    "Text": "设置 MONGEN 使用的 Y 坐标。"
+  },
+  "Set the map and instance used by MONGEN; the default instance is 1.": {
+    "Source": "Set the map and instance used by MONGEN; the default instance is 1.",
+    "Text": "设置 MONGEN 使用的地图及实例，默认实例为 1。"
+  },
+  "Set the owning guild's conquest NPC rate (0-255).": {
+    "Source": "Set the owning guild's conquest NPC rate (0-255).",
+    "Text": "设置所属行会的攻城 NPC 费率（0–255）。"
+  },
+  "Show a message only to the acting player using a ChatType channel.": {
+    "Source": "Show a message only to the acting player using a ChatType channel.",
+    "Text": "使用 ChatType 频道仅向执行者显示消息。"
+  },
+  "Spawn monsters at the map, instance and coordinates set by PARAM1, PARAM2 and PARAM3.": {
+    "Source": "Spawn monsters at the map, instance and coordinates set by PARAM1, PARAM2 and PARAM3.",
+    "Text": "在 PARAM1、PARAM2、PARAM3 指定的地图、实例及坐标生成怪物。"
+  },
+  "Start a mail to the acting player with the quoted body and a single-token sender.": {
+    "Source": "Start a mail to the acting player with the quoted body and a single-token sender.",
+    "Text": "为执行者创建邮件：正文用引号包围，发件人须为单个词。"
+  },
+  "Store a random line from a file relative to NPCPath in a script variable.": {
+    "Source": "Store a random line from a file relative to NPCPath in a script variable.",
+    "Text": "从相对于 NPCPath 的文件随机读取一行并存入脚本变量。"
+  },
+  "Summon a guild member near the acting guild leader.": {
+    "Source": "Summon a guild member near the acting guild leader.",
+    "Text": "将指定行会成员召唤到执行命令的行会会长附近。"
+  },
+  "Summon online guild members near the acting guild leader.": {
+    "Source": "Summon online guild members near the acting guild leader.",
+    "Text": "将在线行会成员召唤到执行命令的行会会长附近。"
+  },
+  "Teleport the group; map x y uses instance 1, map instance x y selects an instance, and zero coordinates choose a random position.": {
+    "Source": "Teleport the group; map x y uses instance 1, map instance x y selects an instance, and zero coordinates choose a random position.",
+    "Text": "传送队伍：map x y 使用实例 1，map instance x y 指定实例，任一坐标为 0 时随机传送。"
+  },
+  "Toggle a conquest war: start it when stopped, or stop it when already running.": {
+    "Source": "Toggle a conquest war: start it when stopped, or stop it when already running.",
+    "Text": "切换攻城战状态：未开战时开启，已开战时停止。"
+  },
+  "Transfer the entire conquest treasury to the owning player's guild.": {
+    "Source": "Transfer the entire conquest treasury to the owning player's guild.",
+    "Text": "将攻城金库内全部金币转入所属玩家的行会金库。"
+  },
+  "Write a value or expanded variable into the value file; quote a value containing spaces.": {
+    "Source": "Write a value or expanded variable into the value file; quote a value containing spaces.",
+    "Text": "将数值或展开后的变量写入数值文件；含空格的值须用引号包围。"
   }
 }

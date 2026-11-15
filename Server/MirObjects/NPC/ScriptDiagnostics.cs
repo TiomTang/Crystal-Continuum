@@ -184,7 +184,9 @@ namespace Server.MirObjects
                 Category = CategoryOf(kind),
                 Phase = phase,
                 Effect = EffectOf(kind, phase, runtime),
-                FileName = ScriptDiagnosticText.Safe(source?.FileName ?? identity, 512),
+                // Local editor navigation needs the exact path, not a redacted log identifier.
+                FileName = ScriptValidationScope.IsActive ? source?.FileName ?? identity
+                    : ScriptDiagnosticText.Safe(source?.FileName ?? identity, 512),
                 PageKey = ScriptDiagnosticText.Safe(pageKey, 256),
                 Keyword = ScriptDiagnosticText.Safe(keyword, 128),
                 Text = ScriptDiagnosticText.Safe(source?.Text, 2048),
@@ -260,6 +262,7 @@ namespace Server.MirObjects
 
         private static ScriptDiagnostic Collect(ScriptDiagnostic diagnostic, bool log)
         {
+            if (ScriptValidationScope.Current != null) return ScriptValidationScope.Current.Collect(diagnostic);
             // Every key component is bounded and safe; never keep raw account/input data in the index.
             string key = KeyPart(diagnostic.Kind.ToString()) + KeyPart(diagnostic.FileName) + KeyPart(diagnostic.PageKey) +
                 KeyPart(diagnostic.Keyword) + KeyPart(diagnostic.Text) + KeyPart(diagnostic.SourceVersion) +
