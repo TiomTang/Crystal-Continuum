@@ -1,4 +1,4 @@
-namespace Server.MirObjects
+namespace Server.Scripting
 {
 
     /// <summary>Identity of a condition, used as the key of the #IF table.</summary>

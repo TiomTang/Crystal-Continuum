@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>Bounded, fail-closed log text. Raw dynamic argument values are never emitted.</summary>
     internal static class ScriptDiagnosticText

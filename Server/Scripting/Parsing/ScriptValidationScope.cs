@@ -1,8 +1,9 @@
+using Server.MirObjects;
 using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>A thread-local, read-only parsing session. It never publishes runtime diagnostics.</summary>
     internal sealed class ScriptValidationScope : IDisposable

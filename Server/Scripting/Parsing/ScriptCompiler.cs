@@ -1,10 +1,11 @@
+using Server.MirObjects;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Server.MirEnvir;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// Turns one script file into pages: page headers, segment splitting and keyword parsing. It reads

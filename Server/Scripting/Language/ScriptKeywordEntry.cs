@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// Which part of an NPC script a keyword belongs to. The editor filters the command palette by

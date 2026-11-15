@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// Handlers for the #IF keyword table. The registry checks the minimum argument count before

@@ -1,7 +1,8 @@
+using Server.MirObjects;
 using System;
 using System.Collections.Generic;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>Failure and feedback state follows a request, including its delayed pages, not a shared NPC.</summary>
     internal sealed class ScriptInteraction

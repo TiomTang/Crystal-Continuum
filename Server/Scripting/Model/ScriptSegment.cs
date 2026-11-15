@@ -1,3 +1,4 @@
+using Server.MirObjects;
 using System.Drawing;
 ﻿using Server.MirDatabase;
 using Server.MirEnvir;
@@ -9,7 +10,7 @@ using Timer = Server.MirEnvir.Timer;
 using Server.MirNetwork;
 using Server.Library.MirDatabase;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     public partial class ScriptSegment
     {

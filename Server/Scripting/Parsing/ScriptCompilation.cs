@@ -1,6 +1,7 @@
+using Server.MirObjects;
 using System.Collections.Generic;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>Which host is compiling one script file.</summary>
     internal enum ScriptCompileMode

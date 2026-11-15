@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>One loader directive: the tag, the order it runs in, and what it does to the lines.</summary>
     public sealed class ScriptDirectiveEntry

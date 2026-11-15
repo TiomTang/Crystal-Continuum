@@ -7,7 +7,7 @@ using Server.MirEnvir;
 using S = ServerPackets;
 using Timer = Server.MirEnvir.Timer;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// What each #IF condition does. Keyed by ScriptCheckKind, registered on the entry in

@@ -1,7 +1,8 @@
+using Server.MirObjects;
 using System.Collections.Generic;
 using Server.MirEnvir;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// Values one page call shares between its segments. PARAM1-3 are written by one action and read by

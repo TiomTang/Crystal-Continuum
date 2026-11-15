@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>Which part of a page a line belongs to. Page means "outside any block".</summary>
     public enum ScriptBlockKind

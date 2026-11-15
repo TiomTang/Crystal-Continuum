@@ -1,3 +1,4 @@
+using Server.MirObjects;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -7,7 +8,7 @@ using Server.MirEnvir;
 using S = ServerPackets;
 using Timer = Server.MirEnvir.Timer;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// The checks that read relations: name lists, guild membership, marriage and the group.

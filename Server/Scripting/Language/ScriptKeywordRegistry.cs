@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// Entry point for one NPC script line. Each keyword kind has a catalog of its own that owns the

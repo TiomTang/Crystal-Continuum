@@ -1,3 +1,4 @@
+using Server.MirObjects;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -9,7 +10,7 @@ using Server.Library.MirDatabase;
 using S = ServerPackets;
 using Timer = Server.MirEnvir.Timer;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// What each #ACT action does. Keyed by ScriptActionKind, registered on the entry in

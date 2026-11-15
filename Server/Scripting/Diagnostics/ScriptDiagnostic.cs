@@ -1,7 +1,7 @@
 using System;
 using System.Text;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     public enum ScriptDiagnosticKind
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// One encoding rule for every script file: a BOM wins, otherwise the bytes must be valid UTF-8, and a

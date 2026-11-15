@@ -1,4 +1,4 @@
-﻿namespace Server.MirObjects
+﻿namespace Server.Scripting
 {
     public class ScriptChecks
     {

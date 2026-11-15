@@ -1,3 +1,4 @@
+using Server.MirObjects;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -10,7 +11,7 @@ using Server.Library.MirDatabase;
 using S = ServerPackets;
 using Timer = Server.MirEnvir.Timer;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// The values a player page can print: conquest, character, equipment, guild, mount and shop.

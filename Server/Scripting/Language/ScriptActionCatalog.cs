@@ -1,4 +1,4 @@
-namespace Server.MirObjects
+namespace Server.Scripting
 {
 
     /// <summary>Identity of an action, used as the key of the #ACT table.</summary>

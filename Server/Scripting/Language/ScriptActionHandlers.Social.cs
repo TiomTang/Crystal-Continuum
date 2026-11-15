@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     public static partial class ScriptActionHandlers
     {

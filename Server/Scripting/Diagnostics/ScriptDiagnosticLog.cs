@@ -7,7 +7,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>Isolated script detail storage. Modified 2026-11-15.</summary>
     public static class ScriptDiagnosticLog

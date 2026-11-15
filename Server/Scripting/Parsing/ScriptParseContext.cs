@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// A line of a script paired with the number it had in the file. Keywords are collected while a

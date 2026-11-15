@@ -1,8 +1,9 @@
+using Server.MirObjects;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>Sections that carry data for the NPC, not clickable pages.</summary>
     public enum ScriptSectionKind

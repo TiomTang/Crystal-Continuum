@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// The small grammar shared by the loader, the executor and the editor: what a comment is, how a

@@ -10,7 +10,7 @@ using Server.Library.MirDatabase;
 using S = ServerPackets;
 using Timer = Server.MirEnvir.Timer;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// What each &lt;$VALUE&gt; replacement returns. The player table and the monster table both register

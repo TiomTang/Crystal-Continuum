@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     public class ScriptPage
     {

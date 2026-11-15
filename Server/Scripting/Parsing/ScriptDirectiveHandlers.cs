@@ -5,7 +5,7 @@ using System.Linq;
 using Server.MirDatabase;
 using Server.MirEnvir;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// The bodies of the loader directives. Each one receives the whole line list and changes it in

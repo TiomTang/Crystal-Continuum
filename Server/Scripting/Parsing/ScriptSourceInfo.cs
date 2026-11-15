@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>Immutable load-time evidence. Never reopens a file when an execution fails.</summary>
     public sealed class ScriptSourceInfo

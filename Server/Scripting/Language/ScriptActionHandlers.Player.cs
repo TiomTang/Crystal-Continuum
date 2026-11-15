@@ -2,7 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     public static partial class ScriptActionHandlers
     {

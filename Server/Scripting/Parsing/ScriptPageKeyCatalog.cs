@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>The three shapes a bracketed key line can take.</summary>
     public enum ScriptPageKeyKind

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Server.MirObjects;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -9,7 +10,7 @@ using Server.Library.MirDatabase;
 using S = ServerPackets;
 using Timer = Server.MirEnvir.Timer;
 
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// The actions that act on the world instead of the player: flow, recall, timers, dice, text,
     /// values, monsters, gates, conquest and the game shop.

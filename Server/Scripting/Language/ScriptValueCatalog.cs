@@ -1,4 +1,4 @@
-namespace Server.MirObjects
+namespace Server.Scripting
 {
     /// <summary>
     /// The &lt;$VALUE&gt; table used inside #SAY. Variables are not dispatched, so they carry no
