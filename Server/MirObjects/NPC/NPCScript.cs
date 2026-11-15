@@ -193,37 +193,13 @@ namespace Server.MirObjects
 
             try
             {
-                if (!internalCall && !ScriptSpecialPageCatalog.IsPage(key, ScriptSpecialPageKind.Main))
+                if (!internalCall && !ScriptSpecialPageCatalog.IsPage(key, ScriptSpecialPageKind.Main) &&
+                    !NPCConversation.CanOpenPage(player, objectID, key))
                 {
-                    if (player.NPCObjectID != objectID) return;
-                    if (player.NPCPage == null) return;
-
-                    bool found = false;
-
-                    foreach (NPCSegment segment in player.NPCPage.SegmentList)
-                    {
-                        if (!player.NPCSuccess.TryGetValue(segment, out bool result)) continue;
-
-                        if ((result ? segment.Buttons : segment.ElseButtons).Any(s => string.Equals(s, key, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            found = true;
-                        }
-                    }
-
-                    if (!found)
-                    {
-                        var npc = NPCObject.Get(objectID);
-                        string npcName = npc?.Info?.GameName ?? npc?.Name ?? "Unknown";
-                        MessageQueue.Enqueue(GameLanguage.Get("Player: {0} was prevented access to NPC key: '{1}' on NPC: {2}", player.Name, key, npcName));
-                        return;
-                    }
-                }
-                if (ScriptPageKeyCatalog.Find(key) == ScriptPageKeyCatalog.Input && !player.NPCData.TryGetValue("NPCInputStr", out object _npcInputStr))
-                {
-                    //send off packet to request input
-                    player.Enqueue(new S.NPCRequestInput { NPCID = player.NPCObjectID, PageName = key });
                     return;
                 }
+
+                if (NPCConversation.RequestsInput(player, key)) return;
 
                 bool foundPage = false;
                 for (int i = 0; i < NPCPages.Count; i++)
@@ -232,10 +208,7 @@ namespace Server.MirObjects
                     if (!String.Equals(page.Key, key, StringComparison.OrdinalIgnoreCase)) continue;
                     foundPage = true;
 
-                    player.NPCSpeech = new List<string>();
-                    player.NPCSuccess.Clear();
-                    player.NPCDialogClose = false;
-                    player.NPCPage = page;
+                    NPCConversation.BeginPage(player, page);
 
                     foreach (NPCSegment segment in page.SegmentList)
                     {
@@ -248,12 +221,10 @@ namespace Server.MirObjects
 
                     if (call.ExecutionAborted || interaction.Failed)
                     {
-                        player.NPCSpeech.Clear();
-                        player.NPCSuccess.Clear();
-                        player.Enqueue(new S.NPCResponse { Page = player.NPCSpeech });
+                        NPCConversation.Abort(player);
                         break;
                     }
-                    Response(player, page);
+                    NPCConversation.Finish(this, player, page);
                 }
                 if (!foundPage && (Type == NPCScriptType.Normal || Type == NPCScriptType.Called))
                     ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingPage, key, "NPC",
@@ -263,8 +234,7 @@ namespace Server.MirObjects
             {
                 ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, key, "NPC",
                     "NPC page execution failed.", FileName + ".txt", ex.GetType().FullName, ex);
-                player.NPCSpeech?.Clear();
-                player.NPCSuccess?.Clear();
+                NPCConversation.ClearOnError(player);
             }
             finally
             {
@@ -274,29 +244,9 @@ namespace Server.MirObjects
             }
         }
 
-        private void Response(PlayerObject player, NPCPage page)
-        {
-            // A CLOSE action ends the page without dialogue: the client hides the
-            // window when it receives an empty page.
-            if (player.NPCDialogClose)
-            {
-                player.NPCDialogClose = false;
-                player.NPCSpeech.Clear();
-
-                player.Enqueue(new S.NPCResponse { Page = player.NPCSpeech });
-
-                return;
-            }
-
-            player.Enqueue(new S.NPCResponse { Page = player.NPCSpeech });
-
-            ProcessSpecial(player, page);
-        }
-
         private void ProcessSegment(PlayerObject player, NPCPage page, NPCSegment segment, uint objectID, ScriptCallContext call)
         {
-            player.NPCObjectID = objectID;
-            player.NPCScriptID = ScriptID;
+            NPCConversation.Track(player, objectID, ScriptID);
 
             bool success;
 
@@ -316,19 +266,9 @@ namespace Server.MirObjects
                 return;
             }
 
-            player.NPCSuccess.Add(segment, success);
-            player.NPCPage = page;
+            NPCConversation.RecordSegment(player, page, segment, success);
         }
 
-
-        private void ProcessSpecial(PlayerObject player, NPCPage page)
-        {
-            ScriptSpecialPageEntry special = ScriptSpecialPageCatalog.Find(page.Key);
-
-            if (special?.Executor == null) return;
-
-            special.Executor(this, player, page);
-        }
 
         /// <summary>True when the file defines this page, whether or not it is reachable by a button.</summary>
         public bool HasPage(string key)
@@ -399,7 +339,7 @@ namespace Server.MirObjects
             finally
             {
                 player.NPCSpeech = speech;
-                player.NPCData.Remove("NPCInputStr");
+                NPCConversation.EndCall(player);
                 interaction.LastCompletedAction = call.LastCompletedAction;
                 interaction.HasSideEffects |= call.HasSideEffects;
             }
