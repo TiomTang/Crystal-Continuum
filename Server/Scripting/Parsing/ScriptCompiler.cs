@@ -84,6 +84,10 @@ namespace Server.MirObjects
                     if (payload != null)
                     {
                         compilation.AutoPlans.Add(new ScriptAutoMarkerPlan(marker, markerLine, payload));
+
+                        // The marker is a trigger and a page: publish the plan, then compile the page
+                        // it stands for. Skipping the page makes the published trigger call an empty key.
+                        ParsePages(lines, lines[i]);
                         continue;
                     }
                 }
