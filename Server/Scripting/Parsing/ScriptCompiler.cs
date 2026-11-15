@@ -429,6 +429,13 @@ namespace Server.MirObjects
                         continue;
                     }
 
+                    ScriptDiagnostic trailing = ReportTrailingBlockText(page, lines[i], block);
+
+                    if (trailing != null)
+                    {
+                        segment.MarkInvalid(trailing, block.Role == ScriptBlockRole.Check);
+                    }
+
                     List<ScriptSourceLine> blockLines;
                     List<string> blockText;
 
@@ -544,6 +551,28 @@ namespace Server.MirObjects
                 PageKey = page == null ? string.Empty : page.Key,
                 Source = line.Source,
             }, tag, "Unknown block tag \"" + tag + "\"");
+        }
+
+        /// <summary>
+        /// A block tag owns its whole line. "#IF LEVEL >= 1" would otherwise open a condition block and
+        /// drop the condition, which silently turns a guarded action into an unconditional one, so the
+        /// line is reported and its segment disabled instead of being read as if the text were absent.
+        /// </summary>
+        private static ScriptDiagnostic ReportTrailingBlockText(ScriptPage page, ScriptSourceLine line, ScriptBlockEntry block)
+        {
+            string text = (line.Text ?? string.Empty).TrimStart();
+            int end = text.IndexOfAny(new[] { ' ', '\t' });
+
+            if (end < 0 || text.Substring(end).Trim().Length == 0) return null;
+
+            return ScriptDiagnostics.Report(ScriptDiagnosticKind.TrailingBlockText, new ScriptParseContext
+            {
+                Line = line.Text,
+                LineNumber = line.Number,
+                FileName = line.FileName ?? ScriptParseScope.FileName,
+                PageKey = page == null ? string.Empty : page.Key,
+                Source = line.Source,
+            }, block.Text, "Block tag \"" + block.Text + "\" must stand alone on its line; trailing text is not read, so the segment is disabled.");
         }
     }
 }

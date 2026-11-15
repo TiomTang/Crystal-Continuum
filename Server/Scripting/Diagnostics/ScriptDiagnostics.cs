@@ -248,7 +248,8 @@ namespace Server.MirObjects
             if (runtime) return ScriptDiagnosticEffect.SegmentAborted;
             if (kind == ScriptDiagnosticKind.UnknownCheck || kind == ScriptDiagnosticKind.UnknownAction ||
                 kind == ScriptDiagnosticKind.UnknownBlock || kind == ScriptDiagnosticKind.MalformedDirective || kind == ScriptDiagnosticKind.WrongArity ||
-                kind == ScriptDiagnosticKind.InvalidArguments || kind == ScriptDiagnosticKind.MissingHandler || kind == ScriptDiagnosticKind.MissingExecutor)
+                kind == ScriptDiagnosticKind.TrailingBlockText || kind == ScriptDiagnosticKind.InvalidArguments ||
+                kind == ScriptDiagnosticKind.MissingHandler || kind == ScriptDiagnosticKind.MissingExecutor)
                 return ScriptDiagnosticEffect.SegmentDisabled;
             return ScriptDiagnosticEffect.Notice;
         }

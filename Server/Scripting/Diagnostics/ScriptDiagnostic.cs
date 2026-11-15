@@ -23,6 +23,7 @@ namespace Server.MirObjects
         InvalidArguments,
         MissingExecutor,
         DiagnosticsSuppressed,
+        TrailingBlockText,
     }
 
     public enum ScriptDiagnosticCategory { ScriptError, Unsupported, EngineFault, RuntimeFailure }
