@@ -118,7 +118,7 @@ namespace Server.Scripting
                 string[] lines = ReadFile(path, out bool legacy);
                 if (legacy) ScriptDiagnostics.Report(ScriptDiagnosticKind.LegacyEncoding, context, "CALL",
                     "file is not UTF-8, read as GBK: " + path);
-                CalledScripts.Add(NPCScript.Validate(string.Join(Environment.NewLine, lines), path, EnvirPath, NPCScriptType.Called, ScriptDirectory));
+                CalledScripts.Add(ScriptValidator.Validate(string.Join(Environment.NewLine, lines), path, EnvirPath, NPCScriptType.Called, ScriptDirectory));
             }
             catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException || exception is ArgumentException)
             {

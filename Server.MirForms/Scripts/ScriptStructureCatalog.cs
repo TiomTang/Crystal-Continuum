@@ -54,6 +54,8 @@ namespace Server.MirForms.Scripts
     {
         public static List<StructureCandidate> Build(ScriptProject project, int line, NPCScriptType? type = null)
         {
+            if (project.Kind == ScriptDocumentKind.Quest) return QuestSections(project);
+            if (project.Kind == ScriptDocumentKind.Text) return new List<StructureCandidate>();
             var rows = new List<StructureCandidate>();
 
             AddHeader(rows, GameLanguage.Get("Blocks"));
@@ -71,6 +73,8 @@ namespace Server.MirForms.Scripts
         /// <summary>Rows a data section line can still add: pages and sections belong to the file.</summary>
         public static List<StructureCandidate> TopLevel(ScriptProject project, NPCScriptType? type = null)
         {
+            if (project.Kind == ScriptDocumentKind.Quest) return QuestSections(project);
+            if (project.Kind == ScriptDocumentKind.Text) return new List<StructureCandidate>();
             // Inside a data section only rows that belong to the whole file make sense; a block tag or
             // an INCLUDE would be inserted into the section body and never be loaded.
             var rows = new List<StructureCandidate>();
@@ -80,6 +84,19 @@ namespace Server.MirForms.Scripts
             AddHeader(rows, GameLanguage.Get("Automatic pages"));
             rows.AddRange(AutoMarkers(type));
 
+            return rows;
+        }
+
+        public static List<StructureCandidate> QuestSections(ScriptProject project)
+        {
+            var rows = new List<StructureCandidate>();
+            foreach (QuestScriptSectionEntry entry in QuestScriptSectionCatalog.Entries)
+            {
+                var row = new StructureCandidate(ScriptStructureGroup.Section, entry.Key,
+                    ScriptEditorForm.QuestValueHint(entry.ValueKind), entry.Key + "\r\n", true);
+                row.JumpLine = project.Sections.Find(page => page.QuestSection?.Kind == entry.Kind)?.Line ?? 0;
+                rows.Add(row);
+            }
             return rows;
         }
 

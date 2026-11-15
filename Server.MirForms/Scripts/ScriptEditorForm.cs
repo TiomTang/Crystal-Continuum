@@ -18,9 +18,10 @@ namespace Server.MirForms.Scripts
     /// NPC script editor: file tree, structure outline, a keyword palette filtered by the block the
     /// caret sits in, syntax colouring and validation that runs both the rule checks and the engine.
     /// </summary>
-    public sealed class ScriptEditorForm : Form
+    public sealed partial class ScriptEditorForm : Form
     {
         private static readonly Regex TagPattern = new Regex(@"^#[A-Za-z]+", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex QuestCommentPattern = new Regex(@"^//.*$", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex CommentPattern = new Regex(@"^[ \t]*(;|//).*$", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex ValuePattern = new Regex(@"<\$[^>\r\n]+>", RegexOptions.Compiled);
         // The client splits this on '/' and renders the first part in the second part's colour name.
@@ -82,12 +83,9 @@ namespace Server.MirForms.Scripts
         private string _structureSignature;
         private string _problemsSignature;
         private bool _dirty;
-        private bool _hasBom = true;
         private bool _suppress;
         private bool _highlight = true;
         private bool _autoCheck = true;
-        private string _newLine = "\r\n";
-        private Encoding _encoding = new UTF8Encoding(false);
         private HashSet<string> _referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public ScriptEditorForm()
@@ -99,6 +97,7 @@ namespace Server.MirForms.Scripts
             MinimumSize = new Size(900, 600);
 
             BuildUi();
+            RefreshDocumentTools();
             LoadFileTree();
         }
 
@@ -109,22 +108,19 @@ namespace Server.MirForms.Scripts
             toolbar.Items.Add(Button(GameLanguage.Get("Open"), (s, e) => OpenSelectedFile()));
             toolbar.Items.Add(Button(GameLanguage.Get("Save"), (s, e) => SaveFile()));
             toolbar.Items.Add(new ToolStripSeparator());
-            toolbar.Items.Add(Button(GameLanguage.Get("Check"), (s, e) => CheckBuffer(true)));
+            _checkButton = Button(GameLanguage.Get("Check"), (s, e) => CheckBuffer(true));
+            toolbar.Items.Add(_checkButton);
             toolbar.Items.Add(new ToolStripSeparator());
 
-            var templates = new ToolStripDropDownButton(GameLanguage.Get("Templates"));
-
-            foreach (ScriptTemplateEntry template in ScriptTemplateCatalog.Entries)
-                templates.DropDownItems.Add(new ToolStripMenuItem(GameLanguage.Get(template.Label), null,
-                    (s, e) => AppendText(template.Text)));
-
-            toolbar.Items.Add(templates);
+            toolbar.Items.Add(_templates);
             toolbar.Items.Add(new ToolStripSeparator());
             _scriptType.DropDownStyle = ComboBoxStyle.DropDownList;
             _scriptType.Items.Add(GameLanguage.Get("Automatic script type"));
             foreach (NPCScriptType type in Enum.GetValues(typeof(NPCScriptType))) _scriptType.Items.Add(type);
             _scriptType.SelectedIndex = 0;
-            _scriptType.SelectedIndexChanged += (s, e) => { RefreshPalette(); CheckBuffer(false); };
+            _scriptType.Items.Add(new DocumentKindChoice(ScriptDocumentKind.Quest, GameLanguage.Get("Quest definition")));
+            _scriptType.Items.Add(new DocumentKindChoice(ScriptDocumentKind.Text, GameLanguage.Get("Plain text")));
+            _scriptType.SelectedIndexChanged += ScriptModeChanged;
             toolbar.Items.Add(_scriptType);
 
             var highlight = new ToolStripButton(GameLanguage.Get("Highlight")) { Checked = true, CheckOnClick = true };
@@ -217,11 +213,7 @@ namespace Server.MirForms.Scripts
             _structure.DoubleClick += (s, e) => JumpToStructureNode();
 
             var structureMenu = new ContextMenuStrip();
-            structureMenu.Items.Add(StructureMenuItem(GameLanguage.Get("New Page"), ScriptStructureCatalog.NewPage().Text));
-
-            foreach (StructureCandidate candidate in ScriptStructureCatalog.Sections())
-                structureMenu.Items.Add(StructureMenuItem(candidate.Label, candidate.Text));
-
+            structureMenu.Opening += (s, e) => RefreshStructureMenu();
             _structure.ContextMenuStrip = structureMenu;
             structurePage.Controls.Add(_structure);
 
@@ -290,195 +282,17 @@ namespace Server.MirForms.Scripts
 
         // ---------------------------------------------------------------- files
 
-        private void LoadFileTree()
-        {
-            _files.Nodes.Clear();
-            _referenced = BuildReferencedSet();
-
-            string root = Settings.NPCPath;
-
-            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
-            {
-                _statusText.Text = GameLanguage.Get("NPC script folder is not configured.");
-                return;
-            }
-
-            var rootNode = new TreeNode(Path.GetFileName(root.TrimEnd(Path.DirectorySeparatorChar))) { Tag = root };
-            _files.Nodes.Add(rootNode);
-            FillDirectory(rootNode, root, string.Empty, 0);
-            rootNode.Expand();
-        }
-
-        /// <summary>
-        /// Script files the NPC database points at. This must read the definition lists, not the
-        /// running <c>NPCs</c> objects: those only appear once the maps have finished loading, so a
-        /// freshly started server would mark half the scripts as unused until the load settles.
-        /// </summary>
-        private static HashSet<string> BuildReferencedSet()
-        {
-            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            try
-            {
-                Collect(Envir.Main?.NPCInfoList, set);
-                Collect(Envir.Edit?.NPCInfoList, set);
-            }
-            catch (Exception)
-            {
-            }
-
-            return set;
-        }
-
-        private static void Collect(List<Server.MirDatabase.NPCInfo> infos, HashSet<string> set)
-        {
-            if (infos == null) return;
-
-            foreach (Server.MirDatabase.NPCInfo info in infos)
-            {
-                if (info == null || string.IsNullOrEmpty(info.FileName)) continue;
-
-                set.Add(info.FileName.Replace('/', '\\'));
-            }
-        }
-
-        private void FillDirectory(TreeNode node, string path, string relative, int depth)
-        {
-            string[] files;
-
-            try
-            {
-                files = Directory.GetFiles(path, "*.txt");
-            }
-            catch (Exception)
-            {
-                return;
-            }
-
-            foreach (string file in files.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
-            {
-                string key = Path.Combine(relative, Path.GetFileNameWithoutExtension(file));
-                var child = new TreeNode(Path.GetFileName(file)) { Tag = file, Name = key };
-
-                MarkNode(child);
-                node.Nodes.Add(child);
-            }
-
-            if (depth >= 6) return;
-
-            foreach (string directory in Directory.GetDirectories(path).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
-            {
-                var child = new TreeNode(Path.GetFileName(directory)) { Tag = directory };
-                node.Nodes.Add(child);
-                FillDirectory(child, directory, Path.Combine(relative, Path.GetFileName(directory)), depth + 1);
-            }
-        }
-
-        private void MarkNode(TreeNode node)
-        {
-            string name = Path.GetFileName((string)node.Tag);
-
-            if (_referenced.Count == 0)
-            {
-                node.Text = name;
-                node.ForeColor = SystemColors.WindowText;
-                return;
-            }
-
-            bool unused = !_referenced.Contains(node.Name);
-
-            node.Text = name + (unused ? "  (" + GameLanguage.Get("Unreferenced") + ")" : string.Empty);
-            node.ForeColor = unused ? Color.Gray : SystemColors.WindowText;
-        }
-
-        /// <summary>Re-marks the tree without reopening it; the database can be edited while we are open.</summary>
-        private void RefreshReferenceMarks()
-        {
-            HashSet<string> referenced = BuildReferencedSet();
-
-            if (referenced.Count == 0 || referenced.SetEquals(_referenced)) return;
-
-            _referenced = referenced;
-            RelabelNodes(_files.Nodes);
-        }
-
-        private void RelabelNodes(TreeNodeCollection nodes)
-        {
-            foreach (TreeNode node in nodes)
-            {
-                if (node.Name.Length > 0) MarkNode(node);
-
-                RelabelNodes(node.Nodes);
-            }
-        }
-
-        protected override void OnActivated(EventArgs e)
-        {
-            base.OnActivated(e);
-            RefreshReferenceMarks();
-            _itemNames = null;
-            _questCandidates = _itemCandidates = _recipeCandidates = null;
-            RefreshPalette();
-        }
-
-        private void OpenSelectedFile()
-        {
-            var node = _files.SelectedNode;
-
-            if (node == null || !(node.Tag is string path) || !File.Exists(path)) return;
-
-            if (!ConfirmDiscard()) return;
-            OpenFile(path);
-        }
-
-        private void OpenFile(string path)
-        {
-            byte[] bytes = File.ReadAllBytes(path);
-            _hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
-
-            int offset = _hasBom ? 3 : 0;
-            string text;
-            _encoding = new UTF8Encoding(false);
-
-            try
-            {
-                text = new UTF8Encoding(false, true).GetString(bytes, offset, bytes.Length - offset);
-            }
-            catch (DecoderFallbackException)
-            {
-                _encoding = TextEncodings.Gbk;
-                text = _encoding.GetString(bytes, offset, bytes.Length - offset);
-            }
-
-            _newLine = text.Contains("\r\n") ? "\r\n" : "\n";
-
-            _suppress = true;
-            _editor.Text = text.Replace("\r\n", "\n").Replace("\n", "\r\n");
-            _editor.SelectionStart = 0;
-            _suppress = false;
-
-            _path = path;
-            _dirty = false;
-            _savedText = _editor.Text;
-
-            // A GBK file is kept in GBK on save; say so instead of letting the author guess.
-            _statusText.Text = _encoding.CodePage == Encoding.UTF8.CodePage ? path : path + "  [GBK]";
-            RefreshStructure();
-            ApplyHighlight(true);
-            RefreshPalette();
-            CheckBuffer(false);
-            UpdateTitle();
-        }
-
         private void SaveFile()
         {
             if (_path == null) return;
 
-            string text = _editor.Text.Replace("\r\n", "\n");
-
-            if (_newLine != "\n") text = text.Replace("\n", _newLine);
-
-            File.WriteAllText(_path, text, _hasBom ? new UTF8Encoding(true) : _encoding);
+            try { _document.Save(_path, _editor.Text); }
+            catch (Exception exception)
+            {
+                MessageBox.Show(this, exception.Message, GameLanguage.Get("Script Editor"),
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             _dirty = false;
             _savedText = _editor.Text;
             UpdateTitle();
@@ -501,8 +315,10 @@ namespace Server.MirForms.Scripts
 
         private void UpdateTitle()
         {
+            string mode = CurrentDocumentKind() == ScriptDocumentKind.Quest ? GameLanguage.Get("Quest definition")
+                : CurrentDocumentKind() == ScriptDocumentKind.Text ? GameLanguage.Get("Plain text") : CurrentScriptType().ToString();
             Text = (_path == null ? GameLanguage.Get("Script Editor") : Path.GetFileName(_path)) +
-                   (_dirty ? " *" : string.Empty) + " - " + GameLanguage.Get("Script Editor");
+                (_dirty ? " *" : string.Empty) + " [" + mode + "] - " + GameLanguage.Get("Script Editor");
         }
 
         // ---------------------------------------------------------------- palette
@@ -516,11 +332,23 @@ namespace Server.MirForms.Scripts
         private void RefreshPalette()
         {
             int line = _editor.GetLineFromCharIndex(_editor.SelectionStart) + 1;
-            ScriptProject project = ScriptProject.Parse(_editor.Text, _path, CurrentScriptType());
+            ScriptProject project = ParseProject();
 
             _paletteSource.Clear();
             _structureCandidates.Clear();
             _valueCandidates.Clear();
+
+            if (project.Kind == ScriptDocumentKind.Quest)
+            {
+                RefreshQuestPalette(project, line);
+                return;
+            }
+            if (project.Kind == ScriptDocumentKind.Text)
+            {
+                _paletteHint = GameLanguage.Get("Plain text has no script validation.");
+                FillPalette();
+                return;
+            }
 
             ScriptPageInfo sectionPage = project.SectionPageAt(line);
 
@@ -564,24 +392,6 @@ namespace Server.MirForms.Scripts
         {
             _paletteSource.AddRange(CurrentScriptType() == NPCScriptType.AutoMonster
                 ? ScriptKeywordRegistry.MonsterVariables : ScriptKeywordRegistry.Variables);
-        }
-
-        private NPCScriptType CurrentScriptType()
-        {
-            if (_scriptType.SelectedItem is NPCScriptType type) return type;
-            if (_path == null) return NPCScriptType.Normal;
-            string relative = Path.GetRelativePath(Settings.NPCPath, _path);
-            relative = Path.ChangeExtension(relative, null).Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-            if (SameScript(relative, Settings.DefaultNPCFilename)) return NPCScriptType.AutoPlayer;
-            if (SameScript(relative, Settings.MonsterNPCFilename)) return NPCScriptType.AutoMonster;
-            if (SameScript(relative, Settings.RobotNPCFilename)) return NPCScriptType.Robot;
-            return NPCScriptType.Normal;
-        }
-
-        private static bool SameScript(string first, string second)
-        {
-            return string.Equals(first, second?.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar),
-                StringComparison.OrdinalIgnoreCase);
         }
 
         private void FillPalette()
@@ -726,9 +536,9 @@ namespace Server.MirForms.Scripts
 
         private void RefreshStructure()
         {
-            ScriptProject project = ScriptProject.Parse(_editor.Text, _path);
+            ScriptProject project = ParseProject();
 
-            var signature = new StringBuilder(_path ?? string.Empty);
+            var signature = new StringBuilder(_path ?? string.Empty).Append(project.Kind);
 
             foreach (ScriptPageInfo page in project.Pages)
             {
@@ -784,10 +594,8 @@ namespace Server.MirForms.Scripts
                 var external = new ScriptEditorForm();
                 try
                 {
-                    // Carry the effective type, not "Automatic": a library file infers Normal otherwise.
-                    int typeIndex = external._scriptType.Items.IndexOf(CurrentScriptType());
-                    external._scriptType.SelectedIndex = typeIndex >= 0 ? typeIndex : 0;
-                    external.OpenFile(issue.FileName);
+                    // Reopen with the mode that produced this issue, not necessarily the root's mode.
+                    external.OpenFile(issue.FileName, CurrentDocumentKind(), issue.ExecutionType ?? CurrentScriptType());
                     external.Show(this);
                     external.JumpToLine(issue.Line);
                 }
@@ -817,7 +625,7 @@ namespace Server.MirForms.Scripts
 
         private void JumpToPage(string key)
         {
-            ScriptProject project = ScriptProject.Parse(_editor.Text, _path);
+            ScriptProject project = ParseProject();
             string normalized = ScriptProject.Normalize(key);
 
             foreach (ScriptPageInfo page in project.Pages)
@@ -833,7 +641,7 @@ namespace Server.MirForms.Scripts
 
         private void CheckBuffer(bool report)
         {
-            ScriptProject project = ScriptProject.Parse(_editor.Text, _path, CurrentScriptType());
+            ScriptProject project = ParseProject();
             List<ScriptIssue> issues;
             try
             {
@@ -847,7 +655,8 @@ namespace Server.MirForms.Scripts
 
             var problemSignature = new StringBuilder();
 
-            foreach (ScriptIssue issue in issues) problemSignature.Append(ProblemDetail(issue)).Append('|');
+            foreach (ScriptIssue issue in issues)
+                problemSignature.Append(issue.ExecutionType).Append(':').Append(ProblemDetail(issue)).Append('|');
 
             if (problemSignature.ToString() != _problemsSignature)
             {
@@ -877,13 +686,14 @@ namespace Server.MirForms.Scripts
             }
 
             int errors = issues.Count(x => x.IsError);
-            _statusIssues.Text = issues.Count == 0
-                ? GameLanguage.Get("No problems found")
+            _statusIssues.Text = project.Kind == ScriptDocumentKind.Text
+                ? GameLanguage.Get("Plain text has no script validation.")
+                : issues.Count == 0 ? GameLanguage.Get("No problems found")
                 : string.Format(GameLanguage.Get("{0} error(s), {1} warning(s)"), errors, issues.Count - errors);
 
             RefreshStructure();
 
-            if (report && issues.Count == 0)
+            if (report && issues.Count == 0 && project.Kind != ScriptDocumentKind.Text)
             {
                 MessageBox.Show(this, GameLanguage.Get("No problems found"), GameLanguage.Get("Script Editor"),
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -930,6 +740,14 @@ namespace Server.MirForms.Scripts
                     rules.RecipeExists = name => itemIndices.TryGetValue(name.Replace(" ", ""), out int index) && indices.Contains(index);
                 }
 
+                var monsters = NonEmpty(Envir.Main?.MonsterInfoList, Envir.Edit?.MonsterInfoList);
+                if (monsters != null && monsters.Count > 0)
+                {
+                    var names = new HashSet<string>(monsters.Select(x => x.Name.Replace(" ", string.Empty)),
+                        StringComparer.OrdinalIgnoreCase);
+                    rules.MonsterExists = name => names.Contains(name.Replace(" ", string.Empty));
+                }
+
                 var quests = NonEmpty(Envir.Main?.QuestInfoList, Envir.Edit?.QuestInfoList);
 
                 if (quests != null && quests.Count > 0)
@@ -963,7 +781,8 @@ namespace Server.MirForms.Scripts
             int column = _editor.SelectionStart - _editor.GetFirstCharIndexFromLine(index);
 
             if (_path != null)
-                _statusText.Text = _path + "   " + (index + 1) + ":" + (column + 1);
+                _statusText.Text = _path + (_document == null ? string.Empty : "  [" + _document.Encoding.WebName + "]")
+                    + "   " + (index + 1) + ":" + (column + 1);
         }
 
         // ---------------------------------------------------------------- highlighting
@@ -1000,21 +819,27 @@ namespace Server.MirForms.Scripts
                 _editor.SelectAll();
                 _editor.SelectionColor = _editor.ForeColor;
 
-                Colorize(text, CommentPattern, CommentColor);
-                int[] starts = BuildLineStarts(text);
-                string[] lines = _editor.Lines;
-                for (int i = 0; i < lines.Length; i++)
+                ScriptProject project = ParseProject();
+                if (project.Kind != ScriptDocumentKind.Text)
                 {
-                    if (!ScriptPageKeyCatalog.TryParseHeader(lines[i], out _) &&
-                        !ScriptSectionCatalog.Ordered.Any(section => section.MatchesHeader(lines[i]))) continue;
-                    _editor.Select(starts[i], lines[i].Length);
-                    _editor.SelectionColor = PageColor;
+                    Colorize(text, project.Kind == ScriptDocumentKind.Quest
+                        ? QuestCommentPattern : CommentPattern, CommentColor);
+                    int[] starts = BuildLineStarts(text);
+                    foreach (ScriptPageInfo page in project.Pages)
+                    {
+                        int line = page.Line - 1;
+                        _editor.Select(starts[line], _editor.Lines[line].Length);
+                        _editor.SelectionColor = PageColor;
+                    }
+                    ColorizeColourText(text);
+                    if (project.Kind == ScriptDocumentKind.Executable)
+                    {
+                        Colorize(text, TagPattern, TagColor);
+                        Colorize(text, ScriptLexer.Button, ButtonColor);
+                        Colorize(text, ValuePattern, ValueColor);
+                        ColorizeKeywords(text);
+                    }
                 }
-                Colorize(text, TagPattern, TagColor);
-                Colorize(text, ScriptLexer.Button, ButtonColor);
-                Colorize(text, ValuePattern, ValueColor);
-                ColorizeColourText(text);
-                ColorizeKeywords(text);
 
                 _highlightRevision = _textRevision;
             }
@@ -1074,7 +899,7 @@ namespace Server.MirForms.Scripts
         {
             int[] lineStarts = BuildLineStarts(text);
 
-            foreach (ScriptBlock block in ScriptProject.Parse(text).Blocks)
+            foreach (ScriptBlock block in ParseProject().Blocks)
             {
                 if (block.Kind != ScriptBlockKind.Check && block.Kind != ScriptBlockKind.Act && block.Kind != ScriptBlockKind.ElseAct) continue;
 
@@ -1109,7 +934,8 @@ namespace Server.MirForms.Scripts
 
         private void EditorMouseDown(object sender, MouseEventArgs e)
         {
-            if (e.Button != MouseButtons.Left || !ModifierKeys.HasFlag(Keys.Control)) return;
+            if (CurrentDocumentKind() != ScriptDocumentKind.Executable ||
+                e.Button != MouseButtons.Left || !ModifierKeys.HasFlag(Keys.Control)) return;
 
             int index = _editor.GetCharIndexFromPosition(e.Location);
             int lineIndex = _editor.GetLineFromCharIndex(index);

@@ -1,4 +1,5 @@
 ﻿using Server.MirDatabase;
+using Server.MirForms.Scripts;
 using Server.MirEnvir;
 using Shared.Helpers;
 using System.Diagnostics;
@@ -379,21 +380,9 @@ namespace Server
 
         private void OpenNButton_Click(object sender, EventArgs e)
         {
-            if (NFileNameTextBox.Text == string.Empty) return;
-
-            var scriptPath = Path.Combine(Settings.NPCPath, NFileNameTextBox.Text + ".txt");
-
-            if (File.Exists(scriptPath))
-            {
-                Shared.Helpers.FileIO.OpenScript(scriptPath, true);
-            }
-
-            else
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(scriptPath));
-                File.Create(scriptPath).Close();
-                Shared.Helpers.FileIO.OpenScript(scriptPath, true);
-            }
+            if (string.IsNullOrWhiteSpace(NFileNameTextBox.Text)) return;
+            ScriptEditorForm.OpenScript(this, Path.Combine(Settings.NPCPath, NFileNameTextBox.Text + ".txt"),
+                ScriptDocumentKind.Executable);
         }
 
         private void MinLev_textbox_TextChanged(object sender, EventArgs e)

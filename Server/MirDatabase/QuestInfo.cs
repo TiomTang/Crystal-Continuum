@@ -1,5 +1,5 @@
 ﻿using Server.MirObjects;
-using System.Text.RegularExpressions;
+using Server.Scripting;
 using Server.MirEnvir;
 using Shared.Helpers;
 
@@ -77,9 +77,6 @@ namespace Server.MirDatabase
         public uint CreditReward;
         public List<QuestItemReward> FixedRewards = new List<QuestItemReward>();
         public List<QuestItemReward> SelectRewards = new List<QuestItemReward>();
-
-        private Regex _regexMessage = new Regex("\"([^\"]*)\"");
-
 
         public QuestInfo() { }
 
@@ -161,191 +158,171 @@ namespace Server.MirDatabase
 
         public void ParseFile(List<string> lines)
         {
-            const string
-                descriptionCollectKey = "[@DESCRIPTION]",
-                descriptionTaskKey = "[@TASKDESCRIPTION]",
-                descriptionReturnKey = "[@RETURNDESCRIPTION]",
-                descriptionCompletionKey = "[@COMPLETION]",
-                carryItemsKey = "[@CARRYITEMS]",
-                killTasksKey = "[@KILLTASKS]",
-                itemTasksKey = "[@ITEMTASKS]",
-                flagTasksKey = "[@FLAGTASKS]",
-                fixedRewardsKey = "[@FIXEDREWARDS]",
-                selectRewardsKey = "[@SELECTREWARDS]",
-                expRewardKey = "[@EXPREWARD]",
-                goldRewardKey = "[@GOLDREWARD]",
-                creditRewardKey = "[@CREDITREWARD]";
+            // Section order is the catalog's order, which is the order the runtime has always applied:
+            // section by section, every occurrence of a section appended in file order.
+            QuestScriptDocument document = QuestScriptParser.ParseLines(lines, FileName);
 
-            List<string> headers = new List<string>
+            foreach (QuestScriptSectionEntry entry in QuestScriptSectionCatalog.Entries)
             {
-                descriptionCollectKey, descriptionTaskKey, descriptionCompletionKey,
-                carryItemsKey, killTasksKey, itemTasksKey, flagTasksKey,
-                fixedRewardsKey, selectRewardsKey, expRewardKey, goldRewardKey, creditRewardKey, descriptionReturnKey
-            };
-
-            int currentHeader = 0;
-
-            while (currentHeader < headers.Count)
-            {
-                for (int i = 0; i < lines.Count; i++)
+                foreach (QuestScriptSection section in document.Sections)
                 {
-                    string line = lines[i].ToUpper();
+                    if (section.Entry != entry) continue;
 
-                    if (line != headers[currentHeader].ToUpper()) continue;
-
-                    for (int j = i + 1; j < lines.Count; j++)
+                    switch (entry.Kind)
                     {
-                        string innerLine = lines[j];
-
-                        if (innerLine.StartsWith("[") || innerLine.StartsWith("//")) break;
-                        if (string.IsNullOrEmpty(lines[j])) continue;
-
-                        switch (line)
-                        {
-                            case descriptionCollectKey:
-                                Description.Add(innerLine);
-                                break;
-                            case descriptionTaskKey:
-                                TaskDescription.Add(innerLine);
-                                break;
-                            case descriptionReturnKey:
-                                ReturnDescription.Add(innerLine);
-                                break;
-                            case descriptionCompletionKey:
-                                CompletionDescription.Add(innerLine);
-                                break;
-                            case carryItemsKey:
-                                QuestItemTask t = ParseItem(innerLine);
-                                if (t != null) CarryItems.Add(t);
-                                break;
-                            case killTasksKey:
-                                QuestKillTask t1 = ParseKill(innerLine);
-                                if (t1 != null) KillTasks.Add(t1);
-                                break;
-                            case itemTasksKey:
-                                QuestItemTask t2 = ParseItem(innerLine);
-                                if (t2 != null) ItemTasks.Add(t2);
-                                break;
-                            case flagTasksKey:
-                                QuestFlagTask t3 = ParseFlag(innerLine);
-                                if (t3 != null) FlagTasks.Add(t3);
-                                break;
-                            case fixedRewardsKey:
-                                {
-                                    ParseReward(FixedRewards, innerLine);
-                                    break;
-                                }
-                            case selectRewardsKey:
-                                {
-                                    ParseReward(SelectRewards, innerLine);
-                                    break;
-                                }
-                            case expRewardKey:
-                                uint.TryParse(innerLine, out ExpReward);
-                                break;
-                            case goldRewardKey:
-                                uint.TryParse(innerLine, out GoldReward);
-                                break;
-                            case creditRewardKey:
-                                uint.TryParse(innerLine, out CreditReward);
-                                break;
-                        }
+                        case QuestScriptSectionKind.Description:
+                            AddText(Description, section.Rows);
+                            break;
+                        case QuestScriptSectionKind.TaskDescription:
+                            AddText(TaskDescription, section.Rows);
+                            break;
+                        case QuestScriptSectionKind.Completion:
+                            AddText(CompletionDescription, section.Rows);
+                            break;
+                        case QuestScriptSectionKind.ReturnDescription:
+                            AddText(ReturnDescription, section.Rows);
+                            break;
+                        case QuestScriptSectionKind.CarryItems:
+                            AddItemTasks(CarryItems, section.Rows);
+                            break;
+                        case QuestScriptSectionKind.ItemTasks:
+                            AddItemTasks(ItemTasks, section.Rows);
+                            break;
+                        case QuestScriptSectionKind.KillTasks:
+                            AddKillTasks(section.Rows);
+                            break;
+                        case QuestScriptSectionKind.FlagTasks:
+                            AddFlagTasks(section.Rows);
+                            break;
+                        case QuestScriptSectionKind.FixedRewards:
+                            AddRewards(FixedRewards, section.Rows);
+                            break;
+                        case QuestScriptSectionKind.SelectRewards:
+                            AddRewards(SelectRewards, section.Rows);
+                            break;
+                        case QuestScriptSectionKind.ExpReward:
+                            ApplyNumber(section.Rows, ref ExpReward);
+                            break;
+                        case QuestScriptSectionKind.GoldReward:
+                            ApplyNumber(section.Rows, ref GoldReward);
+                            break;
+                        case QuestScriptSectionKind.CreditReward:
+                            ApplyNumber(section.Rows, ref CreditReward);
+                            break;
                     }
                 }
-
-                currentHeader++;
             }
+        }
+
+        private static void AddText(List<string> descriptions, IReadOnlyList<QuestScriptRow> rows)
+        {
+            foreach (QuestScriptRow row in rows) descriptions.Add(row.Source.Text);
+        }
+
+        private void AddItemTasks(List<QuestItemTask> tasks, IReadOnlyList<QuestScriptRow> rows)
+        {
+            foreach (QuestScriptRow row in rows)
+            {
+                ItemInfo info = Envir.GetItemInfo(row.Name);
+
+                if (info == null) continue;
+
+                tasks.Add(new QuestItemTask { Item = info, Count = (ushort)row.Count, Message = row.Message });
+            }
+        }
+
+        private void AddKillTasks(IReadOnlyList<QuestScriptRow> rows)
+        {
+            foreach (QuestScriptRow row in rows)
+            {
+                MonsterInfo info = Envir.GetMonsterInfo(row.Name);
+
+                if (info == null) continue;
+
+                KillTasks.Add(new QuestKillTask { Monster = info, Count = row.Count, Message = row.Message });
+            }
+        }
+
+        private void AddFlagTasks(IReadOnlyList<QuestScriptRow> rows)
+        {
+            foreach (QuestScriptRow row in rows)
+            {
+                if (row.Flag < 0 || row.Flag > Globals.FlagIndexCount - 1000) continue;
+
+                FlagTasks.Add(new QuestFlagTask { Number = row.Flag, Message = row.Message });
+            }
+        }
+
+        private void AddRewards(List<QuestItemReward> list, IReadOnlyList<QuestScriptRow> rows)
+        {
+            foreach (QuestScriptRow row in rows) AddReward(list, row);
+        }
+
+        private void AddReward(List<QuestItemReward> list, QuestScriptRow row)
+        {
+            ItemInfo info = Envir.GetItemInfo(row.Name);
+
+            if (info == null)
+            {
+                info = Envir.GetItemInfo(row.Name + "(M)");
+                if (info != null) list.Add(new QuestItemReward() { Item = info, Count = (ushort)row.Count });
+
+                info = Envir.GetItemInfo(row.Name + "(F)");
+                if (info != null) list.Add(new QuestItemReward() { Item = info, Count = (ushort)row.Count });
+            }
+            else
+            {
+                list.Add(new QuestItemReward() { Item = info, Count = (ushort)row.Count });
+            }
+        }
+
+        private static void ApplyNumber(IReadOnlyList<QuestScriptRow> rows, ref uint value)
+        {
+            // Every line of a numeric section was assigned in turn, so the last one wins.
+            foreach (QuestScriptRow row in rows) value = row.Number;
         }
 
         public void ParseReward(List<QuestItemReward> list, string line)
         {
-            if (line.Length < 1) return;
+            QuestScriptRow row = ParseQuestRow(QuestScriptSectionKind.FixedRewards, line);
 
-            string[] split = line.Split(' ');
-            ushort count = 1;
-
-            if (split.Length > 1) ushort.TryParse(split[1], out count);
-
-            ItemInfo mInfo = Envir.GetItemInfo(split[0]);
-
-            if (mInfo == null)
-            {
-                mInfo = Envir.GetItemInfo(split[0] + "(M)");
-                if (mInfo != null) list.Add(new QuestItemReward() { Item = mInfo, Count = count });
-
-                mInfo = Envir.GetItemInfo(split[0] + "(F)");
-                if (mInfo != null) list.Add(new QuestItemReward() { Item = mInfo, Count = count });
-            }
-            else
-            {
-                list.Add(new QuestItemReward() { Item = mInfo, Count = count });
-            }
+            if (row != null) AddReward(list, row);
         }
 
         public QuestKillTask ParseKill(string line)
         {
-            if (line.Length < 1) return null;
+            QuestScriptRow row = ParseQuestRow(QuestScriptSectionKind.KillTasks, line);
 
-            string[] split = line.Split(' ');
-            int count = 1;
-            string message = "";
+            if (row == null) return null;
 
-            MonsterInfo mInfo = Envir.GetMonsterInfo(split[0]);
-            if (split.Length > 1) int.TryParse(split[1], out count);
+            MonsterInfo mInfo = Envir.GetMonsterInfo(row.Name);
 
-            var match = _regexMessage.Match(line);
-            if (match.Success)
-            {
-                message = match.Groups[1].Captures[0].Value;
-            }
-
-            return mInfo == null ? null : new QuestKillTask() { Monster = mInfo, Count = count, Message = message };
+            return mInfo == null ? null : new QuestKillTask() { Monster = mInfo, Count = row.Count, Message = row.Message };
         }
 
         public QuestItemTask ParseItem(string line)
         {
-            if (line.Length < 1) return null;
+            QuestScriptRow row = ParseQuestRow(QuestScriptSectionKind.ItemTasks, line);
 
-            string[] split = line.Split(' ');
-            ushort count = 1;
-            string message = "";
+            if (row == null) return null;
 
-            ItemInfo mInfo = Envir.GetItemInfo(split[0]);
-            if (split.Length > 1) ushort.TryParse(split[1], out count);
+            ItemInfo mInfo = Envir.GetItemInfo(row.Name);
 
-            var match = _regexMessage.Match(line);
-            if (match.Success)
-            {
-                message = match.Groups[1].Captures[0].Value;
-            }
-            //if (mInfo.StackSize <= 1)
-            //{
-            //    //recursively add item if cant stack???
-            //}
-
-            return mInfo == null ? null : new QuestItemTask { Item = mInfo, Count = count, Message = message };
+            return mInfo == null ? null : new QuestItemTask { Item = mInfo, Count = (ushort)row.Count, Message = row.Message };
         }
 
         public QuestFlagTask ParseFlag(string line)
         {
-            if (line.Length < 1) return null;
+            QuestScriptRow row = ParseQuestRow(QuestScriptSectionKind.FlagTasks, line);
 
-            string[] split = line.Split(' ');
+            if (row == null || row.Flag < 0 || row.Flag > Globals.FlagIndexCount - 1000) return null;
 
-            int number = -1;
-            string message = "";
+            return new QuestFlagTask { Number = row.Flag, Message = row.Message };
+        }
 
-            int.TryParse(split[0], out number);
-
-            if (number < 0 || number > Globals.FlagIndexCount - 1000) return null;
-
-            var match = _regexMessage.Match(line);
-            if (match.Success)
-            {
-                message = match.Groups[1].Captures[0].Value;
-            }
-
-            return new QuestFlagTask { Number = number, Message = message };
+        private static QuestScriptRow ParseQuestRow(QuestScriptSectionKind kind, string line)
+        {
+            return QuestScriptParser.ParseRow(QuestScriptSectionCatalog.Find(kind), line);
         }
 
         public bool CanAccept(PlayerObject player)

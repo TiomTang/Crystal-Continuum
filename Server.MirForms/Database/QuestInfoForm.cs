@@ -1,4 +1,5 @@
 ﻿using Server.MirDatabase;
+using Server.MirForms.Scripts;
 using Server.MirEnvir;
 using Shared.Helpers;
 using System.Diagnostics;
@@ -425,25 +426,9 @@ namespace Server
 
         private void OpenQButton_Click(object sender, EventArgs e)
         {
-            if (QFileNameTextBox.Text == string.Empty) return;
-
-            var scriptPath = Path.Combine(Settings.QuestPath, QFileNameTextBox.Text + ".txt");
-
-            if (File.Exists(scriptPath))
-            {
-                Shared.Helpers.FileIO.OpenScript(scriptPath, true);
-            }
-            else
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(scriptPath));
-
-                File.Create(scriptPath).Close();
-
-                File.WriteAllText(scriptPath,
-                    $"{"[@Description]"}\r\n\r\n{"[@TaskDescription]"}\r\n\r\n{"[@Completion]"}\r\n\r\n{"[@KillTasks]"}\r\n\r\n{"[@ItemTasks]"}\r\n\r\n{"[@FlagTasks]"}\r\n\r\n{"[@CarryItems]"}\r\n\r\n{"[@FixedRewards]"}\r\n\r\n{"[@SelectRewards]"}\r\n\r\n{"[@ExpReward]"}\r\n\r\n{"[@GoldReward]"}");
-
-                Shared.Helpers.FileIO.OpenScript(scriptPath, true);
-            }
+            if (string.IsNullOrWhiteSpace(QFileNameTextBox.Text)) return;
+            ScriptEditorForm.OpenScript(this, Path.Combine(Settings.QuestPath, QFileNameTextBox.Text + ".txt"),
+                ScriptDocumentKind.Quest);
         }
 
         private void TimeLimitTextBox_TextChanged(object sender, EventArgs e)

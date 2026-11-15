@@ -24,6 +24,7 @@ namespace Server.MirForms.Scripts
         public int EndLine;
         public bool IsSection;
         public ScriptSectionKind Section;
+        public QuestScriptSectionEntry QuestSection;
         public readonly List<ScriptBlock> Blocks = new List<ScriptBlock>();
     }
 
@@ -33,6 +34,7 @@ namespace Server.MirForms.Scripts
         public Func<string, bool> SpellExists;
         public Func<string, bool> MapExists;
         public Func<string, bool> ItemExists;
+        public Func<string, bool> MonsterExists;
         // Retained for existing callers; CALL resolves a file path, never a database script ID.
         public Func<int, bool> ScriptExists;
 
@@ -51,6 +53,7 @@ namespace Server.MirForms.Scripts
         public string FileName;
         public string PageKey;
         public ScriptDiagnostic Diagnostic;
+        public NPCScriptType? ExecutionType;
 
         public override string ToString()
         {
@@ -63,10 +66,11 @@ namespace Server.MirForms.Scripts
     /// Buffer-local navigation and caret context. Validation uses the engine's isolated loader;
     /// database and value checks only inspect its source-bound result, never activate NPC data.
     /// </summary>
-    public sealed class ScriptProject
+    public sealed partial class ScriptProject
     {
         private string _path;
         public NPCScriptType Type { get; private set; }
+        public ScriptDocumentKind Kind { get; private set; }
 
         public string[] Lines = new string[0];
         public readonly List<ScriptBlock> Blocks = new List<ScriptBlock>();
@@ -74,10 +78,18 @@ namespace Server.MirForms.Scripts
         public readonly List<ScriptPageInfo> Sections = new List<ScriptPageInfo>();
         public readonly HashSet<string> PageKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public static ScriptProject Parse(string text, string path = null, NPCScriptType type = NPCScriptType.Normal)
+        public static ScriptProject Parse(string text, string path = null, NPCScriptType type = NPCScriptType.Normal,
+            ScriptDocumentKind kind = ScriptDocumentKind.Executable)
         {
-            var project = new ScriptProject { _path = path, Type = type };
+            var project = new ScriptProject { _path = path, Type = type, Kind = kind };
             project.Lines = (text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+
+            if (kind == ScriptDocumentKind.Text) return project;
+            if (kind == ScriptDocumentKind.Quest)
+            {
+                project.ParseQuest();
+                return project;
+            }
 
             ScriptBlock current = null;
             ScriptPageInfo page = null;
@@ -119,17 +131,17 @@ namespace Server.MirForms.Scripts
 
                 if (page == null || page.IsSection || !trimmed.StartsWith("#")) continue;
 
-                ScriptBlockKind kind;
-                if (ScriptBlockCatalog.TryFind(raw, out kind) == null) continue;
+                ScriptBlockKind blockKind;
+                if (ScriptBlockCatalog.TryFind(raw, out blockKind) == null) continue;
 
                 if (current != null) current.EndLine = i;
 
                 current = new ScriptBlock
                 {
-                    Kind = kind,
+                    Kind = blockKind,
                     StartLine = i + 1,
                     EndLine = project.Lines.Length,
-                    Tag = ScriptBlockCatalog.Tag(kind),
+                    Tag = ScriptBlockCatalog.Tag(blockKind),
                     PageKey = page == null ? string.Empty : page.Key,
                 };
 
@@ -174,17 +186,20 @@ namespace Server.MirForms.Scripts
                 : Path.GetDirectoryName(Path.GetFullPath(path));
 
             DirectoryInfo info = directory == null ? null : new DirectoryInfo(directory);
+            string fallback = null;
 
             while (info != null)
             {
                 if ((string.Equals(info.Name, "NPCs", StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(info.Name, "SystemScripts", StringComparison.OrdinalIgnoreCase)) && info.Parent != null)
-                    return info.Parent.FullName;
+                     string.Equals(info.Name, "SystemScripts", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(info.Name, "Quests", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(info.Name, "Events", StringComparison.OrdinalIgnoreCase)) && info.Parent != null && fallback == null)
+                    fallback = info.Parent.FullName;
                 if (string.Equals(info.Name, "Envir", StringComparison.OrdinalIgnoreCase)) return info.FullName;
                 info = info.Parent;
             }
 
-            return directory ?? ".";
+            return fallback ?? directory ?? ".";
         }
 
         /// <summary>
@@ -322,14 +337,16 @@ namespace Server.MirForms.Scripts
         /// <summary>Engine diagnostics, plus read-only database and value facts it cannot check at load time.</summary>
         public List<ScriptIssue> Check(ScriptRules rules = null)
         {
+            if (Kind == ScriptDocumentKind.Quest) return CheckQuest(rules);
             var issues = new List<ScriptIssue>();
+            if (Kind == ScriptDocumentKind.Text) return issues;
             ScriptValidationResult validation;
             string fileName = _path;
             try
             {
                 fileName = Path.GetFullPath(string.IsNullOrEmpty(fileName)
                     ? Path.Combine("Envir", "NPCs", "__editor__.txt") : fileName);
-                validation = NPCScript.Validate(string.Join("\n", Lines), fileName, IncludeRoot(fileName), Type, ScriptDirectory(fileName));
+                validation = ScriptValidator.Validate(string.Join("\n", Lines), fileName, IncludeRoot(fileName), Type, ScriptDirectory(fileName));
             }
             catch (Exception exception)
             {
@@ -359,6 +376,7 @@ namespace Server.MirForms.Scripts
 
         private void CollectValidationIssues(ScriptValidationResult validation, ScriptRules rules, List<ScriptIssue> issues)
         {
+            int firstIssue = issues.Count;
             foreach (ScriptDiagnostic diagnostic in validation.Diagnostics)
                 issues.Add(FromDiagnostic(diagnostic));
             if (validation.Type == NPCScriptType.Normal || validation.Type == NPCScriptType.Called)
@@ -377,6 +395,9 @@ namespace Server.MirForms.Scripts
                         CheckStatement(action.Source, action.Params, segment, ScriptActionCatalog.Find(action.Type), rules, issues, seen);
                 }
             }
+
+            // INSERT/INCLUDE keep this compile's mode; CALL owns a separate Called compile.
+            for (int i = firstIssue; i < issues.Count; i++) issues[i].ExecutionType = validation.Type;
 
             foreach (ScriptValidationResult called in validation.CalledScripts)
                 new ScriptProject { Type = called.Type }.CollectValidationIssues(called, rules, issues);
