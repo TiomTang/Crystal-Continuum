@@ -10,6 +10,7 @@ namespace Server.MirObjects
     {
         /// <summary>Source lines with their file numbers, shared by every page of one load.</summary>
         private List<ScriptSourceLine> _scriptLines;
+        private List<ScriptSourceLine> _expandedSourceLines;
 
         /// <summary>Normalised page header to its line in <see cref="_scriptLines"/>.</summary>
         private Dictionary<string, int> _pageHeaderIndex;
@@ -24,6 +25,8 @@ namespace Server.MirObjects
 
             if (!File.Exists(fileName))
             {
+                ScriptDiagnostics.Report(ScriptDiagnosticKind.MissingScript,
+                    new ScriptParseContext { FileName = FileName + ".txt" }, "NPC", "Script file was not found; no pages were loaded.");
                 MessageQueue.Enqueue(GameLanguage.Get("Script Not Found: {0}", FileName));
                 return;
             }
@@ -34,7 +37,7 @@ namespace Server.MirObjects
             {
                 bool legacy;
 
-                List<string> lines = ScriptTextFile.ReadAllLines(fileName, out legacy).ToList();
+                var sourceLines = ScriptSourceLine.Bind(ScriptTextFile.ReadAllLines(fileName, out legacy), FileName + ".txt");
 
                 if (legacy)
                     ScriptDiagnostics.Report(ScriptDiagnosticKind.LegacyEncoding,
@@ -42,9 +45,10 @@ namespace Server.MirObjects
                         "file is not UTF-8, read as GBK");
 
                 foreach (ScriptDirectiveEntry directive in ScriptDirectiveCatalog.Ordered)
-                    directive.Apply(lines);
+                    directive.ApplySource(sourceLines);
 
-                PrepareScriptLines(lines);
+                PrepareScriptSourceLines(sourceLines);
+                List<string> lines = sourceLines.Select(line => line.Text).ToList();
 
                 switch (Type)
                 {
@@ -68,13 +72,14 @@ namespace Server.MirObjects
                 ClearInfo();
 
                 ScriptDiagnostics.Report(ScriptDiagnosticKind.LoadFailed,
-                    new ScriptParseContext { FileName = FileName + ".txt" }, string.Empty, ex.Message);
+                    new ScriptParseContext { FileName = FileName + ".txt" }, string.Empty, ex.Message, ex);
 
                 MessageQueue.Enqueue("Script Not Loaded: " + FileName);
             }
             finally
             {
                 _scriptLines = null;
+                _expandedSourceLines = null;
                 _pageHeaderIndex = null;
 
                 ScriptParseScope.Set(null);
@@ -89,7 +94,7 @@ namespace Server.MirObjects
             {
                 if (string.IsNullOrEmpty(scriptLines[i])) continue;
 
-                lines.Add(new ScriptSourceLine(scriptLines[i], i + 1));
+                lines.Add(new ScriptSourceLine(scriptLines[i], i + 1, ScriptParseScope.FileName));
             }
 
             return lines;
@@ -97,7 +102,13 @@ namespace Server.MirObjects
 
         private void PrepareScriptLines(IList<string> scriptLines)
         {
-            _scriptLines = BuildScriptLines(scriptLines);
+            PrepareScriptSourceLines(ScriptSourceLine.Bind(scriptLines, ScriptParseScope.FileName));
+        }
+
+        private void PrepareScriptSourceLines(List<ScriptSourceLine> sourceLines)
+        {
+            _expandedSourceLines = sourceLines;
+            _scriptLines = sourceLines.Where(line => !string.IsNullOrEmpty(line.Text)).ToList();
             _pageHeaderIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             for (int i = 0; i < _scriptLines.Count; i++)
@@ -118,25 +129,23 @@ namespace Server.MirObjects
         /// header is written exactly as the key, so a page defined with arguments still falls back to
         /// the original prefix scan instead of changing what counts as a match.
         /// </summary>
-        private int FindPageHeader(string tempSectionName)
+        private int FindPageHeader(string tempSectionName, IList<ScriptSourceLine> lines)
         {
             int index;
 
-            if (_pageHeaderIndex != null && _pageHeaderIndex.TryGetValue(tempSectionName, out index))
+            if (ReferenceEquals(lines, _scriptLines) && _pageHeaderIndex != null && _pageHeaderIndex.TryGetValue(tempSectionName, out index))
             {
                 if (string.Equals(_scriptLines[index].Text, tempSectionName, StringComparison.OrdinalIgnoreCase))
                     return index;
             }
 
-            if (_scriptLines == null) return -1;
-
-            for (int i = 0; i < _scriptLines.Count; i++)
+            for (int i = 0; i < lines.Count; i++)
             {
-                string line = _scriptLines[i].Text;
+                string line = lines[i].Text;
 
                 if (ScriptLexer.IsComment(line)) continue;
 
-                if (line.ToUpper().StartsWith(tempSectionName.ToUpper())) return i;
+                if (line.StartsWith(tempSectionName, StringComparison.OrdinalIgnoreCase)) return i;
             }
 
             return -1;
@@ -275,8 +284,9 @@ namespace Server.MirObjects
                 ScriptDiagnostics.Report(ScriptDiagnosticKind.DuplicatePage, new ScriptParseContext
                 {
                     Line = lines[i],
-                    LineNumber = i + 1,
-                    FileName = ScriptParseScope.FileName,
+                    LineNumber = SourceAt(lines, i).Number,
+                    FileName = SourceAt(lines, i).FileName,
+                    Source = SourceAt(lines, i).Source,
                 }, key, "Duplicate page \"" + key + "\"");
             }
         }
@@ -290,9 +300,13 @@ namespace Server.MirObjects
             // A key built from a run-time value has no page yet; only a literal target can be dead.
             if (string.IsNullOrEmpty(key) || key.IndexOf("<$", StringComparison.Ordinal) >= 0) return;
 
+            string target = key.Trim('[', ']');
+            ScriptSourceInfo source = _scriptLines?.FirstOrDefault(line =>
+                line.Text.IndexOf(target, StringComparison.OrdinalIgnoreCase) >= 0).Source;
             ScriptDiagnostics.Report(ScriptDiagnosticKind.MissingPage, new ScriptParseContext
             {
                 FileName = ScriptParseScope.FileName,
+                Source = source,
             }, key, "Page not found: " + key);
         }
 
@@ -302,6 +316,9 @@ namespace Server.MirObjects
 
             List<NPCPage> pages = new List<NPCPage>();
             List<string> buttons = new List<string>();
+            var visited = new HashSet<string>(NPCPages.Select(existing => existing.Key), StringComparer.OrdinalIgnoreCase);
+
+            if (!visited.Add(key)) return pages;
 
             NPCPage page = ParsePage(lines, key);
 
@@ -310,7 +327,7 @@ namespace Server.MirObjects
                 // [@MAIN] has no body only when the file is not a dialogue script; the engine still
                 // needs its page object so a caller can open an empty window instead of failing.
                 if (ScriptSpecialPageCatalog.Find(key) == null) ReportMissingPage(key);
-                else pages.Add(new NPCPage(key));
+                else pages.Add(new NPCPage(key) { FileName = FileName + ".txt" });
 
                 return pages;
             }
@@ -323,9 +340,7 @@ namespace Server.MirObjects
             {
                 string section = buttons[i];
 
-                bool match = pages.Any(t => t.Key.ToUpper() == section.ToUpper());
-
-                if (match) continue;
+                if (!visited.Add(section)) continue;
 
                 page = ParsePage(lines, section);
 
@@ -339,7 +354,7 @@ namespace Server.MirObjects
                     {
                         // Input pages are driven by the client's text prompt, so they need the same
                         // empty carrier a special page does.
-                        pages.Add(new NPCPage(section));
+                        pages.Add(new NPCPage(section) { FileName = FileName + ".txt" });
                     }
                     else if (!section.StartsWith("[@_", StringComparison.OrdinalIgnoreCase) &&
                              !string.Equals(section, "[@EXIT]", StringComparison.OrdinalIgnoreCase))
@@ -360,98 +375,59 @@ namespace Server.MirObjects
 
         private NPCPage ParsePage(IList<string> scriptLines, string sectionName)
         {
-            bool nextPage = false, nextSection = false;
-
             // Numbers travel with the text: empty lines are dropped here, so the index in this list is
             // no longer the line the script file has. The list is built once per load and shared by
             // every page, which is why a page no longer rebuilds it.
             var lines = _scriptLines ?? BuildScriptLines(scriptLines);
 
-            NPCPage Page = new NPCPage(sectionName);
+            NPCPage Page = new NPCPage(sectionName) { FileName = FileName + ".txt" };
 
             //Cleans arguments out of search page name
             string tempSectionName = Page.ArgumentParse(sectionName);
 
-            int header = FindPageHeader(tempSectionName);
+            int header = FindPageHeader(tempSectionName, lines);
 
             if (header < 0) return null;
+            Page.Source = lines[header].Source;
 
-            //parse all individual pages in a script, defined by sectionName
-            for (int i = header; i < lines.Count; i++)
+            // Establish the page interval before looking at block boundaries. Looking only at the
+            // next line lets an adjacent empty page absorb the following page's first #IF block.
+            int end = header + 1;
+
+            while (end < lines.Count && !ScriptPageKeyCatalog.TryParseHeader(lines[end].Text, out _)) end++;
+
+            var segmentLines = new List<ScriptSourceLine>();
+
+            for (int i = header + 1; i < end; i++)
             {
-                string line = lines[i].Text;
-
-                if (ScriptLexer.IsComment(line)) continue;
-
-                if (!line.ToUpper().StartsWith(tempSectionName.ToUpper())) continue;
-
-                var segmentLines = new List<ScriptSourceLine>();
-
-                nextPage = false;
-
-                //Found a page, now process that page and split it into segments
-                for (int j = i + 1; j < lines.Count; j++)
+                if (ScriptBlockCatalog.SplitsSegment(lines[i].Text) && segmentLines.Count > 0)
                 {
-                    string nextLine = j < lines.Count - 1 ? lines[j + 1].Text : string.Empty;
-
-                    if (ScriptPageKeyCatalog.TryParseHeader(nextLine, out string _))
-                    {
-                        nextPage = true;
-                    }
-
-                    else if (ScriptBlockCatalog.SplitsSegment(nextLine))
-                    {
-                        nextSection = true;
-                    }
-
-                    if (nextSection || nextPage)
-                    {
-                        segmentLines.Add(lines[j]);
-
-                        //end of segment, so need to parse it and put into the segment list within the page
-                        if (segmentLines.Count > 0)
-                        {
-                            NPCSegment segment = ParseSegment(Page, segmentLines);
-
-                            List<string> currentButtons = new List<string>();
-                            currentButtons.AddRange(segment.Buttons);
-                            currentButtons.AddRange(segment.ElseButtons);
-                            currentButtons.AddRange(segment.GotoButtons);
-
-                            Page.Buttons.AddRange(currentButtons);
-                            Page.SegmentList.Add(segment);
-                            segmentLines.Clear();
-
-                            nextSection = false;
-                        }
-
-                        if (nextPage) break;
-
-                        continue;
-                    }
-
-                    segmentLines.Add(lines[j]);
-                }
-
-                //bottom of script reached, add all lines found to new segment
-                if (segmentLines.Count > 0)
-                {
-                    NPCSegment segment = ParseSegment(Page, segmentLines);
-
-                    List<string> currentButtons = new List<string>();
-                    currentButtons.AddRange(segment.Buttons);
-                    currentButtons.AddRange(segment.ElseButtons);
-                    currentButtons.AddRange(segment.GotoButtons);
-
-                    Page.Buttons.AddRange(currentButtons);
-                    Page.SegmentList.Add(segment);
+                    AddPageSegment(Page, segmentLines);
                     segmentLines.Clear();
                 }
 
-                return Page;
+                segmentLines.Add(lines[i]);
             }
 
-            return null;
+            if (segmentLines.Count > 0) AddPageSegment(Page, segmentLines);
+
+            return Page;
+        }
+
+        private void AddPageSegment(NPCPage page, List<ScriptSourceLine> lines)
+        {
+            NPCSegment segment = ParseSegment(page, lines);
+            page.Buttons.AddRange(segment.Buttons);
+            page.Buttons.AddRange(segment.ElseButtons);
+            page.Buttons.AddRange(segment.GotoButtons);
+            page.SegmentList.Add(segment);
+        }
+
+        private ScriptSourceLine SourceAt(IList<string> lines, int index)
+        {
+            return _expandedSourceLines != null && index < _expandedSourceLines.Count
+                ? _expandedSourceLines[index]
+                : new ScriptSourceLine(lines[index], index + 1, ScriptParseScope.FileName);
         }
 
         private NPCSegment ParseSegment(NPCPage page, IEnumerable<ScriptSourceLine> scriptLines)
@@ -488,18 +464,24 @@ namespace Server.MirObjects
             var roleButtons = new Dictionary<ScriptBlockRole, List<string>>
             {
                 { ScriptBlockRole.Say, buttons },
-                { ScriptBlockRole.Act, gotoButtons },
                 { ScriptBlockRole.ElseSay, elseButtons },
-                { ScriptBlockRole.ElseAct, gotoButtons },
             };
 
             // A segment starts in the say block, exactly as the old single list did.
             List<ScriptSourceLine> currentLines = null;
             List<string> currentSay = say, currentButtons = buttons;
+            NPCSegment segment = new NPCSegment(page, say, buttons, elseSay, elseButtons, gotoButtons);
+            segment.Source = lines.FirstOrDefault().Source ?? page.Source;
 
             for (int i = 0; i < lines.Count; i++)
             {
                 string text = lines[i].Text;
+
+                if (lines[i].Error != null)
+                {
+                    segment.MarkInvalid(lines[i].Error, false);
+                    continue;
+                }
 
                 if (ScriptLexer.IsComment(text)) continue;
 
@@ -510,7 +492,7 @@ namespace Server.MirObjects
 
                     if (block == null)
                     {
-                        ReportUnknownBlock(page, text, lines[i].Number);
+                        segment.MarkInvalid(ReportUnknownBlock(page, lines[i]), false);
                         continue;
                     }
 
@@ -538,7 +520,8 @@ namespace Server.MirObjects
 
                 if (currentButtons != null)
                 {
-                    Match match = ScriptLexer.Button.Match(text);
+                    string buttonText = segment.ParseArguments(new[] { text })[0];
+                    Match match = ScriptLexer.Button.Match(buttonText);
 
                     while (match.Success)
                     {
@@ -548,65 +531,84 @@ namespace Server.MirObjects
                         currentButtons.Add(string.Format("[{0}]", argu));
                         match = match.NextMatch();
                     }
-
-                    //Check if line has a goto command
-                    var parts = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    ScriptKeywordEntry action = parts.Length > 1 ? ScriptActionCatalog.Find(parts[0]) : null;
-
-                    if (action != null && action.Button != ScriptButtonKind.None)
-                    {
-                        int target = action.Button == ScriptButtonKind.DelayedPage ? 2 : 1;
-
-                        if (parts.Length > target)
-                        {
-                            string button = string.Format("[{0}]", parts[target].ToUpper());
-
-                            if (action.Button == ScriptButtonKind.Roll) buttons.Add(button);
-                            else gotoButtons.Add(button);
-                        }
-                    }
                 }
 
-                if (currentLines != null) currentLines.Add(new ScriptSourceLine(text.TrimEnd(), lines[i].Number));
-                else if (currentSay != null) currentSay.Add(text.TrimEnd());
+                if (currentLines != null) currentLines.Add(new ScriptSourceLine(text.TrimEnd(), lines[i].Number, lines[i].FileName, lines[i].Source));
+                else if (currentSay != null)
+                {
+                    currentSay.Add(text.TrimEnd());
+                    (ReferenceEquals(currentSay, say) ? segment.SaySources : segment.ElseSaySources).Add(lines[i].Source);
+                }
             }
 
-            NPCSegment segment = new NPCSegment(page, say, buttons, elseSay, elseButtons, gotoButtons);
+            string previousFile = ScriptParseScope.FileName;
 
-            for (int i = 0; i < checks.Count; i++)
-                segment.ParseCheck(checks[i].Text, checks[i].Number);
+            try
+            {
+                foreach (ScriptSourceLine line in checks)
+                {
+                    ScriptParseScope.Set(line.FileName ?? previousFile);
+                    segment.ParseCheck(line.Text, line.Number, line.Source);
+                }
 
-            for (int i = 0; i < acts.Count; i++)
-                segment.ParseAct(segment.ActList, acts[i].Text, acts[i].Number);
+                foreach (ScriptSourceLine line in acts)
+                {
+                    ScriptParseScope.Set(line.FileName ?? previousFile);
+                    segment.ParseAct(segment.ActList, line.Text, line.Number, line.Source);
+                }
 
-            for (int i = 0; i < elseActs.Count; i++)
-                segment.ParseAct(segment.ElseActList, elseActs[i].Text, elseActs[i].Number);
+                foreach (ScriptSourceLine line in elseActs)
+                {
+                    ScriptParseScope.Set(line.FileName ?? previousFile);
+                    segment.ParseAct(segment.ElseActList, line.Text, line.Number, line.Source);
+                }
+            }
+            finally
+            {
+                ScriptParseScope.Set(previousFile);
+            }
 
-            currentButtons = new List<string>();
-            currentButtons.AddRange(buttons);
-            currentButtons.AddRange(elseButtons);
-            currentButtons.AddRange(gotoButtons);
+            CollectActionButtons(segment.ActList, buttons, gotoButtons);
+            CollectActionButtons(segment.ElseActList, elseButtons, gotoButtons);
 
             return segment;
         }
 
-        /// <summary>
-        /// A line that looks like a block tag but is not one. The segment keeps the block it was already
-        /// in, so a misspelled tag costs one line instead of aborting the whole script.
-        /// </summary>
-        private static void ReportUnknownBlock(NPCPage page, string line, int lineNumber)
+        private static void CollectActionButtons(IEnumerable<NPCActions> acts, List<string> buttons, List<string> gotoButtons)
         {
-            string text = (line ?? string.Empty).Trim();
+            foreach (NPCActions action in acts)
+            {
+                ScriptKeywordEntry entry = ScriptActionCatalog.Find(action.Type);
+
+                if (entry == null || entry.Button == ScriptButtonKind.None) continue;
+
+                int target = entry.Button == ScriptButtonKind.DelayedPage ? 1 : 0;
+
+                if (action.Params.Count <= target || string.IsNullOrEmpty(action.Params[target])) continue;
+
+                string button = "[" + action.Params[target] + "]";
+
+                if (entry.Button == ScriptButtonKind.Roll) buttons.Add(button);
+                else gotoButtons.Add(button);
+            }
+        }
+
+        /// <summary>
+        /// An unsupported block makes its segment unsafe; its body must not inherit the previous role.
+        /// </summary>
+        private static ScriptDiagnostic ReportUnknownBlock(NPCPage page, ScriptSourceLine line)
+        {
+            string text = (line.Text ?? string.Empty).Trim();
             int end = text.IndexOfAny(new[] { ' ', '\t' });
             string tag = end >= 0 ? text.Substring(0, end) : text;
 
-            ScriptDiagnostics.Report(ScriptDiagnosticKind.UnknownBlock, new ScriptParseContext
+            return ScriptDiagnostics.Report(ScriptDiagnosticKind.UnknownBlock, new ScriptParseContext
             {
-                Line = line,
-                LineNumber = lineNumber,
-                FileName = ScriptParseScope.FileName,
+                Line = line.Text,
+                LineNumber = line.Number,
+                FileName = line.FileName ?? ScriptParseScope.FileName,
                 PageKey = page == null ? string.Empty : page.Key,
+                Source = line.Source,
             }, tag, "Unknown block tag \"" + tag + "\"");
         }
 
@@ -682,8 +684,8 @@ namespace Server.MirObjects
                     ScriptDiagnostics.Report(ScriptDiagnosticKind.MalformedSection, new ScriptParseContext
                     {
                         Line = entry.Text,
-                        LineNumber = entry.Index + 1,
-                        FileName = ScriptParseScope.FileName,
+                        LineNumber = SourceAt(lines, entry.Index).Number,
+                        FileName = SourceAt(lines, entry.Index).FileName,
                     }, "Quests", "Unknown quest: " + index);
 
                     continue;

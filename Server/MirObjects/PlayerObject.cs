@@ -123,7 +123,7 @@ namespace Server.MirObjects
         public int NPCScriptID;
         public NPCPage NPCPage;
         public Dictionary<NPCSegment, bool> NPCSuccess = new Dictionary<NPCSegment, bool>();
-        public bool NPCDelayed;
+
         public bool NPCDialogClose;
         public List<string> NPCSpeech = new List<string>();
         public Dictionary<string, object> NPCData = new Dictionary<string, object>();
@@ -550,7 +550,8 @@ namespace Server.MirObjects
                     CompleteMine(action.Params);
                     break;
                 case DelayedType.NPC:
-                    CompleteNPC(action.Params);
+                    ExecuteNpcAction(action);
+                    CallNPCNextPage(1);
                     break;
                 case DelayedType.Poison:
                     CompletePoison(action.Params);
@@ -2400,6 +2401,24 @@ namespace Server.MirObjects
                     break;
             }
         }
+        private void ExecuteNpcAction(DelayedAction action)
+        {
+            var interaction = action.Interaction ?? new ScriptInteraction(false);
+            using var scope = ScriptInteraction.Enter(this, interaction);
+            using var evidence = ScriptDiagnostics.BeginExecution(interaction.CreateEvidence(action.ScriptEvidence));
+            if (interaction.Failed) return;
+            try
+            {
+                CompleteNPC(action.Params);
+            }
+            catch (Exception ex)
+            {
+                ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, NPCPage?.Key, "NPC",
+                    "Queued NPC operation failed; the call chain was stopped.", NPCPage?.FileName,
+                    ex.GetType().FullName, ex);
+            }
+        }
+
         private void CompleteNPC(IList<object> data)
         {
             uint npcid = (uint)data[0];
@@ -2411,17 +2430,19 @@ namespace Server.MirObjects
                 Map map = (Map)data[3];
                 Point coords = (Point)data[4];
 
+                if (ScriptInteraction.Current != null) ScriptInteraction.Current.HasSideEffects = true;
                 Teleport(map, coords);
             }
-
-            NPCDelayed = true;
 
             if (page.Length > 0)
             {
                 NPCScript script;
 
                 if (Envir.Scripts.TryGetValue(scriptid, out script))
-                    script.Call(this, npcid, page.ToUpper());
+                    script.CallInternal(this, npcid, page);
+                else
+                    ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.LoadFailed, page, "NPC",
+                        "Queued script is unavailable; the call chain was stopped.", "ScriptID:" + scriptid);
             }
         }
         private UserItem GetBait(int count)
@@ -6131,6 +6152,10 @@ namespace Server.MirObjects
             key = string.Format("[@_{0}]", key);
 
             DelayedAction action = new DelayedAction(DelayedType.NPC, Envir.Time, Envir.DefaultNPC.LoadedObjectID, Envir.DefaultNPC.ScriptID, key);
+            // Automatic events have their own failure boundary, even when triggered by another script.
+            action.Interaction = new ScriptInteraction(type == DefaultNPCType.UseItem ||
+                type == DefaultNPCType.CustomCommand || type == DefaultNPCType.OnAcceptQuest ||
+                type == DefaultNPCType.OnFinishQuest);
             ActionList.Add(action);
 
             Enqueue(new S.NPCUpdate { NPCID = Envir.DefaultNPC.LoadedObjectID });
@@ -6139,6 +6164,7 @@ namespace Server.MirObjects
         public void CallDefaultNPC(string key)
         {
             if (NPCObjectID != Envir.DefaultNPC.LoadedObjectID) return;
+            using var scope = ScriptInteraction.Enter(this, new ScriptInteraction(true));
 
             var script = NPCScript.Get(NPCScriptID);
             script.Call(this, NPCObjectID, key.ToUpper());
@@ -6149,6 +6175,7 @@ namespace Server.MirObjects
         public void CallNPC(uint objectID, string key)
         {
             if (Dead) return;
+            using var scope = ScriptInteraction.Enter(this, new ScriptInteraction(true));
 
             key = key.ToUpper();
 
@@ -6180,26 +6207,29 @@ namespace Server.MirObjects
         /// <summary>How many queued page calls one request may run before the chain is dropped.</summary>
         private const int MaxNpcChainSteps = 64;
 
-        private void CallNPCNextPage()
+        private void CallNPCNextPage(int steps = 0)
         {
-            //process any new npc calls immediately
-            int steps = 0;
-
-            for (int i = 0; i < ActionList.Count; i++)
+            // Remove before executing. Rescan because a callback may cancel, clear or append actions.
+            while (true)
             {
-                if (ActionList[i].Type != DelayedType.NPC || ActionList[i].Time != -1) continue;
+                int i = ActionList.FindIndex(action => action.Type == DelayedType.NPC && action.Time == -1);
+                if (i < 0) return;
+
+                var action = ActionList[i];
+                ActionList.RemoveAt(i);
+
+                if (action.FlaggedToRemove) continue;
 
                 if (steps++ >= MaxNpcChainSteps)
                 {
-                    AbortNpcChain(i);
+                    using var scope = ScriptInteraction.Enter(this,
+                        action.Interaction ?? ScriptInteraction.Current ?? new ScriptInteraction(false));
+                    using var evidence = ScriptDiagnostics.BeginExecution(ScriptInteraction.Current.CreateEvidence(action.ScriptEvidence));
+                    AbortNpcChain(0);
                     return;
                 }
 
-                var action = ActionList[i];
-
-                ActionList.RemoveAt(i);
-
-                CompleteNPC(action.Params);
+                ExecuteNpcAction(action);
             }
         }
 
@@ -6212,6 +6242,8 @@ namespace Server.MirObjects
             for (int i = ActionList.Count - 1; i >= from; i--)
             {
                 if (ActionList[i].Type != DelayedType.NPC || ActionList[i].Time != -1) continue;
+                if (ScriptInteraction.Current != null && ActionList[i].Interaction != null &&
+                    !ReferenceEquals(ActionList[i].Interaction, ScriptInteraction.Current)) continue;
 
                 ActionList.RemoveAt(i);
             }
@@ -6219,7 +6251,7 @@ namespace Server.MirObjects
             string page = NPCPage == null ? string.Empty : NPCPage.Key;
 
             ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.ChainLimit, page, "NPC",
-                "NPC page chain stopped after " + MaxNpcChainSteps + " steps");
+                "NPC page chain stopped after " + MaxNpcChainSteps + " steps", NPCPage?.FileName);
         }
 
         public void BuyItem(ulong index, ushort count, PanelType type)

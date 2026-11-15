@@ -214,14 +214,6 @@ namespace Server.MirEnvir
             PasswordReg = new Regex(@"^[A-Za-z0-9]{" + Globals.MinPasswordLength + "," + Globals.MaxPasswordLength + "}$");
             EMailReg = new Regex(@"\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*");
             CharacterReg = new Regex(@"^[\u4e00-\u9fa5_A-Za-z0-9]{" + Globals.MinCharacterNameLength + "," + Globals.MaxCharacterNameLength + "}$");
-
-            ScriptDiagnostics.Sink = LogScriptDiagnostic;
-        }
-
-        /// <summary>Surfaces script problems in the server log; the collection stays queryable for tools.</summary>
-        private static void LogScriptDiagnostic(string message)
-        {
-            Logger.GetLogger(LogType.Server).Warn(message);
         }
 
         public static bool IsPasswordValid(string password)
@@ -2241,6 +2233,7 @@ namespace Server.MirEnvir
                 }
                 finally
                 {
+                    ScriptDiagnosticLog.Shutdown();
                     lock (_lifecycleLock)
                         _thread = null;
                 }
@@ -3479,6 +3472,13 @@ namespace Server.MirEnvir
 
         private void StartEnvir()
         {
+            // Initialize only when loading the live world, not when tools touch Envir.Main.
+            ScriptDiagnosticLog.Initialize();
+            ScriptDiagnostics.DetailSink = ScriptDiagnosticLog.Write;
+            ScriptDiagnostics.Sink = null;
+            ScriptDiagnosticLog.Flush();
+            ScriptDiagnostics.Clear();
+
             Players.Clear();
             StartPoints.Clear();
             StartItems.Clear();
@@ -3577,7 +3577,8 @@ namespace Server.MirEnvir
             MonsterNPC = NPCScript.GetOrAdd((uint)Random.Next(2000000, 2999999), Settings.MonsterNPCFilename, NPCScriptType.AutoMonster);
             RobotNPC = NPCScript.GetOrAdd((uint)Random.Next(3000000, 3999999), Settings.RobotNPCFilename, NPCScriptType.Robot);
 
-            MessageQueue.Enqueue(GameLanguage.Get("Envir Started."));           
+            ScriptDiagnosticLog.ReportLoadSummary("loaded");
+            MessageQueue.Enqueue(GameLanguage.Get("Envir Started."));
 
         }
 
@@ -5704,6 +5705,7 @@ namespace Server.MirEnvir
             SaveGoods(true);
 
             // Diagnostics describe the load that is about to run, not the one before it.
+            ScriptDiagnosticLog.Flush();
             ScriptDiagnostics.Clear();
 
             Robot.Clear();
@@ -5715,6 +5717,7 @@ namespace Server.MirEnvir
                 Scripts[key].Load();
             }
 
+            ScriptDiagnosticLog.ReportLoadSummary("reloaded");
             MessageQueue.Enqueue(GameLanguage.Get("NPC Scripts Reloaded."));
         }
 

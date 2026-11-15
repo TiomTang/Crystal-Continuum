@@ -13,12 +13,21 @@ namespace Server.MirObjects
         public readonly int Order;
 
         public readonly Action<List<string>> Apply;
+        public readonly Action<List<ScriptSourceLine>> ApplySource;
 
-        public ScriptDirectiveEntry(string tag, int order, Action<List<string>> apply)
+        public ScriptDirectiveEntry(string tag, int order, Action<List<string>> apply,
+            Action<List<ScriptSourceLine>> applySource = null)
         {
             Tag = tag;
             Order = order;
             Apply = apply;
+            ApplySource = applySource ?? (source =>
+            {
+                var text = source.Select(line => line.Text).ToList();
+                apply(text);
+                source.Clear();
+                source.AddRange(ScriptSourceLine.Bind(text, ScriptParseScope.FileName));
+            });
         }
     }
 
@@ -30,10 +39,10 @@ namespace Server.MirObjects
     public static class ScriptDirectiveCatalog
     {
         public static readonly ScriptDirectiveEntry Insert =
-            new ScriptDirectiveEntry("#INSERT", 10, ScriptDirectiveHandlers.Insert);
+            new ScriptDirectiveEntry("#INSERT", 10, ScriptDirectiveHandlers.Insert, ScriptDirectiveHandlers.InsertSource);
 
         public static readonly ScriptDirectiveEntry Include =
-            new ScriptDirectiveEntry("#INCLUDE", 20, ScriptDirectiveHandlers.Include);
+            new ScriptDirectiveEntry("#INCLUDE", 20, ScriptDirectiveHandlers.Include, ScriptDirectiveHandlers.IncludeSource);
 
         public static readonly ScriptDirectiveEntry[] Entries = { Insert, Include };
 

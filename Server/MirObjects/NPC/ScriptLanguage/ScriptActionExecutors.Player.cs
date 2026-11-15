@@ -30,8 +30,8 @@ namespace Server.MirObjects
                 Map targetmap = Envir.GetMapByNameAndInstance(param[0]);
                 if (targetmap == null) return ScriptOutcome.Abort;
 
-                if (!int.TryParse(param[1], out int x)) return ScriptOutcome.Abort;
-                if (!int.TryParse(param[2], out int y)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out int x)) return ScriptOutcome.InvalidArguments;
+                if (!int.TryParse(param[2], out int y)) return ScriptOutcome.InvalidArguments;
 
                 var coords = new Point(x, y);
 
@@ -50,9 +50,9 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[1], out int instanceId)) return ScriptOutcome.Abort;
-                if (!int.TryParse(param[2], out int x)) return ScriptOutcome.Abort;
-                if (!int.TryParse(param[3], out int y)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out int instanceId)) return ScriptOutcome.InvalidArguments;
+                if (!int.TryParse(param[2], out int x)) return ScriptOutcome.InvalidArguments;
+                if (!int.TryParse(param[3], out int y)) return ScriptOutcome.InvalidArguments;
 
                 var targetmap = Envir.GetMapByNameAndInstance(param[0], instanceId);
                 if (targetmap == null) return ScriptOutcome.Abort;
@@ -89,9 +89,9 @@ namespace Server.MirObjects
 
             {
                 if (player.GroupMembers == null) return ScriptOutcome.Abort;
-                if (!int.TryParse(param[1], out int tempInt)) return ScriptOutcome.Abort;
-                if (!int.TryParse(param[2], out int x)) return ScriptOutcome.Abort;
-                if (!int.TryParse(param[3], out int y)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out int tempInt)) return ScriptOutcome.InvalidArguments;
+                if (!int.TryParse(param[2], out int x)) return ScriptOutcome.InvalidArguments;
+                if (!int.TryParse(param[3], out int y)) return ScriptOutcome.InvalidArguments;
 
                 var targetmap = Envir.GetMapByNameAndInstance(param[0], tempInt);
                 if (targetmap == null) return ScriptOutcome.Abort;
@@ -184,7 +184,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!uint.TryParse(param[0], out uint gold)) return ScriptOutcome.Abort;
+                if (!uint.TryParse(param[0], out uint gold)) return ScriptOutcome.InvalidArguments;
 
                 if (gold + player.Account.Gold >= uint.MaxValue)
                     gold = uint.MaxValue - player.Account.Gold;
@@ -203,7 +203,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!uint.TryParse(param[0], out uint gold)) return ScriptOutcome.Abort;
+                if (!uint.TryParse(param[0], out uint gold)) return ScriptOutcome.InvalidArguments;
 
                 if (gold >= player.Account.Gold) gold = player.Account.Gold;
 
@@ -222,7 +222,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!uint.TryParse(param[0], out uint gold)) return ScriptOutcome.Abort;
+                if (!uint.TryParse(param[0], out uint gold)) return ScriptOutcome.InvalidArguments;
 
                 if (gold + player.MyGuild.Gold >= uint.MaxValue)
                     gold = uint.MaxValue - player.MyGuild.Gold;
@@ -242,7 +242,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!uint.TryParse(param[0], out uint gold)) return ScriptOutcome.Abort;
+                if (!uint.TryParse(param[0], out uint gold)) return ScriptOutcome.InvalidArguments;
 
                 if (gold >= player.MyGuild.Gold) gold = player.MyGuild.Gold;
 
@@ -261,7 +261,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!uint.TryParse(param[0], out uint credit)) return ScriptOutcome.Abort;
+                if (!uint.TryParse(param[0], out uint credit)) return ScriptOutcome.InvalidArguments;
 
                 if (credit + player.Account.Credit >= uint.MaxValue)
                     credit = uint.MaxValue - player.Account.Credit;
@@ -280,7 +280,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!uint.TryParse(param[0], out uint credit)) return ScriptOutcome.Abort;
+                if (!uint.TryParse(param[0], out uint credit)) return ScriptOutcome.InvalidArguments;
 
                 if (credit >= player.Account.Credit) credit = player.Account.Credit;
 
@@ -299,7 +299,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!uint.TryParse(param[0], out uint pearls)) return ScriptOutcome.Abort;
+                if (!uint.TryParse(param[0], out uint pearls)) return ScriptOutcome.InvalidArguments;
 
                 if (pearls + player.Info.PearlCount >= int.MaxValue)
                     pearls = (uint)(int.MaxValue - player.Info.PearlCount);
@@ -318,7 +318,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!uint.TryParse(param[0], out uint pearls)) return ScriptOutcome.Abort;
+                if (!uint.TryParse(param[0], out uint pearls)) return ScriptOutcome.InvalidArguments;
 
                 if (pearls >= player.Info.PearlCount) pearls = (uint)player.Info.PearlCount;
 
@@ -336,7 +336,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 var conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
                 if (conquest == null) return ScriptOutcome.Abort;
 
@@ -573,7 +573,7 @@ namespace Server.MirObjects
 
             {
                 uint tempUint;
-                if (!uint.TryParse(param[0], out tempUint)) return ScriptOutcome.Abort;
+                if (!uint.TryParse(param[0], out tempUint)) return ScriptOutcome.InvalidArguments;
                 player.GainExp(tempUint);
             }
             return ScriptOutcome.Pass;
@@ -588,7 +588,7 @@ namespace Server.MirObjects
             if (obj == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 ChangeObjectHP(obj, tempInt);
             }
             return ScriptOutcome.Pass;
@@ -603,7 +603,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 player.ChangeMP(tempInt);
             }
             return ScriptOutcome.Pass;
@@ -618,7 +618,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!ushort.TryParse(param[0], out ushort tempuShort)) return ScriptOutcome.Abort;
+                if (!ushort.TryParse(param[0], out ushort tempuShort)) return ScriptOutcome.InvalidArguments;
                 tempuShort = Math.Min(ushort.MaxValue, tempuShort);
 
                 player.Level = tempuShort;
@@ -671,7 +671,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 player.PKPoints = tempInt;
             }
             return ScriptOutcome.Pass;
@@ -686,7 +686,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
 
                 player.PKPoints -= tempInt;
                 if (player.PKPoints < 0) player.PKPoints = 0;
@@ -703,7 +703,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 player.PKPoints += tempInt;
             }
             return ScriptOutcome.Pass;
@@ -765,7 +765,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!Enum.TryParse(param[0], true, out MirClass mirClass)) return ScriptOutcome.Abort;
+                if (!Enum.TryParse(param[0], true, out MirClass mirClass)) return ScriptOutcome.InvalidArguments;
 
                 switch (mirClass)
                 {
@@ -803,8 +803,8 @@ namespace Server.MirObjects
             {
                 int flagIndex;
                 uint onCheck;
-                if (!int.TryParse(param[0], out flagIndex)) return ScriptOutcome.Abort;
-                if (!uint.TryParse(param[1], out onCheck)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out flagIndex)) return ScriptOutcome.InvalidArguments;
+                if (!uint.TryParse(param[1], out onCheck)) return ScriptOutcome.InvalidArguments;
 
                 if (flagIndex < 0 || flagIndex >= Globals.FlagIndexCount) return ScriptOutcome.Abort;
                 var flagIsOn = Convert.ToBoolean(onCheck);
@@ -831,7 +831,7 @@ namespace Server.MirObjects
             if (obj == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[1], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out int tempInt)) return ScriptOutcome.InvalidArguments;
 
                 seg.Param1 = param[0];
                 seg.Param1Instance = tempInt;
@@ -848,7 +848,7 @@ namespace Server.MirObjects
             if (obj == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
 
                 seg.Param2 = tempInt;
             }
@@ -864,7 +864,7 @@ namespace Server.MirObjects
             if (obj == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
 
                 seg.Param3 = tempInt;
             }
@@ -936,7 +936,7 @@ namespace Server.MirObjects
                 byte spellLevel = 0;
 
                 Spell skill;
-                if (!Enum.TryParse(param[0], true, out skill)) return ScriptOutcome.Abort;
+                if (!Enum.TryParse(param[0], true, out skill)) return ScriptOutcome.InvalidArguments;
 
                 if (player.Info.Magics.Any(e => e.Spell == skill)) return ScriptOutcome.Pass;
 
@@ -962,7 +962,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!Enum.TryParse(param[0], true, out Spell skill)) return ScriptOutcome.Abort;
+                if (!Enum.TryParse(param[0], true, out Spell skill)) return ScriptOutcome.InvalidArguments;
 
                 if (!player.Info.Magics.Any(e => e.Spell == skill)) return ScriptOutcome.Pass;
 
@@ -1102,7 +1102,7 @@ namespace Server.MirObjects
                 byte spellLevel = 0;
 
                 Spell skill;
-                if (!Enum.TryParse(param[0], true, out skill)) return ScriptOutcome.Abort;
+                if (!Enum.TryParse(param[0], true, out skill)) return ScriptOutcome.InvalidArguments;
 
                 if (player.Hero.Info.Magics.Any(e => e.Spell == skill)) return ScriptOutcome.Pass;
 
@@ -1130,7 +1130,7 @@ namespace Server.MirObjects
             {
                 if (player.Hero == null || player.Hero.Info == null) return ScriptOutcome.Abort;
 
-                if (!Enum.TryParse(param[0], true, out Spell skill)) return ScriptOutcome.Abort;
+                if (!Enum.TryParse(param[0], true, out Spell skill)) return ScriptOutcome.InvalidArguments;
 
                 if (!player.Hero.Info.Magics.Any(e => e.Spell == skill)) return ScriptOutcome.Pass;
 

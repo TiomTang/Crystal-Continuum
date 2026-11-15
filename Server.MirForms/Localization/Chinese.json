@@ -1012,6 +1012,10 @@
     "Source": "Can not pick up, You do not own this item.",
     "Text": "无法拾取，你不是该物品的所有者。"
   },
+  "This operation could not be completed. Please contact an administrator. Reference: {0}": {
+    "Source": "This operation could not be completed. Please contact an administrator. Reference: {0}",
+    "Text": "本次操作未能正常完成，请联系管理员。问题编号：{0}"
+  },
   "You cannot carry anymore quest items.": {
     "Source": "You cannot carry anymore quest items.",
     "Text": "你不能再携带更多任务物品。"

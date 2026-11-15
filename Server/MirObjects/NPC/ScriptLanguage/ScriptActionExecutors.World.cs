@@ -42,12 +42,12 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int scriptID)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int scriptID)) return ScriptOutcome.InvalidArguments;
 
                 if (!Envir.Scripts.ContainsKey(scriptID))
                 {
                     ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingScript,
-                        seg.Page == null ? string.Empty : seg.Page.Key, "CALL", "Unknown script: " + scriptID);
+                        seg.Page == null ? string.Empty : seg.Page.Key, "CALL", "Unknown script: " + scriptID, seg.Page?.FileName);
 
                     return ScriptOutcome.Abort;
                 }
@@ -61,19 +61,7 @@ namespace Server.MirObjects
 
         internal static ScriptOutcome Exec_Break(ScriptExecuteContext ctx)
         {
-            NPCSegment seg = ctx.Segment;
-            MapObject obj = (MapObject)ctx.Player ?? ctx.Monster;
-
-            if (obj == null)
-            {
-                // No player or monster behind the call (internal page run): the page itself is the
-                // only place the request state can live.
-                seg.Page.BreakFromSegments = true;
-
-                return ScriptOutcome.Pass;
-            }
-
-            obj.NPCBreak = true;
+            if (ctx.Call != null) ctx.Call.BreakRequested = true;
 
             return ScriptOutcome.Pass;
         }
@@ -120,7 +108,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!long.TryParse(param[0], out long tempLong)) return ScriptOutcome.Abort;
+                if (!long.TryParse(param[0], out long tempLong)) return ScriptOutcome.InvalidArguments;
 
                 var action = new DelayedAction(DelayedType.NPC, Envir.Time + (tempLong * 1000), player.NPCObjectID, player.NPCScriptID, "[" + param[1] + "]");
                 player.ActionList.Add(action);
@@ -159,7 +147,7 @@ namespace Server.MirObjects
 
             {
                 var tempString = "";
-                if (!long.TryParse(param[0], out long tempLong)) return ScriptOutcome.Abort;
+                if (!long.TryParse(param[0], out long tempLong)) return ScriptOutcome.InvalidArguments;
 
                 if (param[1].Length > 0) tempString = "[" + param[1] + "]";
 
@@ -183,7 +171,7 @@ namespace Server.MirObjects
             {
                 var tempString = "";
                 if (player.GroupMembers == null) return ScriptOutcome.Abort;
-                if (!long.TryParse(param[0], out long tempLong)) return ScriptOutcome.Abort;
+                if (!long.TryParse(param[0], out long tempLong)) return ScriptOutcome.InvalidArguments;
                 if (param[1].Length > 0) tempString = "[" + param[1] + "]";
 
                 for (int j = 0; j < player.GroupMembers.Count(); j++)
@@ -225,7 +213,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[1], out int seconds) || !byte.TryParse(param[2], out byte type)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out int seconds) || !byte.TryParse(param[2], out byte type)) return ScriptOutcome.InvalidArguments;
 
                 bool.TryParse(param[3], out bool global);
 
@@ -441,7 +429,7 @@ namespace Server.MirObjects
 
             {
                 if (seg.Param1 == null || seg.Param2 == 0 || seg.Param3 == 0) return ScriptOutcome.Abort;
-                if (!byte.TryParse(param[1], out byte tempByte)) return ScriptOutcome.Abort;
+                if (!byte.TryParse(param[1], out byte tempByte)) return ScriptOutcome.InvalidArguments;
 
                 Map targetmap = Envir.GetMapByNameAndInstance(seg.Param1, seg.Param1Instance);
                 if (targetmap == null) return ScriptOutcome.Abort;
@@ -470,7 +458,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[1], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out int tempInt)) return ScriptOutcome.InvalidArguments;
 
                 var targetmap = Envir.GetMapByNameAndInstance(param[0], tempInt);
                 if (targetmap == null) return ScriptOutcome.Abort;
@@ -506,7 +494,7 @@ namespace Server.MirObjects
 
             {
                 if (seg.Param1 == null || seg.Param2 == 0 || seg.Param3 == 0) return ScriptOutcome.Abort;
-                if (!byte.TryParse(param[1], out byte tempByte)) return ScriptOutcome.Abort;
+                if (!byte.TryParse(param[1], out byte tempByte)) return ScriptOutcome.InvalidArguments;
 
                 var map = Envir.GetMapByNameAndInstance(seg.Param1, seg.Param1Instance);
                 if (map == null) return ScriptOutcome.Abort;
@@ -535,7 +523,7 @@ namespace Server.MirObjects
             if (monster == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[1], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out int tempInt)) return ScriptOutcome.InvalidArguments;
 
                 var map = Envir.GetMapByNameAndInstance(param[0], tempInt);
                 if (map == null) return ScriptOutcome.Abort;
@@ -569,11 +557,11 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 var Conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
                 if (Conquest == null) return ScriptOutcome.Abort;
 
-                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.InvalidArguments;
                 ConquestGuildGateInfo OpenGate = Conquest.GateList.FirstOrDefault(z => z.Index == tempInt);
                 if (OpenGate == null) return ScriptOutcome.Abort;
                 if (OpenGate.Gate == null) return ScriptOutcome.Abort;
@@ -591,11 +579,11 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 var conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
                 if (conquest == null) return ScriptOutcome.Abort;
 
-                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.InvalidArguments;
                 ConquestGuildGateInfo CloseGate = conquest.GateList.FirstOrDefault(z => z.Index == tempInt);
                 if (CloseGate == null) return ScriptOutcome.Abort;
                 if (CloseGate.Gate == null) return ScriptOutcome.Abort;
@@ -616,11 +604,11 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 var conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
                 if (conquest == null) return ScriptOutcome.Abort;
 
-                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.InvalidArguments;
                 ConquestGuildArcherInfo conquestArcher = conquest.ArcherList.FirstOrDefault(z => z.Index == tempInt);
                 if (conquestArcher == null) return ScriptOutcome.Abort;
 
@@ -653,11 +641,11 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 var conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
                 if (conquest == null) return ScriptOutcome.Abort;
 
-                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.InvalidArguments;
                 ConquestGuildGateInfo conquestGate = conquest.GateList.FirstOrDefault(z => z.Index == tempInt);
                 if (conquestGate == null) return ScriptOutcome.Abort;
 
@@ -687,11 +675,11 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 var conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
                 if (conquest == null) return ScriptOutcome.Abort;
 
-                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[1], out tempInt)) return ScriptOutcome.InvalidArguments;
                 ConquestGuildWallInfo conquestWall = conquest.WallList.FirstOrDefault(z => z.Index == tempInt);
 
                 if (conquestWall == null) return ScriptOutcome.Abort;
@@ -722,11 +710,11 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 var conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
                 if (conquest == null) return ScriptOutcome.Abort;
 
-                if (!byte.TryParse(param[1], out byte tempByte)) return ScriptOutcome.Abort;
+                if (!byte.TryParse(param[1], out byte tempByte)) return ScriptOutcome.InvalidArguments;
                 if (player.MyGuild != null && player.MyGuild.Guildindex == conquest.GuildInfo.Owner)
                 {
                     conquest.GuildInfo.NPCRate = tempByte;
@@ -744,7 +732,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 var conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
                 if (conquest == null) return ScriptOutcome.Abort;
 
@@ -790,7 +778,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
                 var conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
                 if (conquest == null) return ScriptOutcome.Abort;
 
@@ -817,7 +805,7 @@ namespace Server.MirObjects
                 return ScriptOutcome.Abort;
             }
 
-            if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.Abort;
+            if (!int.TryParse(param[0], out int tempInt)) return ScriptOutcome.InvalidArguments;
             var conquest = Envir.Conquests.FirstOrDefault(z => z.Info.Index == tempInt);
             if (conquest == null) return ScriptOutcome.Abort;
 

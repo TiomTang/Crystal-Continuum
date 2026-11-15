@@ -10,11 +10,36 @@ namespace Server.MirObjects
     {
         public readonly string Text;
         public readonly int Number;
+        public readonly string FileName;
+        public readonly ScriptSourceInfo Source;
+        public readonly ScriptDiagnostic Error;
 
-        public ScriptSourceLine(string text, int number)
+        public ScriptSourceLine(string text, int number, string fileName = null, ScriptSourceInfo source = null, ScriptDiagnostic error = null)
         {
             Text = text;
             Number = number;
+            FileName = fileName;
+            Source = source ?? new ScriptSourceInfo(fileName, number, text);
+            Error = error;
+        }
+
+        /// <summary>Bind original locations before directives change the number or order of lines.</summary>
+        public static List<ScriptSourceLine> Bind(IList<string> lines, string fileName)
+        {
+            var source = new List<ScriptSourceLine>(lines.Count);
+            string version = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(string.Join("\n", lines))));
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var context = new List<string>();
+                for (int j = Math.Max(0, i - 1); j <= Math.Min(lines.Count - 1, i + 1); j++)
+                    context.Add((j + 1) + ": " + lines[j]);
+                source.Add(new ScriptSourceLine(lines[i], i + 1, fileName,
+                    new ScriptSourceInfo(fileName, i + 1, lines[i], string.Join("\n", context), version)));
+            }
+
+            return source;
         }
     }
 
@@ -35,6 +60,7 @@ namespace Server.MirObjects
 
         /// <summary>Page the line belongs to, for diagnostics.</summary>
         public string PageKey;
+        public ScriptSourceInfo Source;
 
         /// <summary>Segment receiving the parsed checks and actions.</summary>
         public NPCSegment Segment;

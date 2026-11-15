@@ -216,7 +216,7 @@ namespace Server.MirObjects
 
             {
                 ChatType chatType;
-                if (!Enum.TryParse(param[1], true, out chatType)) return ScriptOutcome.Abort;
+                if (!Enum.TryParse(param[1], true, out chatType)) return ScriptOutcome.InvalidArguments;
                 player.ReceiveChat(param[0], chatType);
             }
             return ScriptOutcome.Pass;
@@ -231,7 +231,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!Enum.TryParse(param[1], true, out ChatType chatType)) return ScriptOutcome.Abort;
+                if (!Enum.TryParse(param[1], true, out ChatType chatType)) return ScriptOutcome.InvalidArguments;
 
                 var p = new S.Chat { Message = param[0], Type = chatType };
                 Envir.Broadcast(p);
@@ -248,7 +248,7 @@ namespace Server.MirObjects
             if (monster == null) return ScriptOutcome.Pass;
 
             {
-                if (!Enum.TryParse(param[1], true, out ChatType chatType)) return ScriptOutcome.Abort;
+                if (!Enum.TryParse(param[1], true, out ChatType chatType)) return ScriptOutcome.InvalidArguments;
 
                 var p = new S.Chat { Message = param[0], Type = chatType };
                 Envir.Broadcast(p);
@@ -472,7 +472,7 @@ namespace Server.MirObjects
             if (player == null) return ScriptOutcome.Pass;
 
             {
-                if (!int.TryParse(param[0], out int soundID)) return ScriptOutcome.Abort;
+                if (!int.TryParse(param[0], out int soundID)) return ScriptOutcome.InvalidArguments;
                 player.Enqueue(new S.PlaySound { Sound = soundID });
             }
             return ScriptOutcome.Pass;

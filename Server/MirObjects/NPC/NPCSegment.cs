@@ -29,11 +29,50 @@ namespace Server.MirObjects
         public List<NPCChecks> CheckList = new List<NPCChecks>();
         public List<NPCActions> ActList = new List<NPCActions>(), ElseActList = new List<NPCActions>();
         public List<string> Say, ElseSay, Buttons, ElseButtons, GotoButtons;
+        public ScriptSourceInfo Source;
+        public List<ScriptSourceInfo> SaySources = new List<ScriptSourceInfo>();
+        public List<ScriptSourceInfo> ElseSaySources = new List<ScriptSourceInfo>();
 
         public string Param1;
         public int Param1Instance, Param2, Param3;
 
         public List<string> Args = new List<string>();
+
+        internal bool HasInvalidChecks { get; private set; }
+        internal bool HasInvalidActions { get; private set; }
+        internal bool IsInvalid { get { return HasInvalidChecks || HasInvalidActions; } }
+        internal ScriptDiagnostic InvalidDiagnostic { get; private set; }
+
+        [ThreadStatic] private static ScriptCallContext _executingCall;
+        [ThreadStatic] private static bool _executingDisplay;
+        [ThreadStatic] private static List<string> _executionInputs;
+
+        internal void InvalidateChecks()
+        {
+            HasInvalidChecks = true;
+        }
+
+        internal void InvalidateActions()
+        {
+            HasInvalidActions = true;
+        }
+
+        internal void MarkInvalid(ScriptDiagnostic diagnostic, bool check)
+        {
+            if (check) InvalidateChecks();
+            else InvalidateActions();
+            if (InvalidDiagnostic == null) InvalidDiagnostic = diagnostic;
+        }
+
+        /// <summary>Remove invocation-only input before diagnostic exception text is retained.</summary>
+        internal static string RedactExecutionInput(string text)
+        {
+            text = ScriptInteraction.Current?.RedactInput(text) ?? text;
+            if (text == null || _executionInputs == null) return text;
+            foreach (string input in _executionInputs)
+                if (!string.IsNullOrEmpty(input)) text = text.Replace(input, "[redacted]", StringComparison.Ordinal);
+            return text;
+        }
 
         public NPCSegment(NPCPage page, List<string> say, List<string> buttons, List<string> elseSay, List<string> elseButtons, List<string> gotoButtons)
         {
@@ -96,7 +135,7 @@ namespace Server.MirObjects
             return key;
         }
 
-        public void ParseCheck(string line, int lineNumber = 0)
+        public void ParseCheck(string line, int lineNumber = 0, ScriptSourceInfo source = null)
         {
             string[] parts = ScriptLexer.Tokenize(line);
 
@@ -109,13 +148,14 @@ namespace Server.MirObjects
                 Parts = parts,
                 Line = line,
                 LineNumber = lineNumber,
-                FileName = ScriptParseScope.FileName,
+                FileName = source?.FileName ?? ScriptParseScope.FileName ?? Page?.FileName,
+                Source = source,
                 PageKey = Page == null ? string.Empty : Page.Key,
                 Segment = this,
             });
         }
 
-        public void ParseAct(List<NPCActions> acts, string line, int lineNumber = 0)
+        public void ParseAct(List<NPCActions> acts, string line, int lineNumber = 0, ScriptSourceInfo source = null)
         {
             string[] parts = ScriptLexer.Tokenize(line);
 
@@ -128,7 +168,8 @@ namespace Server.MirObjects
                 Parts = parts,
                 Line = line,
                 LineNumber = lineNumber,
-                FileName = ScriptParseScope.FileName,
+                FileName = source?.FileName ?? ScriptParseScope.FileName ?? Page?.FileName,
+                Source = source,
                 PageKey = Page == null ? string.Empty : Page.Key,
                 Segment = this,
                 Acts = acts,
@@ -137,9 +178,42 @@ namespace Server.MirObjects
 
         public List<string> ParseSay(PlayerObject player, List<string> speech)
         {
+            return ParseSay(player, speech, null, null);
+        }
+
+        private List<string> ParseSay(PlayerObject player, List<string> speech, IList<ScriptSourceInfo> sources,
+            ScriptCallContext call)
+        {
+            call ??= new ScriptCallContext
+            {
+                LastCompletedAction = ScriptInteraction.Current?.LastCompletedAction,
+                HasSideEffects = ScriptInteraction.Current?.HasSideEffects ?? false,
+            };
             for (var i = 0; i < speech.Count; i++)
             {
-                speech[i] = ReplaceValues(player, null, speech[i]);
+                ScriptSourceInfo source = sources != null && i < sources.Count ? sources[i] : Source ?? Page?.Source;
+                using (ScriptDiagnostics.BeginExecution(CreateEvidence(source, ScriptDiagnosticPhase.Display, null, call)))
+                {
+                    ScriptCallContext previousCall = _executingCall;
+                    bool previousDisplay = _executingDisplay;
+                    _executingCall = call;
+                    _executingDisplay = true;
+                    try
+                    {
+                        speech[i] = ReplaceValues(player, null, speech[i]);
+                    }
+                    catch (Exception exception)
+                    {
+                        call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, Page?.Key, "SAY",
+                            "Failed to resolve display text.", Page?.FileName, exception: exception));
+                        return new List<string>();
+                    }
+                    finally
+                    {
+                        _executingCall = previousCall;
+                        _executingDisplay = previousDisplay;
+                    }
+                }
             }
 
             return LinkFormatter.ReplacePlaceholders(speech, (type, index) => EnsureLinkInfo(player, type, index)) ?? speech;
@@ -169,17 +243,18 @@ namespace Server.MirObjects
         /// Reports a &lt;$VALUE&gt; that no table knows. A value can also resolve to empty on purpose,
         /// so anything the tables list is left alone.
         /// </summary>
-        private void ReportUnknownValue(string name)
+        private void ReportUnknownValue(string name, bool forMonster)
         {
-            if (string.IsNullOrEmpty(name) || name.IndexOf('(') >= 0) return;
+            if (string.IsNullOrEmpty(name)) return;
 
             ScriptKeywordEntry keyword;
 
-            if (ScriptKeywordRegistry.TryGetVariable(name, out keyword)) return;
-            if (ScriptKeywordRegistry.TryGetMonsterVariable(name, out keyword)) return;
+            if (forMonster ? ScriptKeywordRegistry.TryGetMonsterVariable(name, out keyword)
+                : ScriptKeywordRegistry.TryGetVariable(name, out keyword)) return;
 
-            ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.UnknownValue, Page == null ? string.Empty : Page.Key, name,
-                "Unknown value <$" + name + ">");
+            ScriptDiagnostic diagnostic = ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.UnknownValue,
+                Page == null ? string.Empty : Page.Key, name, "Unknown value <$" + name + ">", Page?.FileName);
+            if (!_executingDisplay) _executingCall?.Abort(diagnostic);
         }
 
         public string ReplaceValue(PlayerObject player, string param)
@@ -223,7 +298,7 @@ namespace Server.MirObjects
 
             if (string.IsNullOrEmpty(newValue))
             {
-                ReportUnknownValue(innerMatch);
+                ReportUnknownValue(innerMatch, monster != null);
                 return match.Value;
             }
 
@@ -244,7 +319,14 @@ namespace Server.MirObjects
                 ? ScriptKeywordRegistry.TryGetMonsterVariable(innerMatch, out keyword)
                 : ScriptKeywordRegistry.TryGetVariable(innerMatch, out keyword);
 
-            if (!found || keyword.ValueExecutor == null) return string.Empty;
+            if (!found) return string.Empty;
+            if (keyword.ValueExecutor == null)
+            {
+                ScriptDiagnostic diagnostic = ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingExecutor,
+                    Page?.Key, innerMatch, "No value executor registered for " + innerMatch, Page?.FileName);
+                _executingCall?.Abort(diagnostic);
+                return string.Empty;
+            }
 
             return keyword.ValueExecutor(new ScriptExecuteContext
             {
@@ -260,225 +342,252 @@ namespace Server.MirObjects
 
         public bool Check()
         {
-            for (int i = 0; i < CheckList.Count; i++)
-            {
-                NPCChecks check = CheckList[i];
-                List<string> param = check.Params.ToList();
+            return Check(new ScriptCallContext());
+        }
 
-                ScriptOutcome outcome = RunCheck(check, param, null, null);
-
-                if (outcome == ScriptOutcome.Abort) return true;
-
-                if (outcome == ScriptOutcome.Fail)
-                {
-                    Failed();
-                    return false;
-                }
-            }
-
-            Success();
-            return true;
+        internal bool Check(ScriptCallContext call)
+        {
+            return Check(null, null, call);
         }
 
         public bool Check(MonsterObject monster)
         {
-            for (int i = 0; i < CheckList.Count; i++)
-            {
-                NPCChecks check = CheckList[i];
-                List<string> param = check.Params.Select(t => FindVariable(monster, t)).ToList();
+            return Check(monster, new ScriptCallContext());
+        }
 
-                for (int j = 0; j < param.Count; j++)
-                {
-                    param[j] = ReplaceValues(null, monster, param[j]);
-                }
-
-                ScriptOutcome outcome = RunCheck(check, param, null, monster);
-
-                if (outcome == ScriptOutcome.Abort) return true;
-
-                if (outcome == ScriptOutcome.Fail)
-                {
-                    Failed(monster);
-                    return false;
-                }
-            }
-
-            Success(monster);
-            return true;
+        internal bool Check(MonsterObject monster, ScriptCallContext call)
+        {
+            return Check(null, monster, call);
         }
 
         public bool Check(PlayerObject player)
         {
-            for (int i = 0; i < CheckList.Count; i++)
+            return Check(player, new ScriptCallContext());
+        }
+
+        internal bool Check(PlayerObject player, ScriptCallContext call)
+        {
+            return Check(player, null, call);
+        }
+
+        private bool Check(PlayerObject player, MonsterObject monster, ScriptCallContext call)
+        {
+            call.ConditionAborted = false;
+            if (ExecutionStopped(call)) return false;
+            if (IsInvalid)
             {
-                NPCChecks check = CheckList[i];
-                List<string> param = check.Params.Select(t => FindVariable(player, t)).ToList();
+                ReportInvalidSegment(call);
+                return false;
+            }
 
-                for (int j = 0; j < param.Count; j++)
+            foreach (NPCChecks check in CheckList)
+            {
+                ScriptOutcome outcome = RunCheck(check, player, monster, call);
+                if (outcome == ScriptOutcome.Abort || ExecutionStopped(call))
                 {
-                    param[j] = ReplaceValues(player, null, param[j]);
-                }
-
-                ScriptOutcome outcome = RunCheck(check, param, player, null);
-
-                if (outcome == ScriptOutcome.Abort) return true;
-
-                if (outcome == ScriptOutcome.Fail)
-                {
-                    Failed(player);
+                    call.ConditionAborted = true;
                     return false;
                 }
+                if (outcome != ScriptOutcome.Fail) continue;
+
+                Act(ElseActList, player, monster, call);
+                if (player != null && !ExecutionStopped(call)) AddSpeech(player, ElseSay, ElseSaySources, call);
+                return false;
             }
 
-            Success(player);
-            return true;
+            Act(ActList, player, monster, call);
+            if (ExecutionStopped(call)) return false;
+            if (player != null) AddSpeech(player, Say, SaySources, call);
+            return !ExecutionStopped(call);
+        }
+
+        private void AddSpeech(PlayerObject player, List<string> speech, IList<ScriptSourceInfo> sources, ScriptCallContext call)
+        {
+            List<string> parsed = ParseSay(player, new List<string>(speech), sources, call);
+            if (!ExecutionStopped(call)) player.NPCSpeech.AddRange(parsed);
+        }
+
+        private void ReportInvalidSegment(ScriptCallContext call)
+        {
+            ScriptDiagnostic diagnostic = InvalidDiagnostic;
+            var source = diagnostic == null ? null : new ScriptSourceInfo(diagnostic.FileName, diagnostic.Line,
+                diagnostic.Text, diagnostic.SourceContext, diagnostic.SourceVersion);
+            using (ScriptDiagnostics.BeginExecution(CreateEvidence(source,
+                HasInvalidChecks ? ScriptDiagnosticPhase.Check : ScriptDiagnosticPhase.Action, null, call)))
+            {
+                call.Abort(ScriptDiagnostics.ReportRuntime(diagnostic?.Kind ?? ScriptDiagnosticKind.InvalidArguments,
+                    Page?.Key, diagnostic?.Keyword ?? string.Empty,
+                    "Segment disabled by load diagnostic " + (diagnostic?.Id ?? "unknown") + ". " + diagnostic?.Message,
+                    Page?.FileName, source: source));
+            }
+        }
+
+        private ScriptExecutionEvidence CreateEvidence(ScriptSourceInfo source, ScriptDiagnosticPhase phase,
+            IList<string> arguments, ScriptCallContext call)
+        {
+            return new ScriptExecutionEvidence
+            {
+                Source = source ?? Source ?? Page?.Source,
+                ScriptIdentity = Page?.FileName,
+                PageKey = Page?.Key,
+                Segment = Page == null ? 0 : Page.SegmentList.IndexOf(this) + 1,
+                Phase = phase,
+                Arguments = arguments?.Select(value => value?.Replace("%INPUTSTR", "[redacted]", StringComparison.Ordinal)).ToList(),
+                LastCompletedAction = call.LastCompletedAction,
+                CallPath = ScriptInteraction.Current?.CallPath,
+                HasSideEffects = call.HasSideEffects,
+            };
+        }
+
+        private static bool ExecutionStopped(ScriptCallContext call)
+        {
+            if (ScriptInteraction.Current?.Failed == true) call.ExecutionAborted = true;
+            return call.ExecutionAborted;
+        }
+
+        private static void SyncInteraction(ScriptCallContext call)
+        {
+            if (ScriptInteraction.Current == null) return;
+            ScriptInteraction.Current.LastCompletedAction = call.LastCompletedAction;
+            call.HasSideEffects |= ScriptInteraction.Current.HasSideEffects;
+            ScriptInteraction.Current.HasSideEffects |= call.HasSideEffects;
+        }
+
+        private ScriptOutcome RunCheck(NPCChecks check, PlayerObject player, MonsterObject monster, ScriptCallContext call)
+        {
+            return RunKeyword(check, null, player, monster, null, call);
+        }
+
+        private ScriptOutcome RunAction(NPCActions action, PlayerObject player, MonsterObject monster,
+            ScriptActionState state, ScriptCallContext call)
+        {
+            return RunKeyword(null, action, player, monster, state, call);
         }
 
         /// <summary>
-        /// Looks the condition up in the keyword registry and runs it. A type without an executor is
-        /// reported instead of being silently treated as satisfied.
+        /// Bind source and invocation evidence before resolving arguments: a value executor can fail too.
+        /// Abort from an action alone retains its old list-return meaning; a reported failure aborts the call.
         /// </summary>
-        private ScriptOutcome RunCheck(NPCChecks check, List<string> param, PlayerObject player, MonsterObject monster)
+        private ScriptOutcome RunKeyword(NPCChecks check, NPCActions action, PlayerObject player, MonsterObject monster,
+            ScriptActionState state, ScriptCallContext call)
         {
-            Func<ScriptExecuteContext, ScriptOutcome> executor = ScriptKeywordRegistry.CheckExecutor(check.Type);
-
-            if (executor == null)
+            bool condition = check != null;
+            string keyword = condition ? check.Type.ToString() : action.Type.ToString();
+            IList<string> raw = condition ? check.Params : action.Params;
+            ScriptExecutionEvidence evidence = CreateEvidence(condition ? check.Source : action.Source,
+                condition ? ScriptDiagnosticPhase.Check : ScriptDiagnosticPhase.Action, raw, call);
+            ScriptCallContext previousCall = _executingCall;
+            bool previousDisplay = _executingDisplay;
+            List<string> previousInputs = _executionInputs;
+            int thread = Environment.CurrentManagedThreadId;
+            ScriptInteraction ownerInteraction = ScriptInteraction.Current;
+            Action<ScriptDiagnostic> failed = diagnostic =>
             {
-                ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.UnknownCheck, Page == null ? string.Empty : Page.Key,
-                    check.Type.ToString(), "条件没有执行器：" + check.Type);
+                if (thread == Environment.CurrentManagedThreadId && ReferenceEquals(ScriptInteraction.Current, ownerInteraction) &&
+                    ReferenceEquals(_executingCall, call)) call.Abort(diagnostic);
+            };
 
-                return ScriptOutcome.Pass;
-            }
-
-            return executor(new ScriptExecuteContext
+            using (ScriptDiagnostics.BeginExecution(evidence))
             {
-                Segment = this,
-                Check = check,
-                Params = param,
-                Player = player,
-                Monster = monster,
-            });
-        }
-
-
-                private void Act(IList<NPCActions> acts)
-        {
-            var state = new ScriptActionState();
-
-            for (var i = 0; i < acts.Count; i++)
-            {
-                NPCActions act = acts[i];
-                List<string> param = act.Params.ToList();
-                if (RunAction(act, param, null, null, state) == ScriptOutcome.Abort) return;
-            }
-        }
-
-                private void Act(IList<NPCActions> acts, PlayerObject player)
-        {
-            var state = new ScriptActionState();
-
-            for (var i = 0; i < acts.Count; i++)
-            {
-                NPCActions act = acts[i];
-                List<string> param = act.Params.Select(t => FindVariable(player, t)).ToList();
-
-                for (int j = 0; j < param.Count; j++)
+                _executingCall = call;
+                _executingDisplay = false;
+                _executionInputs = previousInputs == null ? new List<string>() : new List<string>(previousInputs);
+                if (ownerInteraction != null) ownerInteraction.LastSource = evidence.Source;
+                ScriptDiagnostics.Reported += failed;
+                try
                 {
-                    param[j] = ReplaceValues(player, null, param[j]);
-
-                    if (player.NPCData.TryGetValue("NPCInputStr", out object _npcInputStr))
+                    string input = null;
+                    if (!condition && player != null && player.NPCData.TryGetValue("NPCInputStr", out object inputValue))
                     {
-                        param[j] = param[j].Replace("%INPUTSTR", (string)_npcInputStr);
+                        input = (string)inputValue;
+                        ownerInteraction?.RememberInput(input);
+                        if (!string.IsNullOrEmpty(input)) _executionInputs.Add(input);
                     }
+
+                    var parameters = new List<string>(raw.Count);
+                    for (int i = 0; i < raw.Count; i++)
+                    {
+                        string value = raw[i];
+                        if (player != null) value = FindVariable(player, value);
+                        else if (monster != null) value = FindVariable(monster, value);
+                        value = ReplaceValues(player, monster, value);
+                        if (ExecutionStopped(call)) return ScriptOutcome.Abort;
+
+                        // Evidence never contains the substituted player input, even if a later action throws.
+                        evidence.Arguments[i] = RedactExecutionInput(value?.Replace("%INPUTSTR", "[redacted]", StringComparison.Ordinal));
+                        if (input != null) value = value.Replace("%INPUTSTR", input, StringComparison.Ordinal);
+                        parameters.Add(value);
+                    }
+
+                    Func<ScriptExecuteContext, ScriptOutcome> executor = condition
+                        ? ScriptKeywordRegistry.CheckExecutor(check.Type)
+                        : ScriptKeywordRegistry.ActionExecutor(action.Type, monster != null);
+                    if (executor == null)
+                    {
+                        call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingExecutor, Page?.Key, keyword,
+                            "No executor registered for " + keyword, Page?.FileName));
+                        return ScriptOutcome.Abort;
+                    }
+
+                    // Conservative: a throwing or early-returning executor may already have changed the world.
+                    if (!condition) evidence.HasSideEffects = call.HasSideEffects = true;
+                    SyncInteraction(call);
+                    ScriptOutcome outcome = executor(new ScriptExecuteContext
+                    {
+                        Segment = this,
+                        Check = check,
+                        Action = action,
+                        Params = parameters,
+                        Player = player,
+                        Monster = monster,
+                        State = state,
+                        Call = call,
+                    });
+                    if (ExecutionStopped(call)) return ScriptOutcome.Abort;
+                    if (outcome == ScriptOutcome.InvalidArguments)
+                    {
+                        string usage = condition ? ScriptCheckCatalog.Find(check.Type)?.Usage : ScriptActionCatalog.Find(action.Type)?.Usage;
+                        call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.InvalidArguments, Page?.Key, keyword,
+                            "Invalid argument type or value; expected " + usage, Page?.FileName));
+                        return ScriptOutcome.Abort;
+                    }
+                    if (condition && outcome == ScriptOutcome.Abort)
+                    {
+                        call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, Page?.Key, keyword,
+                            "Condition aborted; neither branch will run.", Page?.FileName));
+                    }
+                    else if (!condition && outcome != ScriptOutcome.Abort)
+                    {
+                        call.LastCompletedAction = keyword;
+                    }
+                    return outcome;
                 }
-                if (RunAction(act, param, player, null, state) == ScriptOutcome.Abort) return;
+                catch (Exception exception)
+                {
+                    call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, Page?.Key, keyword,
+                        "Failed to execute " + (condition ? "condition " : "action ") + keyword,
+                        Page?.FileName, exception: exception));
+                    return ScriptOutcome.Abort;
+                }
+                finally
+                {
+                    ScriptDiagnostics.Reported -= failed;
+                    _executingCall = previousCall;
+                    _executingDisplay = previousDisplay;
+                    _executionInputs = previousInputs;
+                    SyncInteraction(call);
+                }
             }
         }
 
-        /// <summary>
-        /// Looks the action up in the keyword registry and runs it. A type without an executor is reported
-        /// instead of being skipped in silence.
-        /// </summary>
-        private ScriptOutcome RunAction(NPCActions act, List<string> param, PlayerObject player, MonsterObject monster,
-            ScriptActionState state)
-        {
-            Func<ScriptExecuteContext, ScriptOutcome> executor = ScriptKeywordRegistry.ActionExecutor(act.Type, monster != null);
-
-            if (executor == null)
-            {
-                ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.UnknownAction, Page == null ? string.Empty : Page.Key,
-                    act.Type.ToString(), "动作没有执行器：" + act.Type);
-
-                return ScriptOutcome.Pass;
-            }
-
-            return executor(new ScriptExecuteContext
-            {
-                Segment = this,
-                Action = act,
-                Params = param,
-                Player = player,
-                Monster = monster,
-                State = state,
-            });
-        }
-
-                private void Act(IList<NPCActions> acts, MonsterObject monster)
+        private void Act(IList<NPCActions> acts, PlayerObject player, MonsterObject monster, ScriptCallContext call)
         {
             var state = new ScriptActionState();
-
-            for (var i = 0; i < acts.Count; i++)
+            foreach (NPCActions action in acts)
             {
-                NPCActions act = acts[i];
-                List<string> param = act.Params.Select(t => FindVariable(monster, t)).ToList();
-
-                for (int j = 0; j < param.Count; j++)
-                {
-                    param[j] = ReplaceValues(null, monster, param[j]);
-                }
-                if (RunAction(act, param, null, monster, state) == ScriptOutcome.Abort) return;
+                if (ExecutionStopped(call)) return;
+                if (RunAction(action, player, monster, state, call) == ScriptOutcome.Abort || ExecutionStopped(call)) return;
             }
-        }
-
-
-        private void Success(PlayerObject player)
-        {
-            Act(ActList, player);
-
-            var parseSay = new List<String>(Say);
-            parseSay = ParseSay(player, parseSay);
-
-            player.NPCSpeech.AddRange(parseSay);
-        }
-
-        private void Failed(PlayerObject player)
-        {
-            Act(ElseActList, player);
-
-            var parseElseSay = new List<String>(ElseSay);
-            parseElseSay = ParseSay(player, parseElseSay);
-
-            player.NPCSpeech.AddRange(parseElseSay);
-        }
-
-        private void Success(MonsterObject Monster)
-        {
-            Act(ActList, Monster);
-        }
-
-        private void Failed(MonsterObject Monster)
-        {
-            Act(ElseActList, Monster);
-        }
-
-        private void Success()
-        {
-            Act(ActList);
-        }
-
-        private void Failed()
-        {
-            Act(ElseActList);
         }
 
         public static bool Compare<T>(string op, T left, T right) where T : IComparable<T>

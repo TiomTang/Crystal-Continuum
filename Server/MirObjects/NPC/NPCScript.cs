@@ -75,7 +75,7 @@ namespace Server.MirObjects
                 ClearInfo();
 
                 ScriptDiagnostics.Report(ScriptDiagnosticKind.LoadFailed,
-                    new ScriptParseContext { FileName = FileName + ".txt" }, string.Empty, ex.Message);
+                    new ScriptParseContext { FileName = FileName + ".txt" }, string.Empty, ex.Message, ex);
 
                 MessageQueue.Enqueue("Script Not Loaded: " + FileName);
 
@@ -91,7 +91,7 @@ namespace Server.MirObjects
                 // The pages parsed fine; a broken .msd only costs the shop stock. The previous stock
                 // stays untouched because LoadGoods swaps its list only after a complete read.
                 ScriptDiagnostics.Report(ScriptDiagnosticKind.LoadFailed,
-                    new ScriptParseContext { FileName = FileName + ".txt" }, "Goods", ex.Message);
+                    new ScriptParseContext { FileName = FileName + ".txt" }, "Goods", ex.Message, ex);
 
                 MessageQueue.Enqueue("Goods Not Loaded: " + FileName);
             }
@@ -124,67 +124,78 @@ namespace Server.MirObjects
 
         public void Call(MonsterObject monster, string key)
         {
-            key = key.ToUpper();
-
-            monster.NPCBreak = false;
+            using var interaction = ScriptInteraction.Enter(null, new ScriptInteraction(false), FileName + ":" + key);
+            using var evidence = ScriptDiagnostics.BeginExecution(ScriptInteraction.Current.CreateEvidence(script: FileName, page: key));
+            var call = new ScriptCallContext();
 
             for (int i = 0; i < NPCPages.Count; i++)
             {
                 NPCPage page = NPCPages[i];
-                if (!String.Equals(page.Key, key, StringComparison.CurrentCultureIgnoreCase)) continue;
+                if (!String.Equals(page.Key, key, StringComparison.OrdinalIgnoreCase)) continue;
 
                 foreach (NPCSegment segment in page.SegmentList)
                 {
-                    if (monster.NPCBreak)
-                    {
-                        monster.NPCBreak = false;
-                        break;
-                    }
+                    if (call.BreakRequested || call.ExecutionAborted || ScriptInteraction.Current.Failed) break;
 
-                    ProcessSegment(monster, page, segment);
+                    segment.Check(monster, call);
                 }
             }
         }
         public void Call(string key)
         {
-            key = key.ToUpper();
+            using var interaction = ScriptInteraction.Enter(null, new ScriptInteraction(false), FileName + ":" + key);
+            using var evidence = ScriptDiagnostics.BeginExecution(ScriptInteraction.Current.CreateEvidence(script: FileName, page: key));
+            var call = new ScriptCallContext();
 
             for (int i = 0; i < NPCPages.Count; i++)
             {
                 NPCPage page = NPCPages[i];
-                if (!String.Equals(page.Key, key, StringComparison.CurrentCultureIgnoreCase)) continue;
+                if (!String.Equals(page.Key, key, StringComparison.OrdinalIgnoreCase)) continue;
 
                 foreach (NPCSegment segment in page.SegmentList)
                 {
-                    if (page.BreakFromSegments)
-                    {
-                        page.BreakFromSegments = false;
-                        break;
-                    }
+                    if (call.BreakRequested || call.ExecutionAborted || ScriptInteraction.Current.Failed) break;
 
-                    ProcessSegment(page, segment);
+                    segment.Check(call);
                 }
             }
         }
         public void Call(PlayerObject player, uint objectID, string key)
         {
-            key = key.ToUpper();
+            Call(player, objectID, key, false);
+        }
 
-            player.NPCBreak = false;
+        internal void CallInternal(PlayerObject player, uint objectID, string key)
+        {
+            Call(player, objectID, key, true);
+        }
 
-            if (!player.NPCDelayed)
+        private void Call(PlayerObject player, uint objectID, string key, bool internalCall)
+        {
+            var interaction = ScriptInteraction.Current ?? new ScriptInteraction(!internalCall);
+            using var scope = ScriptInteraction.Enter(player, interaction, FileName + ":" + key);
+            using var boundary = ScriptDiagnostics.BeginExecution(interaction.CreateEvidence(
+                ScriptDiagnostics.CaptureExecution(), FileName + ".txt", key));
+            if (interaction.Failed) return;
+            var call = new ScriptCallContext();
+            call.LastCompletedAction = interaction.LastCompletedAction;
+            call.HasSideEffects = interaction.HasSideEffects;
+            key = key.ToUpperInvariant();
+
+            try
             {
-                if (!ScriptSpecialPageCatalog.IsPage(key, ScriptSpecialPageKind.Main))
+                if (!internalCall && !ScriptSpecialPageCatalog.IsPage(key, ScriptSpecialPageKind.Main))
                 {
                     if (player.NPCObjectID != objectID) return;
+                    if (player.NPCPage == null) return;
 
                     bool found = false;
 
                     foreach (NPCSegment segment in player.NPCPage.SegmentList)
                     {
-                        if (!player.NPCSuccess.TryGetValue(segment, out bool result)) break; //no result for segment ?
+                        if (!player.NPCSuccess.TryGetValue(segment, out bool result)) continue;
 
-                        if ((result ? segment.Buttons : segment.ElseButtons).Any(s => s.ToUpper() == key))
+                        if ((result ? segment.Buttons : segment.ElseButtons).Any(s => string.Equals(s, key, StringComparison.OrdinalIgnoreCase)))
                         {
                             found = true;
                         }
@@ -198,52 +209,58 @@ namespace Server.MirObjects
                         return;
                     }
                 }
-            }
-            else
-            {
-                player.NPCDelayed = false;
-            }
+                if (ScriptPageKeyCatalog.Find(key) == ScriptPageKeyCatalog.Input && !player.NPCData.TryGetValue("NPCInputStr", out object _npcInputStr))
+                {
+                    //send off packet to request input
+                    player.Enqueue(new S.NPCRequestInput { NPCID = player.NPCObjectID, PageName = key });
+                    return;
+                }
 
-            if (ScriptPageKeyCatalog.Find(key) == ScriptPageKeyCatalog.Input && !player.NPCData.TryGetValue("NPCInputStr", out object _npcInputStr))
-            {
-                //send off packet to request input
-                player.Enqueue(new S.NPCRequestInput { NPCID = player.NPCObjectID, PageName = key });
-                return;
-            }
-
-            try
-            {
+                bool foundPage = false;
                 for (int i = 0; i < NPCPages.Count; i++)
                 {
                     NPCPage page = NPCPages[i];
-                    if (!String.Equals(page.Key, key, StringComparison.CurrentCultureIgnoreCase)) continue;
+                    if (!String.Equals(page.Key, key, StringComparison.OrdinalIgnoreCase)) continue;
+                    foundPage = true;
 
                     player.NPCSpeech = new List<string>();
                     player.NPCSuccess.Clear();
                     player.NPCDialogClose = false;
+                    player.NPCPage = page;
 
                     foreach (NPCSegment segment in page.SegmentList)
                     {
-                        if (player.NPCBreak)
-                        {
-                            player.NPCBreak = false;
-                            break;
-                        }
+                        if (call.BreakRequested || call.ExecutionAborted || interaction.Failed) break;
 
                         if (player.NPCDialogClose) break;
 
-                        ProcessSegment(player, page, segment, objectID);
+                        ProcessSegment(player, page, segment, objectID, call);
                     }
 
+                    if (call.ExecutionAborted || interaction.Failed)
+                    {
+                        player.NPCSpeech.Clear();
+                        player.NPCSuccess.Clear();
+                        player.Enqueue(new S.NPCResponse { Page = player.NPCSpeech });
+                        break;
+                    }
                     Response(player, page);
                 }
+                if (!foundPage && (Type == NPCScriptType.Normal || Type == NPCScriptType.Called))
+                    ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingPage, key, "NPC",
+                        "Requested page is unavailable; the call chain was stopped.", FileName + ".txt");
+            }
+            catch (Exception ex)
+            {
+                ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, key, "NPC",
+                    "NPC page execution failed.", FileName + ".txt", ex.GetType().FullName, ex);
+                player.NPCSpeech?.Clear();
+                player.NPCSuccess?.Clear();
             }
             finally
             {
-                // A page that fails while it runs must not leave the session in the delayed state,
-                // which would skip the button check on the next request.
-                player.NPCDelayed = false;
-                player.NPCBreak = false;
+                interaction.LastCompletedAction = call.LastCompletedAction;
+                interaction.HasSideEffects |= call.HasSideEffects;
                 player.NPCData.Remove("NPCInputStr");
             }
         }
@@ -267,7 +284,7 @@ namespace Server.MirObjects
             ProcessSpecial(player, page);
         }
 
-        private void ProcessSegment(PlayerObject player, NPCPage page, NPCSegment segment, uint objectID)
+        private void ProcessSegment(PlayerObject player, NPCPage page, NPCSegment segment, uint objectID, ScriptCallContext call)
         {
             player.NPCObjectID = objectID;
             player.NPCScriptID = ScriptID;
@@ -276,30 +293,24 @@ namespace Server.MirObjects
 
             try
             {
-                success = segment.Check(player);
+                success = segment.Check(player, call);
+                if (call.ConditionAborted || call.ExecutionAborted || ScriptInteraction.Current?.Failed == true) return;
             }
             catch (Exception ex)
             {
-                // A broken action costs one segment, not the dialogue: the page still answers with
-                // its failure text and the reason reaches the diagnostics.
+                // An execution error is not a failed condition and must not authorize ELSE buttons.
                 ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException,
-                    page == null ? string.Empty : page.Key, "NPC", ex.Message);
+                    page == null ? string.Empty : page.Key, "NPC", ex.Message,
+                    FileName + ".txt", ex.GetType().FullName, ex);
+                call.ExecutionAborted = true;
 
-                success = false;
+                return;
             }
 
             player.NPCSuccess.Add(segment, success);
             player.NPCPage = page;
         }
 
-        private void ProcessSegment(MonsterObject monster, NPCPage page, NPCSegment segment)
-        {
-            segment.Check(monster);
-        }
-        private void ProcessSegment(NPCPage page, NPCSegment segment)
-        {
-            segment.Check();
-        }
 
         private void ProcessSpecial(PlayerObject player, NPCPage page)
         {

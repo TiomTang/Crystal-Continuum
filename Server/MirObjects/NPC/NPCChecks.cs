@@ -4,6 +4,7 @@
     {
         public ScriptCheckKind Type;
         public List<string> Params = new List<string>();
+        public ScriptSourceInfo Source;
 
         public NPCChecks(ScriptCheckKind check, params string[] p)
         {

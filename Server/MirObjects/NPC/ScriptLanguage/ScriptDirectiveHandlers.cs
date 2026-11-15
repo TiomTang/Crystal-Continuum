@@ -19,12 +19,36 @@ namespace Server.MirObjects
         /// </summary>
         private const int MaxDepth = 8;
 
+        private sealed class DependencyException : Exception
+        {
+            internal readonly ScriptDiagnostic Diagnostic;
+            internal DependencyException(ScriptDiagnostic diagnostic) { Diagnostic = diagnostic; }
+        }
+
         public static void Insert(List<string> lines)
+        {
+            ApplyText(lines, ScriptDirectiveCatalog.Insert);
+        }
+
+        public static void Include(List<string> lines)
+        {
+            ApplyText(lines, ScriptDirectiveCatalog.Include);
+        }
+
+        private static void ApplyText(List<string> lines, ScriptDirectiveEntry entry)
+        {
+            var source = ScriptSourceLine.Bind(lines, ScriptParseScope.FileName);
+            entry.ApplySource(source);
+            lines.Clear();
+            lines.AddRange(source.Select(line => line.Text));
+        }
+
+        public static void InsertSource(List<ScriptSourceLine> lines)
         {
             Expand(lines, ScriptDirectiveCatalog.Insert, new HashSet<string>(StringComparer.OrdinalIgnoreCase), 0);
         }
 
-        public static void Include(List<string> lines)
+        public static void IncludeSource(List<ScriptSourceLine> lines)
         {
             Expand(lines, ScriptDirectiveCatalog.Include, new HashSet<string>(StringComparer.OrdinalIgnoreCase), 0);
         }
@@ -34,50 +58,47 @@ namespace Server.MirObjects
         /// directive held. The replacement is expanded again with every directive kind, so a pulled-in
         /// file may use directives of its own; a file already being read is reported, not followed.
         /// </summary>
-        private static void Expand(List<string> lines, ScriptDirectiveEntry entry, HashSet<string> open, int depth)
+        private static void Expand(List<ScriptSourceLine> lines, ScriptDirectiveEntry entry, HashSet<string> open, int depth)
         {
-            var result = new List<string>(lines.Count);
+            var result = new List<ScriptSourceLine>(lines.Count);
 
-            foreach (string line in lines)
+            foreach (ScriptSourceLine line in lines)
             {
-                if (!ScriptDirectiveCatalog.Is(line, entry))
+                if (line.Error != null || !ScriptDirectiveCatalog.Is(line.Text, entry))
                 {
                     result.Add(line);
                     continue;
                 }
 
-                if (depth >= MaxDepth)
+                try
                 {
-                    Report(ScriptDiagnosticKind.MalformedDirective, line,
-                        "Directive nesting deeper than " + MaxDepth + " levels");
+                    if (depth >= MaxDepth)
+                        Report(ScriptDiagnosticKind.MalformedDirective, line,
+                            "Directive nesting deeper than " + MaxDepth + " levels");
 
-                    continue;
+                    string identity;
+                    List<ScriptSourceLine> content = ReadContent(line, entry, out identity);
+                    if (content == null) continue;
+
+                    if (!open.Add(identity))
+                        Report(ScriptDiagnosticKind.MalformedDirective, line,
+                            ScriptDirectiveCatalog.Tag(entry) + " reads content that is already being read: " + identity);
+                    try { ExpandAll(content, open, depth + 1); }
+                    finally { open.Remove(identity); }
+                    result.AddRange(content);
                 }
-
-                string path;
-                List<string> content = ReadContent(line, entry, out path);
-
-                if (content == null) continue;
-
-                if (!open.Add(path))
+                catch (DependencyException exception)
                 {
-                    Report(ScriptDiagnosticKind.MalformedDirective, line,
-                        ScriptDirectiveCatalog.Tag(entry) + " reads a file that is already being read: " + path);
-
-                    continue;
+                    // Keep a source-bound failure marker so only its containing segment is disabled.
+                    result.Add(new ScriptSourceLine(line.Text, line.Number, line.FileName, line.Source, exception.Diagnostic));
                 }
-
-                ExpandAll(content, open, depth + 1);
-                open.Remove(path);
-
-                result.AddRange(content);
             }
 
             lines.Clear();
             lines.AddRange(result);
         }
 
-        private static void ExpandAll(List<string> lines, HashSet<string> open, int depth)
+        private static void ExpandAll(List<ScriptSourceLine> lines, HashSet<string> open, int depth)
         {
             foreach (ScriptDirectiveEntry entry in ScriptDirectiveCatalog.Ordered)
                 Expand(lines, entry, open, depth);
@@ -87,11 +108,11 @@ namespace Server.MirObjects
         /// The lines a directive stands for, or null when it cannot be used and has already been
         /// reported. INSERT takes a whole file; INCLUDE takes one page written between braces.
         /// </summary>
-        private static List<string> ReadContent(string line, ScriptDirectiveEntry entry, out string path)
+        private static List<ScriptSourceLine> ReadContent(ScriptSourceLine line, ScriptDirectiveEntry entry, out string identity)
         {
-            string[] parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = line.Text.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
 
-            path = null;
+            identity = null;
 
             if (entry == ScriptDirectiveCatalog.Insert)
             {
@@ -101,17 +122,18 @@ namespace Server.MirObjects
                     return null;
                 }
 
-                path = Resolve(parts[1]);
+                string insertPath = Resolve(parts[1]);
+                identity = "INSERT|" + insertPath;
 
-                if (!File.Exists(path))
+                if (!File.Exists(insertPath))
                 {
-                    MessageQueue.Instance.Enqueue(GameLanguage.Get("INSERT Script Not Found: {0}", path));
-                    Report(ScriptDiagnosticKind.MissingScript, line, "INSERT file not found: " + path);
+                    MessageQueue.Instance.Enqueue(GameLanguage.Get("INSERT Script Not Found: {0}", insertPath));
+                    Report(ScriptDiagnosticKind.MissingScript, line, "INSERT file not found: " + insertPath);
 
                     return null;
                 }
 
-                return new List<string>(ReadScriptFile(path, line));
+                return ReadScriptFile(insertPath, line);
             }
 
             if (parts.Length < 3)
@@ -120,9 +142,10 @@ namespace Server.MirObjects
                 return null;
             }
 
-            path = Resolve(parts[1]);
+            string path = Resolve(parts[1]);
 
-            string page = ("[" + parts[2] + "]").ToUpper();
+            string page = "[" + parts[2] + "]";
+            identity = "INCLUDE|" + path + "|" + page;
 
             if (!File.Exists(path))
             {
@@ -132,28 +155,40 @@ namespace Server.MirObjects
                 return null;
             }
 
-            IList<string> extLines = ReadScriptFile(path, line);
+            IList<ScriptSourceLine> extLines = ReadScriptFile(path, line);
 
             for (int i = 0; i < extLines.Count; i++)
             {
-                if (!extLines[i].ToUpper().StartsWith(page)) continue;
+                if (!string.Equals(extLines[i].Text, page, StringComparison.OrdinalIgnoreCase)) continue;
 
-                var body = new List<string>();
+                var body = new List<ScriptSourceLine>();
 
                 bool start = false, finish = false;
+                int braces = 0;
 
                 for (int j = i + 1; j < extLines.Count; j++)
                 {
-                    if (extLines[j].Trim() == "{")
+                    // The opener belongs to the requested page, but its body may intentionally
+                    // contain further pages or data sections. Match braces instead of truncating it.
+                    if (!start && ScriptPageKeyCatalog.TryParseHeader(extLines[j].Text, out _)) break;
+
+                    if (extLines[j].Text.Trim() == "{")
                     {
-                        start = true;
-                        continue;
+                        braces++;
+                        if (!start)
+                        {
+                            start = true;
+                            continue;
+                        }
                     }
 
-                    if (extLines[j].Trim() == "}")
+                    if (start && extLines[j].Text.Trim() == "}")
                     {
-                        finish = true;
-                        break;
+                        if (--braces == 0)
+                        {
+                            finish = true;
+                            break;
+                        }
                     }
 
                     if (start) body.Add(extLines[j]);
@@ -174,7 +209,7 @@ namespace Server.MirObjects
         /// Reads a file a directive points at, with the same encoding rule as the script itself: GBK is
         /// accepted but reported, so a converted script does not silently keep a legacy include.
         /// </summary>
-        private static IList<string> ReadScriptFile(string path, string line)
+        private static List<ScriptSourceLine> ReadScriptFile(string path, ScriptSourceLine line)
         {
             bool legacy;
 
@@ -183,7 +218,7 @@ namespace Server.MirObjects
             if (legacy)
                 Report(ScriptDiagnosticKind.LegacyEncoding, line, "file is not UTF-8, read as GBK: " + path);
 
-            return lines;
+            return ScriptSourceLine.Bind(lines, path);
         }
 
         private static string Resolve(string argument)
@@ -191,13 +226,17 @@ namespace Server.MirObjects
             return Path.GetFullPath(Path.Combine(Settings.EnvirPath, Unquote(argument)));
         }
 
-        private static void Report(ScriptDiagnosticKind kind, string line, string message)
+        private static void Report(ScriptDiagnosticKind kind, ScriptSourceLine line, string message)
         {
-            ScriptDiagnostics.Report(kind, new ScriptParseContext
+            ScriptDiagnostic diagnostic = ScriptDiagnostics.Report(kind, new ScriptParseContext
             {
-                Line = line,
-                FileName = ScriptParseScope.FileName,
-            }, Tag(line), message);
+                Line = line.Text,
+                LineNumber = line.Number,
+                FileName = line.FileName ?? ScriptParseScope.FileName,
+                Source = line.Source,
+            }, Tag(line.Text), message);
+            if (kind != ScriptDiagnosticKind.LegacyEncoding)
+                throw new DependencyException(diagnostic);
         }
 
         private static string Tag(string line)

@@ -3,6 +3,24 @@ using Server.MirEnvir;
 
 namespace Server.MirObjects
 {
+    /// <summary>Mutable control flow belongs to one invocation, never to a shared page.</summary>
+    internal sealed class ScriptCallContext
+    {
+        public bool BreakRequested;
+        public bool ConditionAborted;
+        public bool ExecutionAborted;
+        public string LastCompletedAction;
+        public bool HasSideEffects;
+        public ScriptDiagnostic FailureDiagnostic;
+
+        public void Abort(ScriptDiagnostic diagnostic)
+        {
+            ExecutionAborted = true;
+            ConditionAborted = true;
+            if (FailureDiagnostic == null) FailureDiagnostic = diagnostic;
+        }
+    }
+
     /// <summary>What an executor reports back to the segment loop.</summary>
     public enum ScriptOutcome
     {
@@ -12,8 +30,11 @@ namespace Server.MirObjects
         /// <summary>Condition does not hold. The segment fails.</summary>
         Fail,
 
-        /// <summary>Stop evaluating the segment and treat it as satisfied, as the old inline returns did.</summary>
+        /// <summary>Stop this list using the executor's legacy return semantics; not necessarily an error.</summary>
         Abort,
+
+        /// <summary>A known parameter contract was violated, unlike a normal business early return.</summary>
+        InvalidArguments,
     }
 
     /// <summary>
@@ -33,6 +54,8 @@ namespace Server.MirObjects
     public sealed class ScriptExecuteContext
     {
         public NPCSegment Segment;
+
+        internal ScriptCallContext Call;
 
         /// <summary>The check being evaluated, null while an action runs.</summary>
         public NPCChecks Check;

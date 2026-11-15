@@ -96,33 +96,88 @@ namespace Server.MirObjects
         {
             if (context == null || context.Parts == null || context.Parts.Length == 0) return ScriptParseOutcome.Skipped;
 
+            if (context.Source == null)
+                context.Source = new ScriptSourceInfo(context.FileName ?? context.Segment?.Page?.FileName,
+                    context.LineNumber, context.Line);
+
             ScriptKeywordEntry keyword = Find(kind, context.Parts[0]);
 
             if (keyword == null)
             {
-                ScriptDiagnostics.Report(KindOf(kind), context, context.Parts[0],
-                    string.Format("Unknown {0} \"{1}\"", KindName(kind), context.Parts[0]));
+                MarkInvalid(kind, context, ScriptDiagnostics.Report(KindOf(kind), context, context.Parts[0],
+                    string.Format("Unknown {0} \"{1}\"", KindName(kind), context.Parts[0])));
 
                 return ScriptParseOutcome.Unknown;
             }
 
             if (keyword.Handler == null)
             {
-                ScriptDiagnostics.Report(ScriptDiagnosticKind.MissingHandler, context, keyword.Name,
-                    string.Format("\"{0}\" has no parser", keyword.Name));
+                MarkInvalid(kind, context, ScriptDiagnostics.Report(ScriptDiagnosticKind.MissingHandler, context, keyword.Name,
+                    string.Format("\"{0}\" has no parser", keyword.Name)));
 
                 return ScriptParseOutcome.Unknown;
             }
 
             if (context.Parts.Length < keyword.MinParts)
             {
-                ScriptDiagnostics.Report(ScriptDiagnosticKind.WrongArity, context, keyword.Name,
-                    string.Format("\"{0}\" needs at least {1} argument(s)", keyword.Name, keyword.MinParts - 1));
+                MarkInvalid(kind, context, ScriptDiagnostics.Report(ScriptDiagnosticKind.WrongArity, context, keyword.Name,
+                    string.Format("\"{0}\" needs at least {1} argument(s)", keyword.Name, keyword.MinParts - 1)));
 
                 return ScriptParseOutcome.Skipped;
             }
 
-            return keyword.Handler(context);
+            if (kind != ScriptKeywordKind.Check && kind != ScriptKeywordKind.Action) return keyword.Handler(context);
+
+            bool check = kind == ScriptKeywordKind.Check;
+            if ((check ? !keyword.Check.HasValue : !keyword.Action.HasValue) || keyword.Executor == null)
+            {
+                MarkInvalid(kind, context, ScriptDiagnostics.Report(ScriptDiagnosticKind.MissingExecutor, context, keyword.Name,
+                    string.Format("\"{0}\" has no {1} executor", keyword.Name, KindName(kind))));
+                return ScriptParseOutcome.Unknown;
+            }
+
+            if (check && !ScriptCheckHandlers.ValidateArguments(context, keyword.Check.Value))
+            {
+                MarkInvalid(kind, context, ScriptDiagnostics.Report(ScriptDiagnosticKind.InvalidArguments, context, keyword.Name,
+                    string.Format("Invalid arguments for \"{0}\"; expected {1}", keyword.Name, keyword.Usage)));
+                return ScriptParseOutcome.Skipped;
+            }
+
+            int count = check ? context.Segment.CheckList.Count : context.Acts.Count;
+            ScriptParseOutcome outcome;
+
+            try
+            {
+                outcome = keyword.Handler(context);
+            }
+            catch (Exception ex)
+            {
+                MarkInvalid(kind, context, ScriptDiagnostics.Report(ScriptDiagnosticKind.RuntimeException, context, keyword.Name,
+                    string.Format("Failed to parse {0} \"{1}\"", KindName(kind), keyword.Name), ex));
+                return ScriptParseOutcome.Skipped;
+            }
+
+            int registered = check ? context.Segment.CheckList.Count : context.Acts.Count;
+            for (int i = count; i < registered; i++)
+            {
+                if (check) context.Segment.CheckList[i].Source = context.Source;
+                else context.Acts[i].Source = context.Source;
+            }
+
+            if (outcome != ScriptParseOutcome.Handled || registered <= count)
+            {
+                MarkInvalid(kind, context, ScriptDiagnostics.Report(ScriptDiagnosticKind.InvalidArguments, context, keyword.Name,
+                    string.Format("\"{0}\" did not register a valid {1}; expected {2}", keyword.Name, KindName(kind), keyword.Usage)));
+                return ScriptParseOutcome.Skipped;
+            }
+
+            return outcome;
+        }
+
+        private static void MarkInvalid(ScriptKeywordKind kind, ScriptParseContext context, ScriptDiagnostic diagnostic)
+        {
+            if (kind == ScriptKeywordKind.Check || kind == ScriptKeywordKind.Action)
+                context.Segment?.MarkInvalid(diagnostic, kind == ScriptKeywordKind.Check);
         }
 
         private static ScriptKeywordEntry Find(ScriptKeywordKind kind, string name)

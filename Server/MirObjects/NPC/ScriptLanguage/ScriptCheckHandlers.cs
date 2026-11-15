@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Text.RegularExpressions;
 
@@ -11,6 +12,154 @@ namespace Server.MirObjects
     {
         private static readonly Regex FlagRegex = new Regex(@"\[(.*?)\]", RegexOptions.Compiled);
         private static readonly Regex QuoteRegex = new Regex("\"([^\"]*)\"", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Validate literal fields before a condition reaches its executor. Runtime values are left
+        /// intact; resolving player variables here would freeze them at load time.
+        /// </summary>
+        internal static bool ValidateArguments(ScriptParseContext ctx, ScriptCheckKind kind)
+        {
+            string[] parts = ctx.Parts;
+
+            switch (kind)
+            {
+                case ScriptCheckKind.IsAdmin:
+                case ScriptCheckKind.IsNewHuman:
+                case ScriptCheckKind.CheckRelationship:
+                case ScriptCheckKind.CheckWeddingRing:
+                case ScriptCheckKind.HasGT:
+                case ScriptCheckKind.Groupleader:
+                case ScriptCheckKind.GroupCheckNearby:
+                    return true;
+                case ScriptCheckKind.Level:
+                    return Operator(parts[1]) && UnsignedShort(parts[2]);
+                case ScriptCheckKind.CheckGold:
+                case ScriptCheckKind.CheckCredit:
+                case ScriptCheckKind.CheckGuildGold:
+                    return Operator(parts[1]) && UnsignedInteger(parts[2]);
+                case ScriptCheckKind.CheckPkPoint:
+                case ScriptCheckKind.HasBagSpace:
+                case ScriptCheckKind.GroupCount:
+                case ScriptCheckKind.PetCount:
+                case ScriptCheckKind.PetLevel:
+                case ScriptCheckKind.HeroLevel:
+                    return Operator(parts[1]) && Integer(parts[2]);
+                case ScriptCheckKind.CheckGender:
+                case ScriptCheckKind.CheckHeroGender:
+                    return EnumValue<MirGender>(parts[1], false);
+                case ScriptCheckKind.CheckClass:
+                case ScriptCheckKind.CheckHeroClass:
+                    return EnumValue<MirClass>(parts[1]);
+                case ScriptCheckKind.Check:
+                    Match flag = FlagRegex.Match(parts[1]);
+                    if (!flag.Success || flag.Index != 0 || flag.Length != parts[1].Length) return false;
+                    string index = flag.Groups[1].Value;
+                    return (RuntimeValue(index) || uint.TryParse(index, out uint flagIndex) && flagIndex < Globals.FlagIndexCount)
+                        && UnsignedInteger(parts[2]);
+                case ScriptCheckKind.CheckItem:
+                case ScriptCheckKind.CheckHeroItem:
+                    return parts[1].Length > 0 && (parts.Length < 3 || UnsignedShort(parts[2]))
+                        && (parts.Length < 4 || UnsignedShort(parts[3]));
+                case ScriptCheckKind.CheckPermission:
+                    if (RuntimeValue(parts[1])) return true;
+                    if (!Enum.TryParse(parts[1], true, out GuildRankOptions permission)) return false;
+                    int allowed = 0;
+                    foreach (GuildRankOptions option in Enum.GetValues(typeof(GuildRankOptions))) allowed |= (int)option;
+                    return ((int)permission & ~allowed) == 0;
+                case ScriptCheckKind.AffordGuard:
+                case ScriptCheckKind.AffordGate:
+                case ScriptCheckKind.AffordWall:
+                case ScriptCheckKind.AffordSiege:
+                    return Integer(parts[1]) && Integer(parts[2]);
+                case ScriptCheckKind.CheckQuest:
+                    // The executor treats ACTIVE specially and every other token as completed.
+                    // Keep that legacy contract, including the numeric states used by old scripts.
+                    return Integer(parts[1]);
+                case ScriptCheckKind.CheckRange:
+                    return Integer(parts[1]) && Integer(parts[2]) && Integer(parts[3]);
+                case ScriptCheckKind.CheckHum:
+                case ScriptCheckKind.CheckMon:
+                    return Operator(parts[1]) && Integer(parts[2]) && (parts.Length < 5 || Integer(parts[4]));
+                case ScriptCheckKind.CheckExactMon:
+                    return Operator(parts[2]) && Integer(parts[3]) && (parts.Length < 6 || Integer(parts[5]));
+                case ScriptCheckKind.CheckConquest:
+                case ScriptCheckKind.ConquestAvailable:
+                case ScriptCheckKind.ConquestOwner:
+                    return Integer(parts[1]);
+                case ScriptCheckKind.CheckDay:
+                    return NamedEnumValue<DayOfWeek>(parts[1]);
+                case ScriptCheckKind.CheckHour:
+                    return RuntimeValue(parts[1]) || uint.TryParse(parts[1], out uint hour) && hour < 24;
+                case ScriptCheckKind.CheckMinute:
+                    return RuntimeValue(parts[1]) || uint.TryParse(parts[1], out uint minute) && minute < 60;
+                case ScriptCheckKind.CheckTimer:
+                    return (RuntimeValue(parts[2]) || long.TryParse(parts[2], out _)) && Operator(parts[3]);
+                case ScriptCheckKind.CheckBuff:
+                    return EnumValue<BuffType>(parts[1]);
+                case ScriptCheckKind.CheckMapLight:
+                    return NamedEnumValue<LightSetting>(parts[1]);
+                case ScriptCheckKind.Random:
+                    return RuntimeValue(parts[1]) || int.TryParse(parts[1], out int chance) && chance > 0;
+                case ScriptCheckKind.CheckCalc:
+                    // The executor intentionally compares strings when either operand is not numeric.
+                    return Operator(parts[2]);
+                case ScriptCheckKind.CheckNameList:
+                case ScriptCheckKind.CheckGuildNameList:
+                case ScriptCheckKind.InGuild:
+                case ScriptCheckKind.CheckPet:
+                case ScriptCheckKind.CheckMap:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool RuntimeValue(string value)
+        {
+            return ScriptLexer.Placeholder.IsMatch(value)
+                || value.Length == 3 && value[0] == '%' && ScriptLexer.IsVariableKey(value);
+        }
+
+        private static bool Integer(string value)
+        {
+            return RuntimeValue(value) || int.TryParse(value, out _);
+        }
+
+        private static bool UnsignedInteger(string value)
+        {
+            return RuntimeValue(value) || uint.TryParse(value, out _);
+        }
+
+        private static bool UnsignedShort(string value)
+        {
+            return RuntimeValue(value) || ushort.TryParse(value, out _);
+        }
+
+        private static bool EnumValue<T>(string value, bool ignoreCase = true) where T : struct, Enum
+        {
+            return RuntimeValue(value) || Enum.TryParse(value, ignoreCase, out T parsed) && Enum.IsDefined(typeof(T), parsed);
+        }
+
+        private static bool NamedEnumValue<T>(string value) where T : struct, Enum
+        {
+            return RuntimeValue(value) || Enum.TryParse(value, true, out T parsed)
+                && Enum.IsDefined(typeof(T), parsed) && string.Equals(value, parsed.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool Operator(string value)
+        {
+            if (RuntimeValue(value)) return true;
+
+            try
+            {
+                NPCSegment.Compare(value, 0, 0);
+                return true;
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+        }
 
         // ---------------------------------------------------------------- player
 

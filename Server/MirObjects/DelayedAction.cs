@@ -37,6 +37,8 @@ namespace Server.MirObjects
         public object[] Params;
 
         public bool FlaggedToRemove;
+        internal ScriptInteraction Interaction;
+        internal ScriptExecutionEvidence ScriptEvidence;
 
         public DelayedAction(DelayedType type, long time, params object[] p)
         {
@@ -44,6 +46,11 @@ namespace Server.MirObjects
             Type = type;
             Time = time;
             Params = p;
+            if (type == DelayedType.NPC)
+            {
+                Interaction = ScriptInteraction.Current;
+                ScriptEvidence = ScriptDiagnostics.CaptureExecution();
+            }
         }
     }
 }

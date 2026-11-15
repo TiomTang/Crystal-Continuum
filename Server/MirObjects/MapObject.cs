@@ -181,8 +181,6 @@ namespace Server.MirObjects
         public PoisonType CurrentPoison = PoisonType.None;
         public List<DelayedAction> ActionList = new List<DelayedAction>();
 
-        /// <summary>Set by BREAK while this object runs a page, so one conversation cannot stop another.</summary>
-        public bool NPCBreak;
 
         public LinkedListNode<MapObject> Node;
         public LinkedListNode<MapObject> NodeThreaded;
