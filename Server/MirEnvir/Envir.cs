@@ -5717,6 +5717,11 @@ namespace Server.MirEnvir
                 Scripts[key].Load();
             }
 
+            // Reloaded pages replace the ones behind open windows; close them rather than letting a
+            // click drawn from the old page run the new content.
+            foreach (PlayerObject player in Players)
+                NPCConversation.CloseForReload(player);
+
             ScriptDiagnosticLog.ReportLoadSummary("reloaded");
             MessageQueue.Enqueue(GameLanguage.Get("NPC Scripts Reloaded."));
         }

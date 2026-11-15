@@ -112,6 +112,22 @@ namespace Server.MirObjects
             special.Executor(script, player, page);
         }
 
+        /// <summary>
+        /// Closes the window a player has open after a reload. The reloaded script may have removed
+        /// or redefined the page and its buttons, so leaving the window open would let a click that
+        /// was drawn from the old page run whatever the new page says.
+        /// </summary>
+        public static void CloseForReload(PlayerObject player)
+        {
+            if (player == null || player.NPCPage == null) return;
+
+            player.NPCPage = null;
+            player.NPCSuccess.Clear();
+            player.NPCDialogClose = false;
+            player.NPCSpeech = new List<string>();
+            player.Enqueue(new S.NPCResponse { Page = player.NPCSpeech });
+        }
+
         /// <summary>Clears the input answer a page may have consumed.</summary>
         public static void EndCall(PlayerObject player)
         {

@@ -22,6 +22,8 @@ namespace Server.MirObjects
         {
             ClearInfo();
 
+            LoadGeneration++;
+
             if (!Directory.Exists(Root)) return;
 
             string fileName = Path.Combine(Root, FileName + ".txt");
@@ -94,11 +96,6 @@ namespace Server.MirObjects
             }
 
             return lines;
-        }
-
-        private void PrepareScriptLines(IList<string> scriptLines)
-        {
-            PrepareScriptSourceLines(ScriptSourceLine.Bind(scriptLines, ScriptParseScope.FileName));
         }
 
         private void PrepareScriptSourceLines(List<ScriptSourceLine> sourceLines)

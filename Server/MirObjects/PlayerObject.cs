@@ -2409,7 +2409,7 @@ namespace Server.MirObjects
             if (interaction.Failed) return;
             try
             {
-                CompleteNPC(action.Params);
+                CompleteNPC(action.Params, action.ScriptGeneration);
             }
             catch (Exception ex)
             {
@@ -2419,7 +2419,7 @@ namespace Server.MirObjects
             }
         }
 
-        private void CompleteNPC(IList<object> data)
+        private void CompleteNPC(IList<object> data, int scriptGeneration)
         {
             uint npcid = (uint)data[0];
             int scriptid = (int)data[1];
@@ -2439,7 +2439,17 @@ namespace Server.MirObjects
                 NPCScript script;
 
                 if (Envir.Scripts.TryGetValue(scriptid, out script))
+                {
+                    if (script.IsStaleGeneration(scriptGeneration))
+                    {
+                        ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingPage, page, "NPC",
+                            "Queued step was created before the script was reloaded; it was dropped.",
+                            "ScriptID:" + scriptid);
+                        return;
+                    }
+
                     script.CallInternal(this, npcid, page);
+                }
                 else
                     ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.LoadFailed, page, "NPC",
                         "Queued script is unavailable; the call chain was stopped.", "ScriptID:" + scriptid);

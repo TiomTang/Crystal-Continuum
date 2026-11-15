@@ -49,6 +49,17 @@ namespace Server.MirObjects
         /// <summary>Directory this file is read from. Events live outside NPCPath, so it is not global.</summary>
         public readonly string LoadRoot;
 
+        /// <summary>
+        /// Increases on every load attempt. A queued step remembers the generation it was created in,
+        /// so a reload cannot make it continue on content that was never running when it was queued.
+        /// </summary>
+        public int LoadGeneration { get; private set; }
+
+        public bool IsStaleGeneration(int generation)
+        {
+            return generation != 0 && generation != LoadGeneration;
+        }
+
         public List<ItemType> Types = new List<ItemType>();
         public List<ItemType> UsedTypes = new List<ItemType>();
         public List<UserItem> Goods = new List<UserItem>();
@@ -193,6 +204,14 @@ namespace Server.MirObjects
 
             try
             {
+                // A page kept from before a reload no longer belongs to this script's pages, so the
+                // click cannot be authorized against buttons that are not in the current file.
+                if (!internalCall && player.NPCPage != null && !NPCPages.Contains(player.NPCPage))
+                {
+                    NPCConversation.CloseForReload(player);
+                    return;
+                }
+
                 if (!internalCall && !ScriptSpecialPageCatalog.IsPage(key, ScriptSpecialPageKind.Main) &&
                     !NPCConversation.CanOpenPage(player, objectID, key))
                 {
