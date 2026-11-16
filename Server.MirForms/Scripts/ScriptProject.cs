@@ -346,7 +346,7 @@ namespace Server.MirForms.Scripts
             {
                 fileName = Path.GetFullPath(string.IsNullOrEmpty(fileName)
                     ? Path.Combine("Envir", "NPCs", "__editor__.txt") : fileName);
-                validation = ScriptValidator.Validate(string.Join("\n", Lines), fileName, IncludeRoot(fileName), Type, ScriptDirectory(fileName));
+                validation = ScriptValidator.ValidateDocument(string.Join("\n", Lines), fileName, IncludeRoot(fileName), Type, ScriptDirectory(fileName));
             }
             catch (Exception exception)
             {

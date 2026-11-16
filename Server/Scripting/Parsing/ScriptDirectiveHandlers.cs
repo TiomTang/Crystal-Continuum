@@ -170,46 +170,14 @@ namespace Server.Scripting
                 return null;
             }
 
-            IList<ScriptSourceLine> extLines = ReadScriptFile(path, line);
+            List<ScriptSourceLine> extLines = ReadScriptFile(path, line);
 
             for (int i = 0; i < extLines.Count; i++)
             {
                 if (!string.Equals(extLines[i].Text, page, StringComparison.OrdinalIgnoreCase)) continue;
 
-                var body = new List<ScriptSourceLine>();
-
-                bool start = false, finish = false;
-                int braces = 0;
-
-                for (int j = i + 1; j < extLines.Count; j++)
-                {
-                    // The opener belongs to the requested page, but its body may intentionally
-                    // contain further pages or data sections. Match braces instead of truncating it.
-                    if (!start && ScriptPageKeyCatalog.TryParseHeader(extLines[j].Text, out _)) break;
-
-                    if (extLines[j].Text.Trim() == "{")
-                    {
-                        braces++;
-                        if (!start)
-                        {
-                            start = true;
-                            continue;
-                        }
-                    }
-
-                    if (start && extLines[j].Text.Trim() == "}")
-                    {
-                        if (--braces == 0)
-                        {
-                            finish = true;
-                            break;
-                        }
-                    }
-
-                    if (start) body.Add(extLines[j]);
-                }
-
-                if (start && finish) return body;
+                if (ScriptIncludeParser.TryFindBody(extLines, i, out int opener, out int closer))
+                    return extLines.GetRange(opener + 1, closer - opener - 1);
 
                 break;
             }
