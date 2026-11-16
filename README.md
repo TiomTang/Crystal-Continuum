@@ -1,108 +1,101 @@
-<h1 align="center">
-Legend of Mir 2 - Official Public Crystal Source
-</h2>
+# Crystal Continuum
 
-<h3 align="center">
-  
-[![Latest Release](https://img.shields.io/github/v/release/JevLOMCN/mir4?label=release&style=flat-square)](https://github.com/Suprcode/Crystal/releases/latest)
-[![Client and shared: MIT](https://img.shields.io/badge/Client%20%26%20shared-MIT-blue.svg?style=flat-square)](LICENSE-MIT.txt)
-[![Server: GPL v3 only](https://img.shields.io/badge/Server-GPL--3.0--only-blue.svg?style=flat-square)](LICENSE-GPL-3.0.txt)
-![C#](https://img.shields.io/badge/c%23-%23239120.svg?style=for-the-badge&logo=csharp&logoColor=white)
-</h3>
+[简体中文](README.zh-CN.md)
 
-<h2 align="center">
-  
-Crystal is the most widely used open-source server and client engine for The Legend of Mir 2, developed and maintained by the LOMCN community.
-Originally created by Jamie and contributors, Crystal is a modern, fully managed C# implementation of the classic Mir 2 server architecture, designed to be stable, flexible, and easy to build upon.
+**An independent community fork of Crystal, focused on performance, longstanding fixes, and continued development.**
 
-The project faithfully recreates the gameplay systems of the original 1999 MMORPG by ActozSoft and Wemade Entertainment, while also introducing modern improvements such as:
+[![Client and shared: MIT](https://img.shields.io/badge/Client%20%26%20shared-MIT-blue.svg)](LICENSE-MIT.txt)
+[![Server: GPL v3 only](https://img.shields.io/badge/Server-GPL--3.0--only-blue.svg)](LICENSE-GPL-3.0.txt)
 
-🧰 Modular, readable C# codebase for both client and server
+## About this fork
 
-🗺️ Custom map editor and data tools
+Crystal Continuum builds on [Crystal](https://github.com/Suprcode/Crystal), the C# server and client engine for The Legend of Mir 2, originally created by Jamie and contributors and developed by the LOMCN community.
 
-⚡ Performance improvements and bug fixes over legacy server files
+Upstream has entered maintenance mode, with contributions limited to bug fixes and small, easily reviewed changes rather than larger features or substantial rework. This fork provides a place to continue development beyond that scope while retaining the original project's foundations and attribution. See the [upstream maintainer's statement](https://github.com/Suprcode/Crystal/pull/1204#issuecomment-6638943563).
 
-🌍 Support for custom content, new features, and community expansions
+The current focus is to **fix and refine existing systems across the client, server, and administration tools, and rework localization into a more consistent, maintainable system**. This is not just a Chinese translation pack: English remains the source language, with Simplified Chinese resources maintained alongside the shared localization infrastructure.
 
-Crystal has become the foundation for most private Legend of Mir 2 servers worldwide, serving as a cornerstone of the Mir development scene since its public release on LOMCN
-</h2>
+This is an independently maintained community fork, not an official successor or a release endorsed by the upstream team.
 
----
+## Highlights beyond upstream
 
-## 🔗 Quick Links
+### Performance, not just more features
 
-### LOMCN Community
+Client UI and rendering performance are major priorities for this fork. Compared with upstream, the changes span interface refreshes, scene and effect rendering, graphics resource management, and frame presentation, with a focus on reducing redundant work and unnecessary CPU usage.
 
-- 🛠️ [Build Guide](https://www.lomcn.net/wiki/index.php/Getting_Started)
-- 💬 [Wiki](https://www.lomcn.net/wiki/index.php/Crystal)
-- 🐞 [Help](https://www.lomcn.net/forum/forums/crystalm2-help.663/)
-- 📚 [Tutorials](https://www.lomcn.net/forum/forums/crystalm2-tutorials.634/)
+- **More efficient UI refreshes**: reduce whole-interface redraws and repeated recreation of minimap quest markers, cutting main-thread and texture overhead.
+- **Leaner scene and effect rendering**: reduce redundant submissions and state changes when drawing maps and weather effects.
+- **Smoother resource cleanup**: spread graphics cleanup work over time to reduce frame-time disruption from bulk scans and releases.
+- **Less wasted CPU time**: improve client waiting and server monster scheduling rather than continuously spinning when there is no work to process.
+- **Lower-latency windowed presentation**: introduce a low-latency presentation path, alongside aspect-ratio-preserving display in windowed, borderless maximized, and fullscreen modes.
 
-### Project Links
+These describe implemented optimizations relative to upstream, not a fixed FPS improvement on every system. Actual gains depend on hardware, resolution, scene, and load.
 
-- 🌐 [Databases](https://github.com/Suprcode/Crystal.Database)
-- 🌐 [Map Editor](https://github.com/Suprcode/Crystal.MapEditor)
+### Addressing longstanding upstream issues
 
-### Official Links
+Alongside new capabilities, this fork focuses on problems in existing workflows that affect everyday play and administration.
 
-- <img src="https://web-cdn.mironline.co.kr/mir2/icon/mir2_favicon.ico" alt="Wemade" width="20"/> [Wemade Mir 2](https://mir2.mironline.co.kr/)
+- **Display and interaction**: fix freezes and stutter when switching fullscreen modes, unstable selection of small or flying monsters during animations, and clipped long text in NPC dialogs.
+- **Pets and heroes**: improve pet pursuit and target contention, hero assistance, and equipment transfers to reduce combat interaction problems.
+- **Quests and items**: fix excess delivery of shared quest items, certain item-stacking failures, and potion duration and stat-display issues.
+- **Data editing and saving**: fix drop editing that discards original file content and broken references after monster renaming, and improve shutdown and save-failure handling.
 
----
+### Reworked localization for maintainable multilingual support
 
-## Licensing
+- Unify localization across game messages and server administration UI, making new features less likely to miss translation coverage.
+- Keep English as the source language, with readable fallback text when translations are missing and a foundation for additional languages.
+- Continue expanding Simplified Chinese coverage, aligning skill and guild terminology, and completing skill descriptions and administration-tool text.
 
-Crystal uses separate licences for its client and server; this is not a choice
-of either licence for the entire repository.
+### Integrated script and quest editing
 
-| Component | Licence |
+- Write NPC scripts, event scripts, and quest definitions directly in the administration tools instead of switching between external editors.
+- Syntax highlighting, structure outlines, context-aware command suggestions, and page navigation make longer scripts easier to maintain.
+- Check scripts while editing and locate problems by source file and line before putting changes into use.
+- Search a centralized command list for command descriptions, permissions, and script sources.
+
+### Clearer combat information and companion management
+
+- Inspect target health, level, and available monster combat stats on hover.
+- Select heroes and pets directly from a companion status bar, making healing and support easier in crowded scenes.
+- Configure stat inheritance so Taoist summons and Wizard pets can grow with their owner's attributes, with separate rules for each class.
+
+### Standalone launcher and networking improvements
+
+- A dedicated launcher brings together game startup, display settings, resource updates, and file repair, with update rollback and interrupted-update recovery.
+- IPv4/IPv6 dual-stack support offers more connection options across network environments.
+- Improved handling of abnormal connections reduces interference from probe traffic with normal player admission and server operation.
+
+## Branches
+
+- **`master`**: the English-first community branch for shared fixes and selected features. Simplified Chinese resources remain available.
+- **`dev`**: ongoing development, experiments, and customized gameplay rules.
+
+The highlights above describe changes present in the current community branch relative to upstream. Additional `dev` changes are not automatically included in `master`. Use matching client and server versions when updating, especially for changes that affect the network protocol.
+
+## Chinese database and related projects
+
+- **[Crystal.Database-ZhCN](https://github.com/TiomTang/Crystal.Database-ZhCN)**: the separately maintained Chinese server database project, including Chinese game data and NPC scripts.
+- [Upstream Crystal](https://github.com/Suprcode/Crystal)
+- [Upstream database](https://github.com/Suprcode/Crystal.Database)
+- [Crystal map editor](https://github.com/Suprcode/Crystal.MapEditor)
+- [LOMCN build guide](https://www.lomcn.net/wiki/index.php/Getting_Started)
+- [LOMCN Crystal wiki](https://www.lomcn.net/wiki/index.php/Crystal)
+
+The engine and database are separate projects. Check their branch and content requirements when assembling a server; neither repository grants rights to third-party game assets.
+
+## Attribution and licensing
+
+Thanks to Crystal's original author, Jamie, the [upstream contributors](https://github.com/Suprcode/Crystal/graphs/contributors), and the LOMCN community for the foundation of this project. This fork is maintained by [TiomTang](https://github.com/TiomTang). Original authors retain copyright in their contributions.
+
+Licensing is component-specific, not a choice of either license for the whole repository:
+
+| Component | License |
 | --- | --- |
 | `Client/` and `Shared/` | [MIT](LICENSE-MIT.txt) |
-| `Server/`, `Server.MirForms/` and `Tests/` | [GPL v3 only (`GPL-3.0-only`)](LICENSE-GPL-3.0.txt) |
-| Other original Crystal tools, build files and documentation | [MIT](LICENSE-MIT.txt), unless explicitly stated otherwise |
-| Third-party software and assets | Their own terms; see [third-party notices](THIRD-PARTY-NOTICES.md) |
+| `Server/`, `Server.MirForms/`, and `Tests/` | [GPL-3.0-only](LICENSE-GPL-3.0.txt) |
+| Other original Crystal tools, build files, and documentation | MIT, unless explicitly stated otherwise |
+| Third-party software and assets | Their own terms; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) |
 
-### Running a server and distributing binaries
+Preserve applicable copyright, attribution, and license notices. Distribution of GPL-covered server binaries requires access to the complete corresponding source under GPL v3. Merely running a modified server does not require publishing changes solely because players connect over the network.
 
-- You may modify and distribute the MIT client without publishing its source.
-  Include the MIT copyright and licence notices with the distribution.
-- You may run a modified server, including a commercial server, without
-  publishing server changes solely because players connect over the network.
-- If you distribute server binaries, including modified server libraries,
-  comply with GPL v3 and provide recipients access to the complete corresponding
-  source for that version, including your changes and required build scripts.
-  For downloads, a practical approach is to provide equivalent access to a
-  matching source archive alongside the binary, at no further charge.
-- Server source recipients retain GPL rights to modify and redistribute it.
-  Source need not necessarily be published on GitHub or to the general public.
-- Merely distributing the separate MIT client does not require distributing
-  server source. Copying or linking GPL-covered server code into a client can
-  subject the combined work to GPL requirements.
-
-Preserve copyright, attribution and licence notices. MIT does not require a
-credit on a login screen or website. Mark modifications to GPL-covered works
-and retain the notices required by GPL v3. The licence texts govern; this is a
-summary, not an additional restriction or exception.
-
-Read [LICENSE](LICENSE) for the scope, historical licensing and contributor
-permission qualifications. Earlier valid licence grants are not revoked.
-See [CONTRIBUTING.md](CONTRIBUTING.md) for new contributions.
-
----
-
-# Contributors:
-
-> [Community Contributors](https://github.com/Suprcode/Crystal/graphs/contributors)
-
----
-
-## <img src="https://mirfiles.co.uk/resources/mir2/users/Jev/favicon.png" width="40"> Other Projects
-
-- <img src="https://github.com/JevLOMCN/mir4/blob/main/Tools/icons/mir1.png" alt="Mir1" width="20"/> [Mir 1](https://github.com/JevLOMCN/mir1/) | [Database](https://github.com/Suprcode/Carbon.Database) - Remake of ActozSoft's 1997 _The Legend Of Mir 1_
-- <img src="https://github.com/JevLOMCN/mir4/blob/main/Tools/icons/mir2.png" alt="Mir2" width="20"/> [Mir 2](https://github.com/Suprcode/Crystal) | [Database](https://github.com/Suprcode/Crystal.Database) | [Map Editor](https://github.com/Suprcode/Crystal.MapEditor) - Remake of ActozSoft/Wemade Entertainment's 1999 _The Legend Of Mir 2_
-- <img src="https://github.com/JevLOMCN/mir4/blob/main/Tools/icons/mir3.png" alt="Mir3" width="20"/> [Mir 3](https://github.com/Suprcode/Zircon) | [Database](https://mirfiles.com/resources/mir3/zircon/Database.7z) | [Map Editor](https://www.lomcn.net/forum/threads/map-editor.109317/)- Remake of Wemade Entertainment's 2003 _The Legend Of Mir 3_
-- <img src="https://github.com/JevLOMCN/mir4/blob/main/Tools/icons/woool.png" alt="WoOOL" width="20"/> [WoOOL](https://www.lomcn.net/forum/forums/woool-development-project-onyx.857/) - Remake of Shanda Games' (now Shengqu Games) 2003 _The World Of Legend_
-- <img src="https://github.com/JevLOMCN/mir4/blob/main/Tools/icons/mir3d.png" alt="Mir3D" width="20"/> [Mir 3D (Moon Spirit)](https://github.com/mir-ethernity/mir-eternal) | [Mir 3D (Holy Cow)](https://github.com/JevLOMCN/Eternal-Legend) - Remake of Shanda Games' (now Shengqu Games) 2016 _Legend Eternal_
-- <img src="https://github.com/JevLOMCN/mir4/blob/main/Tools/icons/mir4.png" alt="Mir4" width="20"/> [Mir 4](https://github.com/JevLOMCN/mir4) - Remake of Wemade Entertainment's 2021 _Mir 4_
-
----
+Read [LICENSE](LICENSE) for the full scope and historical contributor-permission qualifications, and [CONTRIBUTING.md](CONTRIBUTING.md) for contribution terms. This overview does not resolve historical licensing questions or replace the license texts. Game artwork, sounds, maps, trademarks, and other third-party content require their own permissions.
