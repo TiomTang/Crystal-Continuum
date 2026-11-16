@@ -367,7 +367,11 @@ namespace Server.MirObjects
             UserItem item = null;
             int index = -1;
 
-            if (Owner.Hero != null && Owner.Hero.Dead) return;
+            if (Owner.Hero != null && Owner.Hero.Dead)
+            {
+                Owner.Enqueue(p);
+                return;
+            }
 
             for (int i = 0; i < Info.Inventory.Length; i++)
             {

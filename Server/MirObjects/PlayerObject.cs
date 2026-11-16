@@ -4509,7 +4509,11 @@ namespace Server.MirObjects
         public void HeroUseItem(ulong id)
         {
             if (!HasHero || !HeroSpawned)
+            {
+                Enqueue(new S.UseItem { UniqueID = id, Grid = MirGridType.HeroInventory, Success = false });
                 return;
+            }
+
             Hero.UseItem(id);
         }
         public void SplitItem(MirGridType grid, ulong id, ushort count)

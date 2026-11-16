@@ -6284,6 +6284,22 @@ namespace Client.MirScenes
             Hero.RefreshStats();
         }
 
+        private static void ReleaseItemLocks(params MirItemCell[][] grids)
+        {
+            for (int i = 0; i < grids.Length; i++)
+            {
+                MirItemCell[] grid = grids[i];
+                if (grid == null) continue;
+
+                for (int j = 0; j < grid.Length; j++)
+                {
+                    if (grid[j] == null) continue;
+
+                    grid[j].Locked = false;
+                }
+            }
+        }
+
         private void UpdateHeroSpawnState(S.UpdateHeroSpawnState p)
         {
             HeroSpawnState = p.State;
@@ -6293,6 +6309,10 @@ namespace Client.MirScenes
             MainDialog.HeroMenuButton.Visible = p.State > HeroSpawnState.Unsummoned;
             HeroBehaviourPanel.Visible = p.State > HeroSpawnState.Unsummoned;
             HeroMenuPanel.Visible = HeroMenuPanel.Visible && MainDialog.HeroMenuButton.Visible;
+
+            //A hero out of play will not answer item requests that are still pending, release the cells so they stay usable.
+            if (p.State != HeroSpawnState.Summoned)
+                ReleaseItemLocks(HeroInventoryDialog.Grid, HeroBeltDialog.Grid);
 
             if (p.State < HeroSpawnState.Summoned)
             {

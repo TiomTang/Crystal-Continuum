@@ -399,6 +399,7 @@ namespace Client.MirControls
             if (Locked || GridType == MirGridType.Inspect || GridType == MirGridType.TrustMerchant || GridType == MirGridType.GuildStorage || GridType == MirGridType.Craft) return;
 
             if (!HeroGridType && MapObject.User.Fishing) return;
+            if (HeroGridType && GameScene.Hero != null && GameScene.Hero.Dead) return;
             if (MapObject.User.RidingMount && Item.Info.Type != ItemType.Scroll && Item.Info.Type != ItemType.Potion && Item.Info.Type != ItemType.Torch) return;
 
             if (GridType == MirGridType.BuyBack)
