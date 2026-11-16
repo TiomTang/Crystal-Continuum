@@ -3804,7 +3804,7 @@ namespace Client.MirScenes
                     if (item == null || item.UniqueID != p.UniqueID) continue;
 
                     if (item.Count == p.Count)
-                        User.Inventory[i] = null;
+                        Hero.Inventory[i] = null;
                     else
                         item.Count -= p.Count;
                     actor = Hero;
@@ -3837,7 +3837,7 @@ namespace Client.MirScenes
                         if (item == null || item.UniqueID != p.UniqueID) continue;
 
                         if (item.Count == p.Count)
-                            User.Equipment[i] = null;
+                            Hero.Equipment[i] = null;
                         else
                             item.Count -= p.Count;
                         actor = Hero;
