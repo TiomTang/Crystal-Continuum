@@ -4376,7 +4376,7 @@ namespace Server.MirObjects
 
                                     var time = item.Info.Durability;
 
-                                    // 开盒产出的实例自带档位属性，脚本或 GM 直接发放的实例没有，退回模板属性
+                                    // Instances produced by opening a chest carry the tier stats; ones granted directly by scripts or GMs do not, so fall back to the template stats.
                                     var wonderStats = item.AddedStats.Values.Count > 0
                                         ? new Stats(item.AddedStats)
                                         : new Stats(item.Info.Stats);

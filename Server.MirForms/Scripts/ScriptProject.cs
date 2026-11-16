@@ -58,7 +58,7 @@ namespace Server.MirForms.Scripts
         public override string ToString()
         {
             return (!string.IsNullOrEmpty(FileName) ? FileName + "  " : string.Empty) +
-                (Line > 0 ? "第 " + Line + " 行  " : string.Empty) + Message;
+                (Line > 0 ? GameLanguage.Get("Line {0}", Line) + "  " : string.Empty) + Message;
         }
     }
 
@@ -449,7 +449,8 @@ namespace Server.MirForms.Scripts
                     }
                     if (duplicateKey.Length > 0 && !values.Add(duplicateKey))
                         AddSectionIssue(issues, location, section.Key,
-                            "重复编写的条目：" + duplicateKey + "（请确认是否有意重复；引擎仍按原规则处理）", false);
+                            GameLanguage.Get("Repeated entry: {0} (confirm whether the repetition is intended; the engine still applies its original rule)",
+                                duplicateKey), false);
 
                     switch (section.Kind)
                     {
@@ -459,17 +460,20 @@ namespace Server.MirForms.Scripts
                             int type = int.Parse(line);
                             if (!Enum.IsDefined(typeof(ItemType), (ItemType)type) || type != (int)(ItemType)type)
                                 AddSectionIssue(issues, location, section.Key,
-                                    "物品种类编号 " + type + " 会被引擎转换为 " + (byte)(ItemType)type +
-                                    "（" + (ItemType)type + "）", false);
+                                    GameLanguage.Get("Item type number {0} is converted by the engine to {1} ({2})",
+                                        type, (byte)(ItemType)type, (ItemType)type), false);
                             break;
 
                         case ScriptSectionKind.Quests:
                             if (!int.TryParse(line, out int quest))
-                                AddSectionIssue(issues, location, section.Key, "无效任务编号，当前行会被忽略：" + line, false);
+                                AddSectionIssue(issues, location, section.Key,
+                                    GameLanguage.Get("Invalid quest number; this line is ignored: {0}", line), false);
                             else if (quest == int.MinValue)
-                                AddSectionIssue(issues, location, section.Key, "任务编号绝对值超出 Int32 范围：" + line, true);
+                                AddSectionIssue(issues, location, section.Key,
+                                    GameLanguage.Get("Quest number magnitude exceeds the Int32 range: {0}", line), true);
                             else if (quest != 0 && rules?.QuestExists != null && !rules.QuestExists(Math.Abs(quest)))
-                                AddSectionIssue(issues, location, section.Key, "没有这个任务，当前行会被忽略：" + Math.Abs(quest), false);
+                                AddSectionIssue(issues, location, section.Key,
+                                    GameLanguage.Get("No such quest; this line is ignored: {0}", Math.Abs(quest)), false);
                             break;
 
                         case ScriptSectionKind.Trade:
@@ -479,13 +483,17 @@ namespace Server.MirForms.Scripts
                             if (parts.Length == 0) break;
                             bool missingItem = rules?.ItemExists != null && !rules.ItemExists(parts[0]);
                             if (missingItem)
-                                AddSectionIssue(issues, location, section.Key, "没有这个物品，当前行不会加载：" + parts[0], false);
+                                AddSectionIssue(issues, location, section.Key,
+                                    GameLanguage.Get("No such item; this line is not loaded: {0}", parts[0]), false);
                             if (section.Kind == ScriptSectionKind.Trade && parts.Length == 2 && !ushort.TryParse(parts[1], out _))
                                 AddSectionIssue(issues, location, section.Key,
-                                    "库存数量不是 UInt16（0–65535），引擎会将数量设为 0：" + parts[1], false);
+                                    GameLanguage.Get("Stock count is not a UInt16 (0-65535); the engine sets the count to 0: {0}",
+                                        parts[1]), false);
                             if (section.Kind == ScriptSectionKind.Recipe && !missingItem &&
                                 rules?.RecipeExists != null && !rules.RecipeExists(parts[0]))
-                                AddSectionIssue(issues, location, section.Key, "没有可用配方或配方没有材料，当前行不会加载：" + parts[0], false);
+                                AddSectionIssue(issues, location, section.Key,
+                                    GameLanguage.Get("No usable recipe, or the recipe has no ingredients; this line is not loaded: {0}",
+                                        parts[0]), false);
                             break;
                     }
                 }
@@ -501,7 +509,8 @@ namespace Server.MirForms.Scripts
             if (stop >= lines.Count || ScriptPageKeyCatalog.TryParseHeader(lines[stop], out _) ||
                 FindSection(lines[stop]) != null) return;
             AddSectionIssue(issues, source[stop].Source, section.Key,
-                "该行不符合 " + section.Key + " 条目格式，数据段在此提前结束；后续条目不会由此数据段加载。", false);
+                GameLanguage.Get("This line does not match the {0} entry format, so the section ends here; later entries are not loaded from this section.",
+                    section.Key), false);
         }
 
         private static void AddSectionIssue(List<ScriptIssue> issues, ScriptSourceInfo source, string page,
@@ -532,13 +541,16 @@ namespace Server.MirForms.Scripts
             switch (keyword.Argument)
             {
                 case ScriptArgumentKind.Spell:
-                    if (rules.SpellExists != null && !rules.SpellExists(parts[1])) message = "引擎不认识这个技能：" + parts[1];
+                    if (rules.SpellExists != null && !rules.SpellExists(parts[1]))
+                        message = GameLanguage.Get("The engine does not recognise this spell: {0}", parts[1]);
                     break;
                 case ScriptArgumentKind.Map:
-                    if (rules.MapExists != null && !rules.MapExists(parts[1])) message = "找不到这个地图：" + parts[1];
+                    if (rules.MapExists != null && !rules.MapExists(parts[1]))
+                        message = GameLanguage.Get("No such map: {0}", parts[1]);
                     break;
                 case ScriptArgumentKind.Item:
-                    if (rules.ItemExists != null && !rules.ItemExists(parts[1])) message = "没有这个物品：" + parts[1];
+                    if (rules.ItemExists != null && !rules.ItemExists(parts[1]))
+                        message = GameLanguage.Get("No such item: {0}", parts[1]);
                     break;
             }
             if (message != null)
@@ -573,7 +585,7 @@ namespace Server.MirForms.Scripts
                     : ScriptKeywordRegistry.TryGetVariable(name, out keyword);
                 if (found) continue;
                 AddLocalIssue(issues, seen, source, segment.Page.Key, ScriptDiagnosticKind.UnknownValue,
-                    "当前脚本类型不支持这个变量：<$" + match.Groups[1].Value + ">",
+                    GameLanguage.Get("This script type does not support the variable: <${0}>", match.Groups[1].Value),
                     display ? ScriptDiagnosticPhase.Display : phase, !display);
             }
         }

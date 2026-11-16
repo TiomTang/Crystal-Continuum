@@ -636,7 +636,7 @@ namespace Server.MirForms.Scripts
                 return;
             }
 
-            _statusIssues.Text = "找不到页面 " + key;
+            _statusIssues.Text = GameLanguage.Get("No page named {0}", key);
         }
 
         private void CheckBuffer(bool report)

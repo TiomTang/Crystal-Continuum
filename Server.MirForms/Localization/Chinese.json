@@ -15088,10 +15088,6 @@
     "Source": "DisplayFallback",
     "Text": "显示回退"
   },
-  "Notice": {
-    "Source": "Notice",
-    "Text": "提示"
-  },
   "Speech weight followed by a space and text.": {
     "Source": "Speech weight followed by a space and text.",
     "Text": "喊话权重，后跟空格与喊话内容。"
@@ -15687,5 +15683,145 @@
   "Write a value or expanded variable into the value file; quote a value containing spaces.": {
     "Source": "Write a value or expanded variable into the value file; quote a value containing spaces.",
     "Text": "将数值或展开后的变量写入数值文件；含空格的值须用引号包围。"
+  },
+  "Line {0}": {
+    "Source": "Line {0}",
+    "Text": "第 {0} 行"
+  },
+  "Repeated entry: {0} (confirm whether the repetition is intended; the engine still applies its original rule)": {
+    "Source": "Repeated entry: {0} (confirm whether the repetition is intended; the engine still applies its original rule)",
+    "Text": "重复编写的条目：{0}（请确认是否有意重复；引擎仍按原规则处理）"
+  },
+  "Item type number {0} is converted by the engine to {1} ({2})": {
+    "Source": "Item type number {0} is converted by the engine to {1} ({2})",
+    "Text": "物品种类编号 {0} 会被引擎转换为 {1}（{2}）"
+  },
+  "Invalid quest number; this line is ignored: {0}": {
+    "Source": "Invalid quest number; this line is ignored: {0}",
+    "Text": "无效任务编号，当前行会被忽略：{0}"
+  },
+  "Quest number magnitude exceeds the Int32 range: {0}": {
+    "Source": "Quest number magnitude exceeds the Int32 range: {0}",
+    "Text": "任务编号绝对值超出 Int32 范围：{0}"
+  },
+  "No such quest; this line is ignored: {0}": {
+    "Source": "No such quest; this line is ignored: {0}",
+    "Text": "没有这个任务，当前行会被忽略：{0}"
+  },
+  "No such item; this line is not loaded: {0}": {
+    "Source": "No such item; this line is not loaded: {0}",
+    "Text": "没有这个物品，当前行不会加载：{0}"
+  },
+  "Stock count is not a UInt16 (0-65535); the engine sets the count to 0: {0}": {
+    "Source": "Stock count is not a UInt16 (0-65535); the engine sets the count to 0: {0}",
+    "Text": "库存数量不是 UInt16（0–65535），引擎会将数量设为 0：{0}"
+  },
+  "No usable recipe, or the recipe has no ingredients; this line is not loaded: {0}": {
+    "Source": "No usable recipe, or the recipe has no ingredients; this line is not loaded: {0}",
+    "Text": "没有可用配方或配方没有材料，当前行不会加载：{0}"
+  },
+  "This line does not match the {0} entry format, so the section ends here; later entries are not loaded from this section.": {
+    "Source": "This line does not match the {0} entry format, so the section ends here; later entries are not loaded from this section.",
+    "Text": "该行不符合 {0} 条目格式，数据段在此提前结束；后续条目不会由此数据段加载。"
+  },
+  "The engine does not recognise this spell: {0}": {
+    "Source": "The engine does not recognise this spell: {0}",
+    "Text": "引擎不认识这个技能：{0}"
+  },
+  "No such map: {0}": {
+    "Source": "No such map: {0}",
+    "Text": "找不到这个地图：{0}"
+  },
+  "No such item: {0}": {
+    "Source": "No such item: {0}",
+    "Text": "没有这个物品：{0}"
+  },
+  "This script type does not support the variable: <${0}>": {
+    "Source": "This script type does not support the variable: <${0}>",
+    "Text": "当前脚本类型不支持这个变量：<${0}>"
+  },
+  "No page named {0}": {
+    "Source": "No page named {0}",
+    "Text": "找不到页面 {0}"
+  },
+  "Choose a quest section to insert its values.": {
+    "Source": "Choose a quest section to insert its values.",
+    "Text": "选择任务数据段以插入对应条目。"
+  },
+  "Colored text": {
+    "Source": "Colored text",
+    "Text": "彩色文本"
+  },
+  "Environment folder was not found.": {
+    "Source": "Environment folder was not found.",
+    "Text": "找不到环境目录。"
+  },
+  "INCLUDE Page Not Found: {0} in {1}": {
+    "Source": "INCLUDE Page Not Found: {0} in {1}",
+    "Text": "INCLUDE 页面不存在：{0}，所在文件：{1}"
+  },
+  "Item name, optional UInt16 count and quoted task message.": {
+    "Source": "Item name, optional UInt16 count and quoted task message.",
+    "Text": "物品名称、可选的 UInt16 数量以及用引号包围的任务提示。"
+  },
+  "Monster name, optional Int32 count and quoted task message.": {
+    "Source": "Monster name, optional Int32 count and quoted task message.",
+    "Text": "怪物名称、可选的 Int32 数量以及用引号包围的任务提示。"
+  },
+  "Page": {
+    "Source": "Page",
+    "Text": "页面"
+  },
+  "Plain text": {
+    "Source": "Plain text",
+    "Text": "普通文本"
+  },
+  "Plain text has no script validation.": {
+    "Source": "Plain text has no script validation.",
+    "Text": "普通文本不进行脚本校验。"
+  },
+  "Quest definition": {
+    "Source": "Quest definition",
+    "Text": "任务定义"
+  },
+  "Quest definition template": {
+    "Source": "Quest definition template",
+    "Text": "任务定义模板"
+  },
+  "Quest description text; NPC commands are not executed here.": {
+    "Source": "Quest description text; NPC commands are not executed here.",
+    "Text": "任务描述文本；此处不执行 NPC 命令。"
+  },
+  "Quest flag number and optional quoted task message.": {
+    "Source": "Quest flag number and optional quoted task message.",
+    "Text": "任务标记编号以及可选的、用引号包围的任务提示。"
+  },
+  "Quest item was not found: {0}": {
+    "Source": "Quest item was not found: {0}",
+    "Text": "找不到任务物品：{0}"
+  },
+  "Quest monster was not found: {0}": {
+    "Source": "Quest monster was not found: {0}",
+    "Text": "找不到任务怪物：{0}"
+  },
+  "Quest reward item was not found: {0}": {
+    "Source": "Quest reward item was not found: {0}",
+    "Text": "找不到任务奖励物品：{0}"
+  },
+  "Reward item name and optional UInt16 count; gender variants are supported.": {
+    "Source": "Reward item name and optional UInt16 count; gender variants are supported.",
+    "Text": "奖励物品名称和可选的 UInt16 数量；支持按性别区分的物品。"
+  },
+  "Text": {
+    "Source": "Text",
+    "Text": "文本"
+  },
+  "Text with a client colour name.": {
+    "Source": "Text with a client colour name.",
+    "Text": "带客户端颜色名称的文本。"
+  },
+  "Unsigned reward amount (0 to 4294967295).": {
+    "Source": "Unsigned reward amount (0 to 4294967295).",
+    "Text": "无符号奖励数值（0 至 4294967295）。"
   }
 }
