@@ -20,36 +20,15 @@ namespace Client.MirScenes.Dialogs
         public const int CardHeight = 86;
         public const int CardGap = 4;
 
-        private const int IconBox = 34;
+        private const int IconBox = 38;
         private const int IconX = 17;
-        private const int IconY = 21;
-        private const int NameY = 55;
-        private const int BarX = 13;
-        private const int BarY = 69;
-        private const int BarWidth = 45;
-        private const int BarHeight = 4;
+        private const int IconY = 14;
+        private const int NameY = 52;
+        private const int BarX = 12;
+        private const int BarY = 72;
+        private const int BarWidth = 48;
+        private const int BarHeight = 5;
         private const int MaxCards = 6;   // hero + up to 5 pets
-
-        private static MLibrary _cardLibrary;
-        private static bool _cardLibraryChecked;
-
-        // Loaded on first use: a missing PetCard.Lib leaves the roster running with a
-        // blank plate instead of throwing while the client is starting up.
-        private static MLibrary CardLibrary
-        {
-            get
-            {
-                if (!_cardLibraryChecked)
-                {
-                    _cardLibraryChecked = true;
-                    string file = Settings.DataPath + "PetCard.Lib";
-                    if (System.IO.File.Exists(file))
-                        _cardLibrary = new MLibrary(Settings.DataPath + "PetCard");
-                }
-
-                return _cardLibrary;
-            }
-        }
 
         private readonly List<MapObject> _actors = new List<MapObject>();
         private readonly PetCard[] _cards = new PetCard[MaxCards];
@@ -234,21 +213,23 @@ namespace Client.MirScenes.Dialogs
 
             public PetCard()
             {
-                DrawControlTexture = false;
+                DrawControlTexture = true;
                 BorderColour = HoverBorder;
 
+                // Leave room for CJK glyphs and their outline without moving the
+                // name's centre or reducing its font size.
                 _name = new MirLabel
                 {
                     AutoSize = false,
                     BackColour = Color.Transparent,
-                    DrawFormat = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix,
+                    DrawFormat = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine,
                     Font = new Font(Settings.FontName, 9F),
                     ForeColour = PetNameColour,
                     Location = new Point(0, NameY),
                     OutLine = true,
                     OutLineColour = Color.Black,
                     Parent = this,
-                    Size = new Size(CardWidth, 12),
+                    Size = new Size(CardWidth, 20),
                     Text = string.Empty,
                 };
             }
@@ -269,27 +250,106 @@ namespace Client.MirScenes.Dialogs
                 _name.ForeColour = Actor is PlayerObject ? HeroNameColour : PetNameColour;
             }
 
+            protected override void CreateTexture()
+            {
+                // Cache the procedural plate just like a label. The control lifecycle
+                // releases it on device loss and recreates it on the next draw.
+                DXManager.Sprite.Flush();
+                var replacement = TextureUpload.Paint(Size.Width, Size.Height, DrawPlate);
+                DisposeTexture();
+                ControlTexture = replacement;
+                TextureSize = Size;
+                DXManager.ControlList.Add(this);
+                TextureValid = true;
+            }
+
+            private static void DrawPlate(Bitmap image)
+            {
+                using Graphics target = Graphics.FromImage(image);
+                const int scale = 4;
+                using var bitmap = new Bitmap(CardWidth * scale, CardHeight * scale);
+                using (Graphics graphics = Graphics.FromImage(bitmap))
+                {
+                    void Rectangle(int left, int top, int right, int bottom, string colour, string outline = null)
+                    {
+                        int x = left * scale, y = top * scale;
+                        int width = (right - left + 1) * scale, height = (bottom - top + 1) * scale;
+                        using var brush = new SolidBrush(ColorTranslator.FromHtml(colour));
+                        graphics.FillRectangle(brush, x, y, width, height);
+                        if (outline == null) return;
+                        using var edge = new SolidBrush(ColorTranslator.FromHtml(outline));
+                        graphics.FillRectangle(edge, x, y, width, scale);
+                        graphics.FillRectangle(edge, x, y + height - scale, width, scale);
+                        graphics.FillRectangle(edge, x, y, scale, height);
+                        graphics.FillRectangle(edge, x + width - scale, y, scale, height);
+                    }
+
+                    void Line(string colour, params Point[] points)
+                    {
+                        using var pen = new Pen(ColorTranslator.FromHtml(colour), scale);
+                        pen.StartCap = pen.EndCap = System.Drawing.Drawing2D.LineCap.Square;
+                        PointF[] scaled = points.Select(point => new PointF((point.X + 0.5F) * scale, (point.Y + 0.5F) * scale)).ToArray();
+                        graphics.DrawLines(pen, scaled);
+                    }
+
+                    for (int y = 0; y < bitmap.Height; y++)
+                    {
+                        float amount = (float)y / (bitmap.Height - 1);
+                        using var brush = new SolidBrush(Color.FromArgb(
+                            (int)(61 - 36 * amount), (int)(46 - 25 * amount), (int)(30 - 14 * amount)));
+                        graphics.FillRectangle(brush, 0, y, bitmap.Width, 1);
+                    }
+
+                    Rectangle(1, 0, 70, 85, "#17130d");
+                    Rectangle(0, 1, 71, 84, "#17130d");
+                    Rectangle(2, 2, 69, 83, "#6b512a", "#b89a56");
+                    Rectangle(4, 4, 67, 81, "#2d2419", "#302416");
+                    Rectangle(6, 6, 65, 79, "#34291c", "#6c542f");
+                    Line("#d1b16e", new Point(6, 5), new Point(65, 5));
+                    foreach (var corner in new[] { (X: 2, Direction: 1), (X: 69, Direction: -1) })
+                    {
+                        foreach (var edge in new[] { (Y: 2, Direction: 1), (Y: 83, Direction: -1) })
+                        {
+                            Line("#d4b775", new Point(corner.X, edge.Y + 9 * edge.Direction),
+                                new Point(corner.X, edge.Y), new Point(corner.X + 8 * corner.Direction, edge.Y));
+                            Line("#9e7b3e", new Point(corner.X + 3 * corner.Direction, edge.Y + 7 * edge.Direction),
+                                new Point(corner.X + 3 * corner.Direction, edge.Y + 3 * edge.Direction),
+                                new Point(corner.X + 7 * corner.Direction, edge.Y + 3 * edge.Direction));
+                        }
+                    }
+
+                    Rectangle(13, 11, 58, 54, "#151713", "#a1884e");
+                    Rectangle(14, 12, 57, 53, "#20221b", "#100f0b");
+                    Line("#403e2b", new Point(15, 53), new Point(57, 53), new Point(57, 13));
+                    Rectangle(BarX - 2, BarY - 1, BarX + BarWidth + 1, BarY + BarHeight + 1, "#090909", "#8c7446");
+                    Rectangle(BarX - 1, BarY - 1, BarX + BarWidth, BarY + BarHeight, "#100b09");
+                    Rectangle(BarX, BarY, BarX + BarWidth - 1, BarY + BarHeight - 1, "#2a1010");
+                }
+
+                target.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                target.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                target.DrawImage(bitmap, new Rectangle(0, 0, CardWidth, CardHeight));
+            }
+
             public override void Draw()
             {
                 if (!Visible) return;
-
-                // Plate first, then the portrait and the bar, then the child controls
-                // (the name) and the hover outline on top.
-                MLibrary card = CardLibrary;
-                if (card != null)
-                    card.Draw(0, DisplayRectangle.X, DisplayRectangle.Y);
-
-                if (Actor != null)
-                {
-                    DrawIcon();
-                    DrawHealthBar();
-                }
 
                 bool hovered = Actor != null && MapObject.MouseObject == Actor;
                 if (Border != hovered)
                     Border = hovered;
 
                 base.Draw();
+            }
+
+            protected internal override void DrawControl()
+            {
+                // The cached plate must be drawn before the live portrait and HP.
+                // MirControl.Draw then adds the name and hover border on top.
+                base.DrawControl();
+                if (Actor == null) return;
+                DrawIcon();
+                DrawHealthBar();
             }
 
             private void DrawIcon()
@@ -325,16 +385,21 @@ namespace Client.MirScenes.Dialogs
 
             private void DrawHealthBar()
             {
-                int fill = (int)(BarWidth * Actor.PercentHealth / 100F);
+                int fill = BarWidth * Math.Clamp((int)Actor.PercentHealth, 0, 100) / 100;
                 if (fill <= 0) return;
 
                 int x = DisplayRectangle.X + BarX;
                 int y = DisplayRectangle.Y + BarY;
 
-                DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, fill, BarHeight),
-                    new Vector3(x, y, 0), Color.FromArgb(255, 176, 34, 30));
+                for (int row = 0; row < BarHeight; row++)
+                {
+                    float amount = (float)row / (BarHeight - 1);
+                    Color colour = Color.FromArgb((int)(183 - 77 * amount), (int)(62 - 36 * amount), (int)(43 - 20 * amount));
+                    DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, fill, 1),
+                        new Vector3(x, y + row, 0), colour);
+                }
                 DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, fill, 1),
-                    new Vector3(x, y, 0), Color.FromArgb(255, 240, 124, 96));
+                    new Vector3(x, y, 0), Color.FromArgb(255, 225, 120, 87));
             }
         }
     }
