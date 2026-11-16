@@ -6975,7 +6975,7 @@ namespace Client.MirScenes
                     case ItemType.Pets:
                         if ((HoverItem.Info.Shape == 26 || HoverItem.Info.Shape == 28) && HoverItem.CurrentDura > 0)//WonderDrug, Knapsack
                         {
-                            string strTime = Functions.PrintTimeSpanFromSeconds((HoverItem.CurrentDura * 3600), false);
+                            string strTime = Functions.PrintTimeSpanFromSeconds((HoverItem.CurrentDura * 60), false);
                             text = GameLanguage.Get(" Duration {0}", strTime);
                         }
                         break;

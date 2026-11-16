@@ -10725,7 +10725,7 @@ namespace Server.MirObjects
 
         private UserItem CreateDynamicWonderDrug(int boxtype, UserItem dropitem)
         {
-            dropitem.CurrentDura = (ushort)1;//* 3600
+            dropitem.CurrentDura = dropitem.Info.Durability;
             switch ((int)dropitem.Info.Effect)
             {
                 case 0://exp low/med/high
