@@ -2821,6 +2821,54 @@ namespace Server.MirObjects
 
 
 
+        /// <summary>
+        /// Hands the object this character is fighting to the rest of its side. The player and the
+        /// hero are one combat group: the hero assists an owner's attack, and in the focus stance
+        /// the owner's pets and hero follow the target. A hero reports to its owner's group, so the
+        /// targets it picks reach the pets as well; before, a summon kept standing next to its
+        /// owner while the hero fought on.
+        /// </summary>
+        private void ShareCombatTarget(MapObject target)
+        {
+            PlayerObject player;
+            HeroObject hero;
+
+            if (this is PlayerObject self)
+            {
+                player = self;
+                hero = self.HeroSpawned ? self.Hero : null;
+
+                //The hero helps with an attack its owner started
+                if (hero != null && !hero.Dead)
+                    hero.AssistOwnerAttack(target);
+            }
+            else if (this is HeroObject attacker)
+            {
+                player = attacker.Owner;
+                hero = attacker;
+            }
+            else
+            {
+                return;
+            }
+
+            if (player == null || player.PMode != PetMode.FocusMasterTarget) return;
+
+            for (int i = 0; i < player.Pets.Count; i++)
+            {
+                MonsterObject pet = player.Pets[i];
+                if (pet.Race == ObjectType.Creature) continue;
+
+                pet.Target = target;
+            }
+
+            //The hero already focuses this target, and a counter attacking hero reacts on its own
+            if (hero == null || hero == this || hero.Dead) return;
+            if (player.Info.HeroBehaviour == HeroBehaviour.CounterAttack) return;
+
+            hero.Target = target;
+        }
+
         public void RangeAttack(MirDirection dir, Point location, uint targetID)
         {
             LogTime = Envir.Time + Globals.LogDelay;
@@ -2844,27 +2892,7 @@ namespace Server.MirObjects
 
             if (target != null && !target.Dead && target.IsAttackTarget(this) && !target.IsFriendlyTarget(this))
             {
-                if (this is PlayerObject owner && owner.HeroSpawned && !owner.Hero.Dead)
-                    owner.Hero.AssistOwnerAttack(target);
-
-                if (this is PlayerObject player &&
-                   player.PMode == PetMode.FocusMasterTarget)
-                {
-                    foreach (MonsterObject pet in player.Pets)
-                    {
-                        if (pet.Race != ObjectType.Creature)
-                        {
-                            pet.Target = target;
-                        }
-                    }
-
-                    if (player.HeroSpawned &&
-                        !player.Hero.Dead)
-                    {
-                        if (player.Info.HeroBehaviour != HeroBehaviour.CounterAttack)
-                            player.Hero.Target = target;
-                    }
-                }
+                ShareCombatTarget(target);
             }
 
             Direction = dir;
@@ -3117,27 +3145,7 @@ namespace Server.MirObjects
 
                 if (ob != null && !ob.Dead && ob.IsAttackTarget(this) && !ob.IsFriendlyTarget(this))
                 {
-                    if (this is PlayerObject owner && owner.HeroSpawned && !owner.Hero.Dead)
-                        owner.Hero.AssistOwnerAttack(ob);
-
-                    if (this is PlayerObject player &&
-                   player.PMode == PetMode.FocusMasterTarget)
-                    {
-                        foreach (MonsterObject pet in player.Pets)
-                        {
-                            if (pet.Race != ObjectType.Creature)
-                            {
-                                pet.Target = ob;
-                            }
-                        }
-
-                        if (player.HeroSpawned &&
-                            !player.Hero.Dead)
-                        {
-                            if (player.Info.HeroBehaviour != HeroBehaviour.CounterAttack)
-                                player.Hero.Target = ob;
-                        }
-                    }
+                    ShareCombatTarget(ob);
                 }
 
                 //Only undead targets
@@ -3562,27 +3570,7 @@ namespace Server.MirObjects
 
             if (target != null && !target.Dead && target.IsAttackTarget(this) && !target.IsFriendlyTarget(this))
             {
-                if (this is PlayerObject owner && owner.HeroSpawned && !owner.Hero.Dead)
-                    owner.Hero.AssistOwnerAttack(target);
-
-                if (this is PlayerObject player &&
-                   player.PMode == PetMode.FocusMasterTarget)
-                {
-                    foreach (MonsterObject pet in player.Pets)
-                    {
-                        if (pet.Race != ObjectType.Creature)
-                        {
-                            pet.Target = target;
-                        }
-                    }
-
-                    if (player.HeroSpawned &&
-                        !player.Hero.Dead)
-                    {
-                        if (player.Info.HeroBehaviour != HeroBehaviour.CounterAttack)
-                            player.Hero.Target = target;
-                    }
-                }
+                ShareCombatTarget(target);
             }
 
             bool cast = true;

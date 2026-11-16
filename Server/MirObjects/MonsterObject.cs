@@ -2650,8 +2650,8 @@ namespace Server.MirObjects
                 if (attacker.Master == null) //Wild Monster
                     return true;
 
-                //Pet Vs Pet
-                if (Master == attacker.Master)
+                //Pet Vs Pet - the owner and its hero are one side
+                if (IsSameSide(Master, attacker.Master))
                     return false;
 
                 if (Envir.Time < ShockTime) //Shocked
@@ -2691,14 +2691,8 @@ namespace Server.MirObjects
                 if (Envir.Time < ShockTime) //Shocked
                     return false;
 
-                for (int i = 0; i < attacker.Master.Pets.Count; i++)
-                {
-                    MonsterObject ob = attacker.Master.Pets[i];
-                    if (ob == Target || ob.Target == this) return true;
-                }
-
-                if (Target == attacker.Master)
-                    return true;
+                //The owner, its hero and every pet of the two share one fight
+                if (IsFightingSameSide(attacker.Master, this)) return true;
             }
 
             if (Envir.Time < attacker.HallucinationTime) return true;
