@@ -5724,9 +5724,11 @@ namespace Server.MirObjects
                         for (int j = 0; j < GroupMembers.Count; j++)
                             GroupMembers[j].ReceiveChat(GameLanguage.Get("{0} Picked up: {{{1}}}", Name, item.Item.FriendlyName), ChatType.System);
 
-                    GainItem(item.Item);
+                    ushort gainedCount = item.Item.Count;
 
-                    Report.ItemChanged(item.Item, item.Item.Count, 2);
+                    int slot = GainItem(item.Item);
+
+                    Report.ItemGained(item.Item, gainedCount, slot);
 
                     CurrentMap.RemoveObject(ob);
                     ob.Despawn();

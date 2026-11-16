@@ -1631,7 +1631,7 @@ namespace Server.MirObjects
 
             return count;
         }
-        protected void AddItem(UserItem item)
+        protected int AddItem(UserItem item)
         {
             if (item.Info.StackSize > 1) //Stackable
             {
@@ -1643,7 +1643,7 @@ namespace Server.MirObjects
                     if (item.Count + temp.Count <= temp.Info.StackSize)
                     {
                         temp.Count += item.Count;
-                        return;
+                        return i;
                     }
                     item.Count -= (ushort)(temp.Info.StackSize - temp.Count);
                     temp.Count = temp.Info.StackSize;
@@ -1656,7 +1656,7 @@ namespace Server.MirObjects
                 {
                     if (Info.Inventory[i] != null) continue;
                     Info.Inventory[i] = item;
-                    return;
+                    return i;
                 }
             }
             else if (item.Info.Type == ItemType.Amulet)
@@ -1665,7 +1665,7 @@ namespace Server.MirObjects
                 {
                     if (Info.Inventory[i] != null) continue;
                     Info.Inventory[i] = item;
-                    return;
+                    return i;
                 }
             }
             else
@@ -1674,7 +1674,7 @@ namespace Server.MirObjects
                 {
                     if (Info.Inventory[i] != null) continue;
                     Info.Inventory[i] = item;
-                    return;
+                    return i;
                 }
             }
 
@@ -1682,8 +1682,10 @@ namespace Server.MirObjects
             {
                 if (Info.Inventory[i] != null) continue;
                 Info.Inventory[i] = item;
-                return;
+                return i;
             }
+
+            return -1;
         }
         protected bool CorrectStartItem(ItemInfo info)
         {
@@ -7904,7 +7906,7 @@ namespace Server.MirObjects
 
             return true;
         }
-        public void GainItem(UserItem item)
+        public int GainItem(UserItem item)
         {
             //CheckItemInfo(item.Info);
             CheckItem(item);
@@ -7913,8 +7915,11 @@ namespace Server.MirObjects
 
             Enqueue(new S.GainedItem { Item = clonedItem }); //Cloned because we are probably going to change the amount.
 
-            AddItem(item);
+            int slot = AddItem(item);
+
             RefreshBagWeight();
+
+            return slot;
         }
 
         private void DamageDura()

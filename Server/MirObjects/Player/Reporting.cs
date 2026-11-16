@@ -60,6 +60,13 @@ namespace Server.MirObjects
             LogMessage(message, source);
         }
 
+        public void ItemGained(UserItem item, uint amount, int slot, [CallerMemberName] string source = "")
+        {
+            string message = $"Item Gained - {item.Info.Name} x{amount} ({item.UniqueID}) -> slot {slot}";
+
+            LogMessage(message, source);
+        }
+
         public void ItemChanged(UserItem item, uint amount, int state, [CallerMemberName] string source = "")
         {
             string type = string.Empty;
