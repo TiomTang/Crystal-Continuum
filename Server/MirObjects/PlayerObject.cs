@@ -4376,7 +4376,12 @@ namespace Server.MirObjects
 
                                     var time = item.Info.Durability;
 
-                                    AddBuff(BuffType.WonderDrug, this, time * Settings.Minute, new Stats(item.AddedStats));
+                                    // 开盒产出的实例自带档位属性，脚本或 GM 直接发放的实例没有，退回模板属性
+                                    var wonderStats = item.AddedStats.Values.Count > 0
+                                        ? new Stats(item.AddedStats)
+                                        : new Stats(item.Info.Stats);
+
+                                    AddBuff(BuffType.WonderDrug, this, time * Settings.Minute, wonderStats);
                                 }
                                 break;
                             case 27://FortuneCookies
