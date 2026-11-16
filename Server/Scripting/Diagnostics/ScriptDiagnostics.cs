@@ -28,13 +28,19 @@ namespace Server.Scripting
         {
             internal readonly ScriptExecutionEvidence Evidence;
             internal readonly ExecutionScope Previous;
+            internal readonly ScriptCallContext Call;
+            internal readonly ScriptInteraction Interaction;
             private readonly int _thread = Environment.CurrentManagedThreadId;
             private bool _disposed;
 
-            internal ExecutionScope(ScriptExecutionEvidence evidence)
+            internal ExecutionScope(ScriptExecutionEvidence evidence, ScriptCallContext call = null)
             {
                 Evidence = evidence;
                 Previous = _execution;
+                Interaction = ScriptInteraction.Current;
+                // Nested evidence in the same interaction retains its caller. A background
+                // interaction must never inherit the foreground call's failure target.
+                Call = call ?? (ReferenceEquals(Previous?.Interaction, Interaction) ? Previous?.Call : null);
                 _execution = this;
             }
 
@@ -62,7 +68,7 @@ namespace Server.Scripting
         /// <summary>Structured first reports and periodic summaries. Every recipient receives a copy.</summary>
         public static Action<ScriptDiagnostic> DetailSink;
 
-        /// <summary>Every execution-affecting runtime report, including repeats and overflow references.</summary>
+        /// <summary>Observes execution-affecting reports after failure state is set, including repeats and overflow references.</summary>
         public static event Action<ScriptDiagnostic> Reported;
 
         public static string BatchId { get { lock (Sync) { return _batchId; } } }
@@ -71,6 +77,12 @@ namespace Server.Scripting
         public static IDisposable BeginExecution(ScriptExecutionEvidence evidence)
         {
             return new ExecutionScope(evidence);
+        }
+
+        /// <summary>Bind a statement's failure target together with its diagnostic evidence.</summary>
+        internal static IDisposable BeginStatementExecution(ScriptExecutionEvidence evidence, ScriptCallContext call)
+        {
+            return new ExecutionScope(evidence, call);
         }
 
         /// <summary>
@@ -162,7 +174,14 @@ namespace Server.Scripting
             ScriptDiagnostic diagnostic = Create(kind, source ?? evidence?.Source, pageKey ?? evidence?.PageKey,
                 keyword, message, true, scriptIdentity ?? evidence?.ScriptIdentity, exceptionType, exception, evidence);
             ScriptDiagnostic result = Collect(diagnostic, true);
-            if (AffectsExecution(result) && !_publishing) Notify(Reported, result);
+            if (AffectsExecution(result) && !_publishing)
+            {
+                // Failure propagation is direct; observers cannot decide whether execution stops.
+                if (_execution != null && ReferenceEquals(_execution.Interaction, ScriptInteraction.Current))
+                    _execution.Call?.Abort();
+                ScriptInteraction.Current?.Fail(result);
+                Notify(Reported, result);
+            }
             return result;
         }
 

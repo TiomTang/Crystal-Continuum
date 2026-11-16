@@ -103,11 +103,13 @@ namespace Server.Scripting
             string description, int minParts, Func<ScriptParseContext, ScriptParseOutcome> handler,
             ScriptCheckKind? check = null, ScriptActionKind? action = null, Func<ScriptExecuteContext, ScriptOutcome> executor = null,
             Func<ScriptExecuteContext, ScriptOutcome> monsterExecutor = null, Func<ScriptExecuteContext, string> valueExecutor = null,
-            ScriptButtonKind button = ScriptButtonKind.None, ScriptArgumentKind argument = ScriptArgumentKind.None)
+            ScriptButtonKind button = ScriptButtonKind.None, ScriptArgumentKind argument = ScriptArgumentKind.None,
+            Func<ScriptParseContext, bool> validateArguments = null)
         {
             Button = button;
             Argument = argument;
             Check = check;
+            ValidateArguments = validateArguments;
             Action = action;
             Executor = executor;
             MonsterExecutor = monsterExecutor;
@@ -144,6 +146,12 @@ namespace Server.Scripting
 
         /// <summary>The check this keyword produces, which is also the key of its executor.</summary>
         public ScriptCheckKind? Check { get; }
+
+        /// <summary>
+        /// Validates the literal arguments of a condition before its handler runs. Every check entry
+        /// binds one, including the entries that accept any argument.
+        /// </summary>
+        public Func<ScriptParseContext, bool> ValidateArguments { get; }
 
         /// <summary>The action this keyword produces.</summary>
         public ScriptActionKind? Action { get; }

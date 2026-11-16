@@ -136,7 +136,7 @@ namespace Server.Scripting
                 return ScriptParseOutcome.Unknown;
             }
 
-            if (check && !ScriptCheckHandlers.ValidateArguments(context, keyword.Check.Value))
+            if (check && (keyword.ValidateArguments == null || !keyword.ValidateArguments(context)))
             {
                 MarkInvalid(kind, context, ScriptDiagnostics.Report(ScriptDiagnosticKind.InvalidArguments, context, keyword.Name,
                     string.Format("Invalid arguments for \"{0}\"; expected {1}", keyword.Name, keyword.Usage)));

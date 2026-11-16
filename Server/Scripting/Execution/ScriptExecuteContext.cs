@@ -23,16 +23,14 @@ namespace Server.Scripting
         public bool ExecutionAborted;
         public string LastCompletedAction;
         public bool HasSideEffects;
-        public ScriptDiagnostic FailureDiagnostic;
 
         /// <summary>PARAM1-3 of the page this invocation is running.</summary>
         public readonly ScriptPageState PageState = new ScriptPageState();
 
-        public void Abort(ScriptDiagnostic diagnostic)
+        public void Abort()
         {
             ExecutionAborted = true;
             ConditionAborted = true;
-            if (FailureDiagnostic == null) FailureDiagnostic = diagnostic;
         }
     }
 

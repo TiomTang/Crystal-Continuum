@@ -41,8 +41,6 @@ namespace Server.Scripting
         internal bool IsInvalid { get { return HasInvalidChecks || HasInvalidActions; } }
         internal ScriptDiagnostic InvalidDiagnostic { get; private set; }
 
-        [ThreadStatic] private static ScriptCallContext _executingCall;
-        [ThreadStatic] private static bool _executingDisplay;
         [ThreadStatic] private static List<string> _executionInputs;
 
         internal void InvalidateChecks()
@@ -190,26 +188,17 @@ namespace Server.Scripting
             for (var i = 0; i < speech.Count; i++)
             {
                 ScriptSourceInfo source = sources != null && i < sources.Count ? sources[i] : Source ?? Page?.Source;
-                using (ScriptDiagnostics.BeginExecution(CreateEvidence(source, ScriptDiagnosticPhase.Display, null, call)))
+                using (ScriptDiagnostics.BeginStatementExecution(CreateEvidence(source, ScriptDiagnosticPhase.Display, null, call), call))
                 {
-                    ScriptCallContext previousCall = _executingCall;
-                    bool previousDisplay = _executingDisplay;
-                    _executingCall = call;
-                    _executingDisplay = true;
                     try
                     {
                         speech[i] = ReplaceValues(player, null, speech[i]);
                     }
                     catch (Exception exception)
                     {
-                        call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, Page?.Key, "SAY",
-                            "Failed to resolve display text.", Page?.FileName, exception: exception));
+                        ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, Page?.Key, "SAY",
+                            "Failed to resolve display text.", Page?.FileName, exception: exception);
                         return new List<string>();
-                    }
-                    finally
-                    {
-                        _executingCall = previousCall;
-                        _executingDisplay = previousDisplay;
                     }
                 }
             }
@@ -250,9 +239,8 @@ namespace Server.Scripting
             if (forMonster ? ScriptKeywordRegistry.TryGetMonsterVariable(name, out keyword)
                 : ScriptKeywordRegistry.TryGetVariable(name, out keyword)) return;
 
-            ScriptDiagnostic diagnostic = ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.UnknownValue,
+            ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.UnknownValue,
                 Page == null ? string.Empty : Page.Key, name, "Unknown value <$" + name + ">", Page?.FileName);
-            if (!_executingDisplay) _executingCall?.Abort(diagnostic);
         }
 
         public string ReplaceValue(PlayerObject player, string param)
@@ -320,9 +308,8 @@ namespace Server.Scripting
             if (!found) return string.Empty;
             if (keyword.ValueExecutor == null)
             {
-                ScriptDiagnostic diagnostic = ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingExecutor,
+                ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingExecutor,
                     Page?.Key, innerMatch, "No value executor registered for " + innerMatch, Page?.FileName);
-                _executingCall?.Abort(diagnostic);
                 return string.Empty;
             }
 
@@ -410,13 +397,13 @@ namespace Server.Scripting
             ScriptDiagnostic diagnostic = InvalidDiagnostic;
             var source = diagnostic == null ? null : new ScriptSourceInfo(diagnostic.FileName, diagnostic.Line,
                 diagnostic.Text, diagnostic.SourceContext, diagnostic.SourceVersion);
-            using (ScriptDiagnostics.BeginExecution(CreateEvidence(source,
-                HasInvalidChecks ? ScriptDiagnosticPhase.Check : ScriptDiagnosticPhase.Action, null, call)))
+            using (ScriptDiagnostics.BeginStatementExecution(CreateEvidence(source,
+                HasInvalidChecks ? ScriptDiagnosticPhase.Check : ScriptDiagnosticPhase.Action, null, call), call))
             {
-                call.Abort(ScriptDiagnostics.ReportRuntime(diagnostic?.Kind ?? ScriptDiagnosticKind.InvalidArguments,
+                ScriptDiagnostics.ReportRuntime(diagnostic?.Kind ?? ScriptDiagnosticKind.InvalidArguments,
                     Page?.Key, diagnostic?.Keyword ?? string.Empty,
                     "Segment disabled by load diagnostic " + (diagnostic?.Id ?? "unknown") + ". " + diagnostic?.Message,
-                    Page?.FileName, source: source));
+                    Page?.FileName, source: source);
             }
         }
 
@@ -474,24 +461,13 @@ namespace Server.Scripting
             IList<string> raw = condition ? check.Params : action.Params;
             ScriptExecutionEvidence evidence = CreateEvidence(condition ? check.Source : action.Source,
                 condition ? ScriptDiagnosticPhase.Check : ScriptDiagnosticPhase.Action, raw, call);
-            ScriptCallContext previousCall = _executingCall;
-            bool previousDisplay = _executingDisplay;
             List<string> previousInputs = _executionInputs;
-            int thread = Environment.CurrentManagedThreadId;
             ScriptInteraction ownerInteraction = ScriptInteraction.Current;
-            Action<ScriptDiagnostic> failed = diagnostic =>
-            {
-                if (thread == Environment.CurrentManagedThreadId && ReferenceEquals(ScriptInteraction.Current, ownerInteraction) &&
-                    ReferenceEquals(_executingCall, call)) call.Abort(diagnostic);
-            };
 
-            using (ScriptDiagnostics.BeginExecution(evidence))
+            using (ScriptDiagnostics.BeginStatementExecution(evidence, call))
             {
-                _executingCall = call;
-                _executingDisplay = false;
                 _executionInputs = previousInputs == null ? new List<string>() : new List<string>(previousInputs);
                 if (ownerInteraction != null) ownerInteraction.LastSource = evidence.Source;
-                ScriptDiagnostics.Reported += failed;
                 try
                 {
                     string input = null;
@@ -522,8 +498,8 @@ namespace Server.Scripting
                         : ScriptKeywordRegistry.ActionExecutor(action.Type, monster != null);
                     if (executor == null)
                     {
-                        call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingExecutor, Page?.Key, keyword,
-                            "No executor registered for " + keyword, Page?.FileName));
+                        ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.MissingExecutor, Page?.Key, keyword,
+                            "No executor registered for " + keyword, Page?.FileName);
                         return ScriptOutcome.Abort;
                     }
 
@@ -545,14 +521,14 @@ namespace Server.Scripting
                     if (outcome == ScriptOutcome.InvalidArguments)
                     {
                         string usage = condition ? ScriptCheckCatalog.Find(check.Type)?.Usage : ScriptActionCatalog.Find(action.Type)?.Usage;
-                        call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.InvalidArguments, Page?.Key, keyword,
-                            "Invalid argument type or value; expected " + usage, Page?.FileName));
+                        ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.InvalidArguments, Page?.Key, keyword,
+                            "Invalid argument type or value; expected " + usage, Page?.FileName);
                         return ScriptOutcome.Abort;
                     }
                     if (condition && outcome == ScriptOutcome.Abort)
                     {
-                        call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, Page?.Key, keyword,
-                            "Condition aborted; neither branch will run.", Page?.FileName));
+                        ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, Page?.Key, keyword,
+                            "Condition aborted; neither branch will run.", Page?.FileName);
                     }
                     else if (!condition && outcome != ScriptOutcome.Abort)
                     {
@@ -562,16 +538,13 @@ namespace Server.Scripting
                 }
                 catch (Exception exception)
                 {
-                    call.Abort(ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, Page?.Key, keyword,
+                    ScriptDiagnostics.ReportRuntime(ScriptDiagnosticKind.RuntimeException, Page?.Key, keyword,
                         "Failed to execute " + (condition ? "condition " : "action ") + keyword,
-                        Page?.FileName, exception: exception));
+                        Page?.FileName, exception: exception);
                     return ScriptOutcome.Abort;
                 }
                 finally
                 {
-                    ScriptDiagnostics.Reported -= failed;
-                    _executingCall = previousCall;
-                    _executingDisplay = previousDisplay;
                     _executionInputs = previousInputs;
                     SyncInteraction(call);
                 }

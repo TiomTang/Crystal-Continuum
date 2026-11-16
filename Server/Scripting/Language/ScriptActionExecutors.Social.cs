@@ -29,8 +29,9 @@ namespace Server.Scripting
 
             {
                 var tempString = param[0];
-                if (File.ReadAllLines(tempString).All(t => player.Name != t))
+                if (!File.Exists(tempString) || File.ReadAllLines(tempString).All(t => player.Name != t))
                 {
+                    Directory.CreateDirectory(Path.GetDirectoryName(tempString));
                     using (var line = File.AppendText(tempString))
                     {
                         line.WriteLine(player.Name);
@@ -51,8 +52,9 @@ namespace Server.Scripting
             {
                 var tempString = param[0];
                 if (player.MyGuild == null) return ScriptOutcome.Pass;
-                if (File.ReadAllLines(tempString).All(t => player.MyGuild.Name != t))
+                if (!File.Exists(tempString) || File.ReadAllLines(tempString).All(t => player.MyGuild.Name != t))
                 {
+                    Directory.CreateDirectory(Path.GetDirectoryName(tempString));
                     using (var line = File.AppendText(tempString))
                     {
                         line.WriteLine(player.MyGuild.Name);
@@ -105,6 +107,7 @@ namespace Server.Scripting
 
             {
                 var tempString = param[0];
+                Directory.CreateDirectory(Path.GetDirectoryName(tempString));
                 File.WriteAllLines(tempString, new string[] { });
             }
             return ScriptOutcome.Pass;
@@ -121,6 +124,7 @@ namespace Server.Scripting
             {
                 if (player.MyGuild == null) return ScriptOutcome.Pass;
                 var tempString = param[0];
+                Directory.CreateDirectory(Path.GetDirectoryName(tempString));
                 File.WriteAllLines(tempString, new string[] { });
             }
             return ScriptOutcome.Pass;

@@ -12,7 +12,7 @@ namespace Server.Scripting
         private static readonly Regex FlagRegex = new Regex(@"\[(.*?)\]", RegexOptions.Compiled);
         private static readonly Regex VariableRegex = new Regex(@"[A-Z][0-9]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private static ScriptParseOutcome AddNameList(ScriptParseContext ctx, ScriptActionKind action, bool createFile)
+        private static ScriptParseOutcome AddNameList(ScriptParseContext ctx, ScriptActionKind action)
         {
             Match quoteMatch = QuoteRegex.Match(ctx.Line);
 
@@ -23,12 +23,7 @@ namespace Server.Scripting
 
             string fileName = ScriptValidationScope.Current != null
                 ? ScriptValidationScope.Current.NameListPath(listPath) : Settings.GetNameListPath(listPath);
-            string directory = System.IO.Path.GetDirectoryName(fileName);
 
-            if (!ScriptValidationScope.IsActive) System.IO.Directory.CreateDirectory(directory);
-
-            if (!ScriptValidationScope.IsActive && createFile && !System.IO.File.Exists(fileName))
-                System.IO.File.Create(fileName).Close();
 
             ctx.Acts.Add(new ScriptActions(action, fileName));
 

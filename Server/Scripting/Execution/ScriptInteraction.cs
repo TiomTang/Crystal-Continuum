@@ -51,16 +51,10 @@ namespace Server.Scripting
             return evidence;
         }
 
-        static ScriptInteraction()
+        internal void Fail(ScriptDiagnostic diagnostic)
         {
-            ScriptDiagnostics.Reported += diagnostic =>
-            {
-                if (current == null || !diagnostic.Runtime || diagnostic.IsSummary ||
-                    diagnostic.Effect == ScriptDiagnosticEffect.DisplayFallback ||
-                    diagnostic.Effect == ScriptDiagnosticEffect.Notice) return;
-                current.Failed = true;
-                current.FailureId ??= diagnostic.Id;
-            };
+            Failed = true;
+            FailureId ??= diagnostic.Id;
         }
 
         internal ScriptInteraction(bool notifyPlayer)

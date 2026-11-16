@@ -8,32 +8,32 @@ namespace Server.Scripting
 
         public static ScriptParseOutcome Act_AddNameList(ScriptParseContext ctx)
         {
-            return AddNameList(ctx, ScriptActionKind.AddNameList, true);
+            return AddNameList(ctx, ScriptActionKind.AddNameList);
         }
 
         public static ScriptParseOutcome Act_AddGuildNameList(ScriptParseContext ctx)
         {
-            return AddNameList(ctx, ScriptActionKind.AddGuildNameList, true);
+            return AddNameList(ctx, ScriptActionKind.AddGuildNameList);
         }
 
         public static ScriptParseOutcome Act_DelNameList(ScriptParseContext ctx)
         {
-            return AddNameList(ctx, ScriptActionKind.DelNameList, false);
+            return AddNameList(ctx, ScriptActionKind.DelNameList);
         }
 
         public static ScriptParseOutcome Act_DelGuildNameList(ScriptParseContext ctx)
         {
-            return AddNameList(ctx, ScriptActionKind.DelGuildNameList, false);
+            return AddNameList(ctx, ScriptActionKind.DelGuildNameList);
         }
 
         public static ScriptParseOutcome Act_ClearNameList(ScriptParseContext ctx)
         {
-            return AddNameList(ctx, ScriptActionKind.ClearNameList, false);
+            return AddNameList(ctx, ScriptActionKind.ClearNameList);
         }
 
         public static ScriptParseOutcome Act_ClearGuildNameList(ScriptParseContext ctx)
         {
-            return AddNameList(ctx, ScriptActionKind.ClearGuildNameList, false);
+            return AddNameList(ctx, ScriptActionKind.ClearGuildNameList);
         }
 
         // ---------------------------------------------------------------- guild and marriage

@@ -156,12 +156,6 @@ namespace Server.Scripting
             string group = ctx.Parts[ctx.Parts.Length - 2];
             string key = ctx.Parts[ctx.Parts.Length - 1];
 
-            string directory = Path.GetDirectoryName(fileName);
-            if (!ScriptValidationScope.IsActive) Directory.CreateDirectory(directory);
-
-            if (!ScriptValidationScope.IsActive && !File.Exists(fileName))
-                File.Create(fileName).Close();
-
             ctx.Acts.Add(new ScriptActions(ScriptActionKind.LoadValue, ctx.Parts[1], fileName, group, key));
             return ScriptParseOutcome.Handled;
         }
@@ -185,12 +179,6 @@ namespace Server.Scripting
 
             string group = newParts[newParts.Length - 2];
             string key = newParts[newParts.Length - 1];
-
-            string directory = Path.GetDirectoryName(fileName);
-            if (!ScriptValidationScope.IsActive) Directory.CreateDirectory(directory);
-
-            if (!ScriptValidationScope.IsActive && !File.Exists(fileName))
-                File.Create(fileName).Close();
 
             ctx.Acts.Add(new ScriptActions(ScriptActionKind.SaveValue, fileName, group, key, value));
             return ScriptParseOutcome.Handled;
