@@ -3793,18 +3793,9 @@ namespace Server.MirObjects
 
             if (transfersToHero)
             {
-                UserItem returnedItem = toArray[to];
                 if (temp.Info.Bind.HasFlag(BindMode.NoHero) ||
                     (temp.RentalInformation != null && temp.RentalInformation.BindingFlags != BindMode.None))
                 {
-                    Enqueue(p);
-                    return;
-                }
-
-                long bagWeightAfter = (long)CurrentBagWeight - temp.Weight + (returnedItem != null ? returnedItem.Weight : 0);
-                if (bagWeightAfter > Stats[Stat.BagWeight] && bagWeightAfter > CurrentBagWeight)
-                {
-                    ReceiveChat(GameLanguage.Get("Too heavy to transfer."), ChatType.System);
                     Enqueue(p);
                     return;
                 }
