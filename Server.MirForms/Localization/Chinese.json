@@ -5580,6 +5580,46 @@
     "Source": "CycleDelay: 0",
     "Text": "循环延迟：0"
   },
+  "ui.ExpConfigForm.#Title": {
+    "Source": "Level Experience",
+    "Text": "升级经验"
+  },
+  "ui.ExpConfigForm.playerTab": {
+    "Source": "Player",
+    "Text": "人物"
+  },
+  "ui.ExpConfigForm.heroTab": {
+    "Source": "Hero",
+    "Text": "英雄"
+  },
+  "ui.ExpConfigForm.playerGridView.Level": {
+    "Source": "Level",
+    "Text": "等级"
+  },
+  "ui.ExpConfigForm.playerGridView.Experience": {
+    "Source": "Experience required",
+    "Text": "升级所需经验"
+  },
+  "ui.ExpConfigForm.heroGridView.Level": {
+    "Source": "Level",
+    "Text": "等级"
+  },
+  "ui.ExpConfigForm.heroGridView.Experience": {
+    "Source": "Experience required",
+    "Text": "升级所需经验"
+  },
+  "ui.ExpConfigForm.lblLevelCaption": {
+    "Source": "Levels:",
+    "Text": "等级数："
+  },
+  "ui.ExpConfigForm.btnAddLevel": {
+    "Source": "Add Level",
+    "Text": "增加末级"
+  },
+  "ui.ExpConfigForm.btnRemoveLevel": {
+    "Source": "Remove Last Level",
+    "Text": "删除末级"
+  },
   "ui.SMain.MainMenu.controlToolStripMenuItem": {
     "Source": "Control",
     "Text": "控制"
@@ -5759,6 +5799,10 @@
   "ui.SMain.MainMenu.configToolStripMenuItem1.systemToolStripMenuItem.heroesToolStripMenuItem": {
     "Source": "Heroes",
     "Text": "英雄"
+  },
+  "ui.SMain.MainMenu.configToolStripMenuItem1.systemToolStripMenuItem.expConfigToolStripMenuItem": {
+    "Source": "Level EXP",
+    "Text": "升级经验"
   },
   "ui.SMain.MainMenu.configToolStripMenuItem1.monsterTunerToolStripMenuItem": {
     "Source": "Monster Tuner",
@@ -15911,5 +15955,13 @@
   "ui.IPBlockForm.clearConfirm": {
     "Source": "Remove all IP bans?",
     "Text": "确定清空所有封禁 IP 吗？"
+  },
+  "the value must be a whole number of 0 or more": {
+    "Source": "the value must be a whole number of 0 or more",
+    "Text": "数值必须是不小于 0 的整数。"
+  },
+  "Failed to save IP blocks: {0}": {
+    "Source": "Failed to save IP blocks: {0}",
+    "Text": "保存封禁 IP 失败：{0}"
   }
 }

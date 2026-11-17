@@ -1880,6 +1880,7 @@ public static class LocalizationCatalog
         "second",
         "seconds",
         "the randomTextFile:{0} does not exist.",
+        "the value must be a whole number of 0 or more",
         "{0}\nMP: {1}\nCooldown: {2}\nKey: {3}",
         "{0}\nQuantity: {1}",
         "{0} (Level {1}) has requested you teach him the ways of the {2}.",

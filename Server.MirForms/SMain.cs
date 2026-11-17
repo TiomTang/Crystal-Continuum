@@ -668,6 +668,13 @@ namespace Server
             form.ShowDialog();
         }
 
+        private void expConfigToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            ExpConfigForm form = new ExpConfigForm();
+
+            form.ShowDialog();
+        }
+
         private void CharacterToolStripMenuItem_Click(object sender, EventArgs e)
         {
             CharacterInfoForm form = new CharacterInfoForm();

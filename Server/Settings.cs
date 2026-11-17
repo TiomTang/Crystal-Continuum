@@ -948,6 +948,33 @@ namespace Server
                 HeroExperienceList.Add(exp);
             }
         }
+
+        public static void SaveEXP()
+        {
+            SaveExpList("ExpList.ini", ExperienceList);
+        }
+
+        public static void SaveHeroEXP()
+        {
+            SaveExpList("HeroExpList.ini", HeroExperienceList);
+        }
+
+        /// <summary>
+        /// Rewrites a level experience table. The file is recreated so a shortened list cannot leave
+        /// levels behind that the next load would read back.
+        /// </summary>
+        private static void SaveExpList(string fileName, List<long> experienceList)
+        {
+            var path = Path.Combine(ConfigPath, fileName);
+            File.Delete(path);
+
+            var values = new (string Section, string Key, string Value)[experienceList.Count];
+
+            for (var i = 0; i < experienceList.Count; i++)
+                values[i] = ("Exp", "Level" + (i + 1), experienceList[i].ToString());
+
+            new InIReader(path).WriteBatch(values);
+        }
             public static void LoadWorldMap()
         {
             InIReader reader = null;

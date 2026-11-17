@@ -115,6 +115,7 @@ namespace Server
             conquestToolStripMenuItem = new ToolStripMenuItem();
             respawnsToolStripMenuItem = new ToolStripMenuItem();
             heroesToolStripMenuItem = new ToolStripMenuItem();
+            expConfigToolStripMenuItem = new ToolStripMenuItem();
             monsterTunerToolStripMenuItem = new ToolStripMenuItem();
             dropBuilderToolStripMenuItem = new ToolStripMenuItem();
             CharacterToolStripMenuItem = new ToolStripMenuItem();
@@ -659,7 +660,7 @@ namespace Server
             // 
             // systemToolStripMenuItem
             // 
-            systemToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { dragonSystemToolStripMenuItem, miningToolStripMenuItem, guildsToolStripMenuItem, fishingToolStripMenuItem, mailToolStripMenuItem, goodsToolStripMenuItem, refiningToolStripMenuItem, relationshipToolStripMenuItem, mentorToolStripMenuItem, gemToolStripMenuItem, conquestToolStripMenuItem, respawnsToolStripMenuItem, heroesToolStripMenuItem });
+            systemToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { dragonSystemToolStripMenuItem, miningToolStripMenuItem, guildsToolStripMenuItem, fishingToolStripMenuItem, mailToolStripMenuItem, goodsToolStripMenuItem, refiningToolStripMenuItem, relationshipToolStripMenuItem, mentorToolStripMenuItem, gemToolStripMenuItem, conquestToolStripMenuItem, respawnsToolStripMenuItem, heroesToolStripMenuItem, expConfigToolStripMenuItem });
             systemToolStripMenuItem.Name = "systemToolStripMenuItem";
             systemToolStripMenuItem.Size = new Size(152, 22);
             systemToolStripMenuItem.Text = "System";
@@ -754,6 +755,13 @@ namespace Server
             heroesToolStripMenuItem.Size = new Size(139, 22);
             heroesToolStripMenuItem.Text = "Heroes";
             heroesToolStripMenuItem.Click += heroesToolStripMenuItem_Click;
+            // 
+            // expConfigToolStripMenuItem
+            // 
+            expConfigToolStripMenuItem.Name = "expConfigToolStripMenuItem";
+            expConfigToolStripMenuItem.Size = new Size(139, 22);
+            expConfigToolStripMenuItem.Text = "Level EXP";
+            expConfigToolStripMenuItem.Click += expConfigToolStripMenuItem_Click;
             // 
             // monsterTunerToolStripMenuItem
             // 
@@ -924,6 +932,7 @@ namespace Server
         private ColumnHeader columnHeader6;
         private ToolStripTextBox UpTimeLabel;
         private ToolStripMenuItem heroesToolStripMenuItem;
+        private ToolStripMenuItem expConfigToolStripMenuItem;
         private ToolStripMenuItem CharacterToolStripMenuItem;
         private ToolStripMenuItem helpToolStripMenuItem;
         private ToolStripMenuItem commandListToolStripMenuItem;
