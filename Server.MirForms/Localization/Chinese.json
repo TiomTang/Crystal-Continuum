@@ -5596,6 +5596,10 @@
     "Source": "Reboot Server",
     "Text": "重启服务器"
   },
+  "ui.SMain.MainMenu.controlToolStripMenuItem.blockedIPsToolStripMenuItem": {
+    "Source": "Blocked IPs...",
+    "Text": "封禁 IP 管理..."
+  },
   "ui.SMain.MainMenu.controlToolStripMenuItem.clearBlockedIPsToolStripMenuItem": {
     "Source": "Clear Blocked IPs",
     "Text": "清除封禁 IP"
@@ -15843,5 +15847,69 @@
   "Unsigned reward amount (0 to 4294967295).": {
     "Source": "Unsigned reward amount (0 to 4294967295).",
     "Text": "无符号奖励数值（0 至 4294967295）。"
+  },
+  "ui.IPBlockForm.#Title": {
+    "Source": "Blocked IPs",
+    "Text": "封禁 IP"
+  },
+  "ui.IPBlockForm.lvBlocks.colIP": {
+    "Source": "IP",
+    "Text": "IP"
+  },
+  "ui.IPBlockForm.lvBlocks.colUntil": {
+    "Source": "Unblocks At",
+    "Text": "解封时间"
+  },
+  "ui.IPBlockForm.lvBlocks.colRemaining": {
+    "Source": "Remaining",
+    "Text": "剩余时间"
+  },
+  "ui.IPBlockForm.lblIP": {
+    "Source": "IP:",
+    "Text": "IP："
+  },
+  "ui.IPBlockForm.lblHours": {
+    "Source": "Hours:",
+    "Text": "时长（小时）："
+  },
+  "ui.IPBlockForm.btnAdd": {
+    "Source": "Add / Update",
+    "Text": "添加/更新"
+  },
+  "ui.IPBlockForm.btnRemove": {
+    "Source": "Remove Selected",
+    "Text": "移除选中"
+  },
+  "ui.IPBlockForm.btnClear": {
+    "Source": "Clear All",
+    "Text": "全部清空"
+  },
+  "ui.IPBlockForm.btnRefresh": {
+    "Source": "Refresh",
+    "Text": "刷新"
+  },
+  "ui.IPBlockForm.btnClose": {
+    "Source": "Close",
+    "Text": "关闭"
+  },
+  "ui.IPBlockForm.lblHint": {
+    "Source": "Bans are saved to Envir/IPBlocks.txt and restored when the server starts.",
+    "Text": "封禁记录保存到 Envir/IPBlocks.txt，服务器启动时自动加载。"
+  },
+  "ui.IPBlockForm.count": {
+    "Source": "Blocked IPs: {0}",
+    "Text": "封禁 IP：{0}"
+  },
+  "ui.IPBlockForm.expired": {
+    "Source": "expired",
+    "Text": "已过期"
+  },
+  "ui.IPBlockForm.badAddress": {
+    "Source": "Enter a valid IPv4 or IPv6 address.",
+    "Text": "请输入有效的 IPv4 或 IPv6 地址。"
+  },
+  "ui.IPBlockForm.clearConfirm": {
+    "Source": "Remove all IP bans?",
+    "Text": "确定清空所有封禁 IP 吗？"
   }
 }

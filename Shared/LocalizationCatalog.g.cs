@@ -501,6 +501,7 @@ public static class LocalizationCatalog
         "Failed to load Dragon (bad map XY): ",
         "Failed to load Dragon (bad map name): ",
         "Failed to load Dragon (bad monster name): ",
+        "Failed to save IP blocks: {0}",
         "Fast Move\n\nChannelling Casting\nMana Cost {2}\n\nIncrease movement with rooted skills.\n\nCurrent Skill Level {0}\nNext Level {1}",
         "Fatal Sword\n\nPassive Skill\n\nIncrease attack damage on the monsters.\nalso increases accuracy a little.\nPassive Skill\n\nCurrent Skill Level {0}\nNext Level {1}",
         "Fencing\n\nPassive Skill\n\nHitting accuracy will be increased in accordance\nwith practice level.\n\nCurrent Skill Level {0}\nNext Level {1}",

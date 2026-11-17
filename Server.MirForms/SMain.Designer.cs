@@ -73,6 +73,7 @@ namespace Server
             stopServerToolStripMenuItem = new ToolStripMenuItem();
             rebootServerToolStripMenuItem = new ToolStripMenuItem();
             clearBlockedIPsToolStripMenuItem = new ToolStripMenuItem();
+            blockedIPsToolStripMenuItem = new ToolStripMenuItem();
             toolStripMenuItem1 = new ToolStripSeparator();
             toolStripSeparator1 = new ToolStripSeparator();
             closeServerToolStripMenuItem = new ToolStripMenuItem();
@@ -428,7 +429,7 @@ namespace Server
             // 
             // controlToolStripMenuItem
             // 
-            controlToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { startServerToolStripMenuItem, stopServerToolStripMenuItem, rebootServerToolStripMenuItem, clearBlockedIPsToolStripMenuItem, toolStripMenuItem1, toolStripSeparator1, closeServerToolStripMenuItem, reloadToolStripMenuItem });
+            controlToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { startServerToolStripMenuItem, stopServerToolStripMenuItem, rebootServerToolStripMenuItem, blockedIPsToolStripMenuItem, clearBlockedIPsToolStripMenuItem, toolStripMenuItem1, toolStripSeparator1, closeServerToolStripMenuItem, reloadToolStripMenuItem });
             controlToolStripMenuItem.Name = "controlToolStripMenuItem";
             controlToolStripMenuItem.Size = new Size(59, 20);
             controlToolStripMenuItem.Text = "Control";
@@ -453,6 +454,13 @@ namespace Server
             rebootServerToolStripMenuItem.Size = new Size(164, 22);
             rebootServerToolStripMenuItem.Text = "Reboot Server";
             rebootServerToolStripMenuItem.Click += rebootServerToolStripMenuItem_Click;
+            // 
+            // blockedIPsToolStripMenuItem
+            // 
+            blockedIPsToolStripMenuItem.Name = "blockedIPsToolStripMenuItem";
+            blockedIPsToolStripMenuItem.Size = new Size(164, 22);
+            blockedIPsToolStripMenuItem.Text = "Blocked IPs...";
+            blockedIPsToolStripMenuItem.Click += blockedIPsToolStripMenuItem_Click;
             // 
             // clearBlockedIPsToolStripMenuItem
             // 
@@ -900,6 +908,7 @@ namespace Server
         private ToolStripMenuItem monsterExperimentalToolStripMenuItem;
         private ToolStripMenuItem dropBuilderToolStripMenuItem;
         private ToolStripStatusLabel BlockedIPsLabel;
+        private ToolStripMenuItem blockedIPsToolStripMenuItem;
         private ToolStripMenuItem clearBlockedIPsToolStripMenuItem;
         private ToolStripMenuItem reloadToolStripMenuItem;
         private ToolStripMenuItem nPCsToolStripMenuItem;

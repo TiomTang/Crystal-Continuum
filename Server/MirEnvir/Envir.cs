@@ -78,6 +78,10 @@ namespace Server.MirEnvir
 
         public static ConcurrentDictionary<string, DateTime> IPBlocks = new ConcurrentDictionary<string, DateTime>();
 
+        public static readonly string IPBlocksFile = Path.Combine(Settings.EnvirPath, "IPBlocks.txt");
+
+        private static readonly object IPBlocksFileLock = new object();
+
         internal readonly ConnectionAdmission Admission = new ConnectionAdmission();
 
         // Connection admission hardening, modified 2026-11-08.
@@ -3332,6 +3336,38 @@ namespace Server.MirEnvir
             }
         }
 
+        /// <summary>
+        /// Loads the ban list written by SaveIPBlocks. Times are stored in UTC; expired entries are
+        /// dropped on load so a restart does not keep stale bans in the list.
+        /// </summary>
+        public void LoadIPBlocks()
+        {
+            IPBlocks.Clear();
+
+            if (!File.Exists(IPBlocksFile))
+            {
+                File.WriteAllText(IPBlocksFile, "");
+                return;
+            }
+
+            var lines = File.ReadAllLines(IPBlocksFile);
+
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (lines[i].StartsWith(";") || string.IsNullOrWhiteSpace(lines[i])) continue;
+
+                var parts = lines[i].Split(',');
+
+                if (parts.Length < 2) continue;
+                if (!DateTime.TryParse(parts[1].Trim(), out var until)) continue;
+
+                IPBlocks[parts[0].Trim()] = DateTime.SpecifyKind(until, DateTimeKind.Utc);
+            }
+
+            foreach (var block in IPBlocks.Where(x => x.Value <= Now).ToArray())
+                IPBlocks.TryRemove(block.Key, out _);
+        }
+
         public void LoadDisabledChars()
         {
             DisabledCharNames.Clear();
@@ -3447,6 +3483,40 @@ namespace Server.MirEnvir
         public void UpdateIPBlock(string accessKey, TimeSpan value)
         {
             IPBlocks[accessKey] = Now.Add(value);
+            SaveIPBlocks();
+        }
+
+        public void RemoveIPBlock(string accessKey)
+        {
+            IPBlocks.TryRemove(accessKey, out _);
+            SaveIPBlocks();
+        }
+
+        public void ClearIPBlocks()
+        {
+            IPBlocks.Clear();
+            SaveIPBlocks();
+        }
+
+        /// <summary>
+        /// Writes the ban list to Envir/IPBlocks.txt. Every ban change calls this so a restart keeps
+        /// the bans; a write failure is reported but never blocks the server.
+        /// </summary>
+        public static void SaveIPBlocks()
+        {
+            lock (IPBlocksFileLock)
+            {
+                try
+                {
+                    var lines = IPBlocks.Select(x => $"{x.Key},{x.Value:yyyy-MM-dd HH:mm:ss}").ToArray();
+
+                    File.WriteAllLines(IPBlocksFile, lines);
+                }
+                catch (Exception ex)
+                {
+                    MessageQueue.Enqueue(GameLanguage.Get("Failed to save IP blocks: {0}", ex.Message));
+                }
+            }
         }
 
 
@@ -3562,6 +3632,7 @@ namespace Server.MirEnvir
 
             LoadDisabledChars();
             LoadLineMessages();
+            LoadIPBlocks();
 
             if (DragonInfo.Enabled)
             {
@@ -3960,7 +4031,7 @@ namespace Server.MirEnvir
             {
                 if (currentlog.AccountsMade.Count > 2)
                 {
-                    IPBlocks[c.IPKey] = Now.AddHours(24);
+                    UpdateIPBlock(c.IPKey, TimeSpan.FromHours(24));
                     c.Enqueue(new ServerPackets.NewAccount { Result = 0 });
                     return;
                 }
@@ -4297,7 +4368,7 @@ namespace Server.MirEnvir
             {
                 if (currentlog.CharactersMade.Count > 4)
                 {
-                    IPBlocks[c.IPKey] = Now.AddHours(24);
+                    UpdateIPBlock(c.IPKey, TimeSpan.FromHours(24));
                     c.Enqueue(new ServerPackets.NewCharacter { Result = 0 });
                     return;
                 }

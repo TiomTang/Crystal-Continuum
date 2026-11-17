@@ -765,7 +765,7 @@ namespace Server.MirObjects
 
                         if (!IsGM) return;
 
-                        Envir.IPBlocks.Clear();
+                        Envir.Main.ClearIPBlocks();
                         return;
         }
         /// <summary>Handles @GIVEGOLD.</summary>

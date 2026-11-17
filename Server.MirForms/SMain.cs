@@ -537,9 +537,16 @@ namespace Server
             form.ShowDialog();
         }
 
+        private void blockedIPsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            IPBlockForm form = new IPBlockForm();
+
+            form.ShowDialog();
+        }
+
         private void clearBlockedIPsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Envir.IPBlocks.Clear();
+            Envir.ClearIPBlocks();
         }
 
         private void nPCsToolStripMenuItem_Click(object sender, EventArgs e)
