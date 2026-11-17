@@ -3048,6 +3048,14 @@
     "Source": "Clear Storage Password",
     "Text": "清除仓库密码"
   },
+  "ui.AccountInfoForm.CreditRechargeLabel": {
+    "Source": "GameGold:",
+    "Text": "游戏币："
+  },
+  "ui.AccountInfoForm.CreditRechargeButton": {
+    "Source": "Recharge",
+    "Text": "充值"
+  },
   "ui.AccountInfoForm.AdminCheckBox": {
     "Source": "Administrator",
     "Text": "管理员"
@@ -15963,5 +15971,17 @@
   "Failed to save IP blocks: {0}": {
     "Source": "Failed to save IP blocks: {0}",
     "Text": "保存封禁 IP 失败：{0}"
+  },
+  "Account {0} recharged {1} game gold": {
+    "Source": "Account {0} recharged {1} game gold",
+    "Text": "账号 {0} 充值游戏币 {1}"
+  },
+  "Enter the amount of game gold to recharge.": {
+    "Source": "Enter the amount of game gold to recharge.",
+    "Text": "请输入要充值的游戏币数量。"
+  },
+  "Recharge {0} game gold to the selected account(s)?": {
+    "Source": "Recharge {0} game gold to the selected account(s)?",
+    "Text": "确定为选中的账号充值 {0} 游戏币吗？"
   }
 }

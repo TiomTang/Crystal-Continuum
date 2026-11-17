@@ -47,6 +47,9 @@ namespace Server
             PasswordChangeCheckBox = new CheckBox();
             setPasswordButton = new Button();
             ClearStoragePasswordButton = new Button();
+            CreditRechargeLabel = new Label();
+            CreditRechargeTextBox = new TextBox();
+            CreditRechargeButton = new Button();
             AdminCheckBox = new CheckBox();
             PermBanButton = new Button();
             WeekBanButton = new Button();
@@ -150,6 +153,9 @@ namespace Server
             AccountInfoPanel.Controls.Add(PasswordChangeCheckBox);
             AccountInfoPanel.Controls.Add(setPasswordButton);
             AccountInfoPanel.Controls.Add(ClearStoragePasswordButton);
+            AccountInfoPanel.Controls.Add(CreditRechargeLabel);
+            AccountInfoPanel.Controls.Add(CreditRechargeTextBox);
+            AccountInfoPanel.Controls.Add(CreditRechargeButton);
             AccountInfoPanel.Controls.Add(AdminCheckBox);
             AccountInfoPanel.Controls.Add(PermBanButton);
             AccountInfoPanel.Controls.Add(WeekBanButton);
@@ -292,6 +298,36 @@ namespace Server
             ClearStoragePasswordButton.UseVisualStyleBackColor = true;
             ClearStoragePasswordButton.Click += ClearStoragePasswordButton_Click;
             // 
+            // CreditRechargeLabel
+            // 
+            CreditRechargeLabel.AutoSize = false;
+            CreditRechargeLabel.Location = new Point(869, 172);
+            CreditRechargeLabel.Margin = new Padding(4, 0, 4, 0);
+            CreditRechargeLabel.Name = "CreditRechargeLabel";
+            CreditRechargeLabel.Size = new Size(130, 20);
+            CreditRechargeLabel.TabIndex = 36;
+            CreditRechargeLabel.Text = "GameGold:";
+            CreditRechargeLabel.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // CreditRechargeTextBox
+            // 
+            CreditRechargeTextBox.Location = new Point(1012, 171);
+            CreditRechargeTextBox.Margin = new Padding(4, 3, 4, 3);
+            CreditRechargeTextBox.Name = "CreditRechargeTextBox";
+            CreditRechargeTextBox.Size = new Size(90, 23);
+            CreditRechargeTextBox.TabIndex = 37;
+            // 
+            // CreditRechargeButton
+            // 
+            CreditRechargeButton.Location = new Point(1110, 170);
+            CreditRechargeButton.Margin = new Padding(4, 3, 4, 3);
+            CreditRechargeButton.Name = "CreditRechargeButton";
+            CreditRechargeButton.Size = new Size(130, 27);
+            CreditRechargeButton.TabIndex = 38;
+            CreditRechargeButton.Text = "Recharge";
+            CreditRechargeButton.UseVisualStyleBackColor = true;
+            CreditRechargeButton.Click += CreditRechargeButton_Click;
+            // 
             // AdminCheckBox
             // 
             AdminCheckBox.AutoSize = true;
@@ -360,13 +396,14 @@ namespace Server
             // 
             // label14
             // 
-            label14.AutoSize = true;
-            label14.Location = new Point(378, 181);
+            label14.AutoSize = false;
+            label14.Location = new Point(353, 181);
             label14.Margin = new Padding(4, 0, 4, 0);
             label14.Name = "label14";
-            label14.Size = new Size(69, 15);
+            label14.Size = new Size(94, 20);
             label14.TabIndex = 26;
             label14.Text = "Expiry Date:";
+            label14.TextAlign = ContentAlignment.MiddleRight;
             // 
             // BanReasonTextBox
             // 
@@ -379,13 +416,14 @@ namespace Server
             // 
             // label13
             // 
-            label13.AutoSize = true;
-            label13.Location = new Point(372, 151);
+            label13.AutoSize = false;
+            label13.Location = new Point(353, 151);
             label13.Margin = new Padding(4, 0, 4, 0);
             label13.Name = "label13";
-            label13.Size = new Size(71, 15);
+            label13.Size = new Size(94, 20);
             label13.TabIndex = 24;
             label13.Text = "Ban Reason:";
+            label13.TextAlign = ContentAlignment.MiddleRight;
             // 
             // LastDateTextBox
             // 
@@ -398,13 +436,14 @@ namespace Server
             // 
             // label11
             // 
-            label11.AutoSize = true;
-            label11.Location = new Point(387, 113);
+            label11.AutoSize = false;
+            label11.Location = new Point(353, 113);
             label11.Margin = new Padding(4, 0, 4, 0);
             label11.Name = "label11";
-            label11.Size = new Size(58, 15);
+            label11.Size = new Size(94, 20);
             label11.TabIndex = 22;
             label11.Text = "Last Date:";
+            label11.TextAlign = ContentAlignment.MiddleRight;
             // 
             // LastIPTextBox
             // 
@@ -417,13 +456,14 @@ namespace Server
             // 
             // label12
             // 
-            label12.AutoSize = true;
-            label12.Location = new Point(402, 83);
+            label12.AutoSize = false;
+            label12.Location = new Point(353, 83);
             label12.Margin = new Padding(4, 0, 4, 0);
             label12.Name = "label12";
-            label12.Size = new Size(44, 15);
+            label12.Size = new Size(94, 20);
             label12.TabIndex = 20;
             label12.Text = "Last IP:";
+            label12.TextAlign = ContentAlignment.MiddleRight;
             // 
             // CreationDateTextBox
             // 
@@ -436,13 +476,14 @@ namespace Server
             // 
             // label9
             // 
-            label9.AutoSize = true;
-            label9.Location = new Point(365, 53);
+            label9.AutoSize = false;
+            label9.Location = new Point(353, 53);
             label9.Margin = new Padding(4, 0, 4, 0);
             label9.Name = "label9";
-            label9.Size = new Size(82, 15);
+            label9.Size = new Size(94, 20);
             label9.TabIndex = 18;
             label9.Text = "Creation Date:";
+            label9.TextAlign = ContentAlignment.MiddleRight;
             // 
             // CreationIPTextBox
             // 
@@ -455,13 +496,14 @@ namespace Server
             // 
             // label10
             // 
-            label10.AutoSize = true;
-            label10.Location = new Point(380, 23);
+            label10.AutoSize = false;
+            label10.Location = new Point(353, 23);
             label10.Margin = new Padding(4, 0, 4, 0);
             label10.Name = "label10";
-            label10.Size = new Size(68, 15);
+            label10.Size = new Size(94, 20);
             label10.TabIndex = 16;
             label10.Text = "Creation IP:";
+            label10.TextAlign = ContentAlignment.MiddleRight;
             // 
             // EMailTextBox
             // 
@@ -474,13 +516,14 @@ namespace Server
             // 
             // label8
             // 
-            label8.AutoSize = true;
-            label8.Location = new Point(14, 211);
+            label8.AutoSize = false;
+            label8.Location = new Point(4, 211);
             label8.Margin = new Padding(4, 0, 4, 0);
             label8.Name = "label8";
-            label8.Size = new Size(84, 15);
+            label8.Size = new Size(94, 20);
             label8.TabIndex = 14;
             label8.Text = "EMail Address:";
+            label8.TextAlign = ContentAlignment.MiddleRight;
             // 
             // AnswerTextBox
             // 
@@ -493,13 +536,14 @@ namespace Server
             // 
             // label7
             // 
-            label7.AutoSize = true;
-            label7.Location = new Point(51, 181);
+            label7.AutoSize = false;
+            label7.Location = new Point(4, 181);
             label7.Margin = new Padding(4, 0, 4, 0);
             label7.Name = "label7";
-            label7.Size = new Size(49, 15);
+            label7.Size = new Size(94, 20);
             label7.TabIndex = 12;
             label7.Text = "Answer:";
+            label7.TextAlign = ContentAlignment.MiddleRight;
             // 
             // QuestionTextBox
             // 
@@ -512,13 +556,14 @@ namespace Server
             // 
             // label6
             // 
-            label6.AutoSize = true;
-            label6.Location = new Point(43, 151);
+            label6.AutoSize = false;
+            label6.Location = new Point(4, 151);
             label6.Margin = new Padding(4, 0, 4, 0);
             label6.Name = "label6";
-            label6.Size = new Size(58, 15);
+            label6.Size = new Size(94, 20);
             label6.TabIndex = 10;
             label6.Text = "Question:";
+            label6.TextAlign = ContentAlignment.MiddleRight;
             // 
             // BirthDateTextBox
             // 
@@ -531,13 +576,14 @@ namespace Server
             // 
             // label5
             // 
-            label5.AutoSize = true;
-            label5.Location = new Point(37, 121);
+            label5.AutoSize = false;
+            label5.Location = new Point(4, 121);
             label5.Margin = new Padding(4, 0, 4, 0);
             label5.Name = "label5";
-            label5.Size = new Size(62, 15);
+            label5.Size = new Size(94, 20);
             label5.TabIndex = 8;
             label5.Text = "Birth Date:";
+            label5.TextAlign = ContentAlignment.MiddleRight;
             // 
             // UserNameTextBox
             // 
@@ -550,23 +596,25 @@ namespace Server
             // 
             // label4
             // 
-            label4.AutoSize = true;
-            label4.Location = new Point(30, 91);
+            label4.AutoSize = false;
+            label4.Location = new Point(4, 91);
             label4.Margin = new Padding(4, 0, 4, 0);
             label4.Name = "label4";
-            label4.Size = new Size(68, 15);
+            label4.Size = new Size(94, 20);
             label4.TabIndex = 6;
             label4.Text = "User Name:";
+            label4.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label3
             // 
-            label3.AutoSize = true;
-            label3.Location = new Point(38, 50);
+            label3.AutoSize = false;
+            label3.Location = new Point(4, 50);
             label3.Margin = new Padding(4, 0, 4, 0);
             label3.Name = "label3";
-            label3.Size = new Size(60, 15);
+            label3.Size = new Size(94, 20);
             label3.TabIndex = 4;
             label3.Text = "Password:";
+            label3.TextAlign = ContentAlignment.MiddleRight;
             // 
             // AccountIDTextBox
             // 
@@ -579,13 +627,14 @@ namespace Server
             // 
             // label2
             // 
-            label2.AutoSize = true;
-            label2.Location = new Point(29, 20);
+            label2.AutoSize = false;
+            label2.Location = new Point(4, 20);
             label2.Margin = new Padding(4, 0, 4, 0);
             label2.Name = "label2";
-            label2.Size = new Size(69, 15);
+            label2.Size = new Size(94, 20);
             label2.TabIndex = 2;
             label2.Text = "Account ID:";
+            label2.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label15
             // 
@@ -823,6 +872,9 @@ namespace Server
         private System.Windows.Forms.Button setPasswordButton;
         private System.Windows.Forms.CheckBox PasswordChangeCheckBox;
         private Button ClearStoragePasswordButton;
+        private Label CreditRechargeLabel;
+        private TextBox CreditRechargeTextBox;
+        private Button CreditRechargeButton;
         private Button LastIPSearch;
         private Button CreationIPSearch;
         private ListView CharactersListView;

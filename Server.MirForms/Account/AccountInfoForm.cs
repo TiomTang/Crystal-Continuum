@@ -561,6 +561,63 @@ namespace Server
             MessageBox.Show(GameLanguage.Get("Storage password cleared."), GameLanguage.Get("Notice"), MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
         }
 
+        private void CreditRechargeButton_Click(object sender, EventArgs e)
+        {
+            if (_selectedAccountInfos == null || _selectedAccountInfos.Count == 0) return;
+
+            if (!uint.TryParse(CreditRechargeTextBox.Text, out var amount) || amount == 0)
+            {
+                MessageBox.Show(GameLanguage.Get("Enter the amount of game gold to recharge."), GameLanguage.Get("Notice"),
+                    MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                return;
+            }
+
+            if (MessageBox.Show(GameLanguage.Get("Recharge {0} game gold to the selected account(s)?", amount), GameLanguage.Get("Notice"),
+                MessageBoxButtons.YesNo, MessageBoxIcon.Asterisk) != DialogResult.Yes)
+                return;
+
+            AccountInfoListView.BeginUpdate();
+
+            for (int i = 0; i < _selectedAccountInfos.Count; i++)
+            {
+                AccountInfo account = _selectedAccountInfos[i];
+                var before = account.Credit;
+
+                PlayerObject player = null;
+
+                foreach (var character in account.Characters)
+                {
+                    if (character?.Player == null) continue;
+
+                    player = character.Player;
+                    break;
+                }
+
+                if (player != null)
+                {
+                    // GainCredit stops at uint.MaxValue and reports the gain to the online client.
+                    player.GainCredit(amount);
+                }
+                else
+                {
+                    account.Credit = ((ulong)account.Credit + amount) > uint.MaxValue ? uint.MaxValue : account.Credit + amount;
+                }
+
+                // Log the credit that actually landed, so a player already near the cap stays traceable.
+                MessageQueue.Instance.Enqueue(GameLanguage.Get("Account {0} recharged {1} game gold", account.AccountID, account.Credit - before));
+
+                Update(AccountInfoListView.SelectedItems[i], account);
+            }
+
+            // Same order as the ban handlers: recompute the account list and the server totals,
+            // then close the update batch.
+            RefreshInterface();
+            AutoResize();
+            AccountInfoListView.EndUpdate();
+
+            CreditRechargeTextBox.Text = string.Empty;
+        }
+
         private void PasswordChangeCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             if (ActiveControl != sender) return;
