@@ -29,6 +29,8 @@
         private void InitializeComponent()
         {
             this.listBoxMonsters = new System.Windows.Forms.ListBox();
+            this.listBoxSpawnMaps = new System.Windows.Forms.ListBox();
+            this.labelSpawnMaps = new System.Windows.Forms.Label();
             this.textBoxDropList = new System.Windows.Forms.TextBox();
             this.listBoxWeapon = new System.Windows.Forms.ListBox();
             this.tabControlSeperateItems = new System.Windows.Forms.TabControl();
@@ -126,6 +128,7 @@
             this.labelMonsterList = new System.Windows.Forms.Label();
             this.textBoxSearch = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
+            this.checkBoxSearchDrops = new System.Windows.Forms.CheckBox();
             this.tabControlSeperateItems.SuspendLayout();
             this.tabPageAmulet.SuspendLayout();
             this.tabPageArmour.SuspendLayout();
@@ -171,12 +174,32 @@
             // listBoxMonsters
             // 
             this.listBoxMonsters.BackColor = System.Drawing.Color.GhostWhite;
-            this.listBoxMonsters.Location = new System.Drawing.Point(12, 56);
+            this.listBoxMonsters.Location = new System.Drawing.Point(12, 76);
             this.listBoxMonsters.Name = "listBoxMonsters";
+            this.listBoxMonsters.HorizontalScrollbar = true;
             this.listBoxMonsters.ScrollAlwaysVisible = true;
-            this.listBoxMonsters.Size = new System.Drawing.Size(180, 498);
+            this.listBoxMonsters.Size = new System.Drawing.Size(180, 367);
             this.listBoxMonsters.TabIndex = 0;
             this.listBoxMonsters.SelectedIndexChanged += new System.EventHandler(this.listBoxMonsters_SelectedItemChanged);
+            // 
+            // listBoxSpawnMaps
+            // 
+            this.listBoxSpawnMaps.BackColor = System.Drawing.Color.GhostWhite;
+            this.listBoxSpawnMaps.HorizontalScrollbar = true;
+            this.listBoxSpawnMaps.Location = new System.Drawing.Point(12, 467);
+            this.listBoxSpawnMaps.Name = "listBoxSpawnMaps";
+            this.listBoxSpawnMaps.SelectionMode = System.Windows.Forms.SelectionMode.None;
+            this.listBoxSpawnMaps.Size = new System.Drawing.Size(180, 87);
+            this.listBoxSpawnMaps.TabIndex = 27;
+            // 
+            // labelSpawnMaps
+            // 
+            this.labelSpawnMaps.AutoSize = true;
+            this.labelSpawnMaps.Location = new System.Drawing.Point(12, 449);
+            this.labelSpawnMaps.Name = "labelSpawnMaps";
+            this.labelSpawnMaps.Size = new System.Drawing.Size(72, 13);
+            this.labelSpawnMaps.TabIndex = 26;
+            this.labelSpawnMaps.Text = "Spawn Maps:";
             // 
             // textBoxDropList
             // 
@@ -1360,12 +1383,23 @@
             this.label2.TabIndex = 25;
             this.label2.Text = "Search:";
             // 
+            // checkBoxSearchDrops
+            // 
+            this.checkBoxSearchDrops.AutoSize = true;
+            this.checkBoxSearchDrops.Location = new System.Drawing.Point(12, 54);
+            this.checkBoxSearchDrops.Name = "checkBoxSearchDrops";
+            this.checkBoxSearchDrops.Size = new System.Drawing.Size(92, 17);
+            this.checkBoxSearchDrops.TabIndex = 28;
+            this.checkBoxSearchDrops.Text = "Search drops";
+            this.checkBoxSearchDrops.CheckedChanged += new System.EventHandler(this.checkBoxSearchDrops_CheckedChanged);
+            // 
             // DropGenForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(969, 562);
             this.Controls.Add(this.label2);
+            this.Controls.Add(this.checkBoxSearchDrops);
             this.Controls.Add(this.textBoxSearch);
             this.Controls.Add(this.labelMonsterList);
             this.Controls.Add(this.labelMobLevel);
@@ -1376,6 +1410,8 @@
             this.Controls.Add(this.textBoxDropList);
             this.Controls.Add(this.buttonAdd);
             this.Controls.Add(this.listBoxMonsters);
+            this.Controls.Add(this.listBoxSpawnMaps);
+            this.Controls.Add(this.labelSpawnMaps);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             this.Name = "DropGenForm";
@@ -1431,6 +1467,8 @@
         #endregion
 
         private System.Windows.Forms.ListBox listBoxMonsters;
+        private System.Windows.Forms.ListBox listBoxSpawnMaps;
+        private System.Windows.Forms.Label labelSpawnMaps;
         private System.Windows.Forms.TextBox textBoxDropList;
         private System.Windows.Forms.ListBox listBoxWeapon;
         private System.Windows.Forms.TabControl tabControlSeperateItems;
@@ -1521,6 +1559,7 @@
         private System.Windows.Forms.ListBox listBoxScript;
         private System.Windows.Forms.TextBox textBoxSearch;
         private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.CheckBox checkBoxSearchDrops;
         private System.Windows.Forms.CheckBox QuestOnlyCheckBox;
         private System.Windows.Forms.TabPage tabPageAwakening;
         private System.Windows.Forms.ListBox listBoxAwakening;

@@ -6,10 +6,14 @@ namespace Server.MirForms.DropBuilder
     {
         public string Name { get; set; }
         public string Path { get; set; }
+        public int Level { get; set; }
+        public int Index { get; set; }
+
+        public string DropFileName => string.IsNullOrEmpty(Path) ? $"{Name}.txt" : $"{Path}.txt";
 
         public override string ToString()
         {
-            return Name;
+            return $"[{Level}] {Name} - {DropFileName}";
         }
     }
 
@@ -119,6 +123,11 @@ namespace Server.MirForms.DropBuilder
         DropFileDocument _document;
         string _documentPath;
         int _hiddenSections;
+
+        readonly List<MonsterDropInfo> _monsters = new List<MonsterDropInfo>();
+        readonly Dictionary<string, string[]> _dropItems = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        bool _filteringMonsters;
+
         public DropGenForm()
         {
             InitializeComponent();
@@ -209,15 +218,16 @@ namespace Server.MirForms.DropBuilder
             };
 
             // Add monsters to list
-            for (int i = 0; i < Envir.MonsterInfoList.Count; i++)
-            {
-                listBoxMonsters.Items.Add(new MonsterDropInfo { Name = Envir.MonsterInfoList[i].Name, Path = Envir.MonsterInfoList[i].DropPath });
-            }
+            foreach (var monster in Envir.MonsterInfoList)
+                _monsters.Add(new MonsterDropInfo { Name = monster.Name, Path = monster.DropPath, Level = monster.Level, Index = monster.Index });
 
+            foreach (var listBox in ItemListBoxes)
+                listBox.DoubleClick += listBoxItem_DoubleClick;
+
+            ApplyMonsterFilter();
             tabControlSeperateItems_SelectedIndexChanged(tabControlSeperateItems, null);
             SetEditMode(false);
             if (listBoxMonsters.Items.Count > 0) listBoxMonsters.SelectedIndex = 0;
-            labelMonsterList.Text = $"Monster Count: {Envir.MonsterInfoList.Count}";
         }
 
         // Gets server data
@@ -248,6 +258,109 @@ namespace Server.MirForms.DropBuilder
             }
 
             buttonUpdateGold.Enabled = false;
+        }
+
+        // Rebuild the monster list from the filter text, keeping the monster being edited selected.
+        private void ApplyMonsterFilter()
+        {
+            if (_filteringMonsters) return;
+
+            _filteringMonsters = true;
+
+            try
+            {
+                var selected = listBoxMonsters.SelectedItem as MonsterDropInfo;
+                string filter = (textBoxSearch.Text ?? string.Empty).Trim();
+                MonsterDropInfo first = null, restored = null;
+                bool searchDrops = checkBoxSearchDrops.Checked && filter.Length > 0;
+
+                if (searchDrops) Cursor = System.Windows.Forms.Cursors.WaitCursor;
+
+                listBoxMonsters.BeginUpdate();
+                listBoxMonsters.Items.Clear();
+
+                foreach (var monster in _monsters)
+                {
+                    if (filter.Length > 0 &&
+                        monster.ToString().IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0 &&
+                        !(searchDrops && ContainsDropItem(monster, filter))) continue;
+
+                    first ??= monster;
+                    listBoxMonsters.Items.Add(monster);
+                    if (ReferenceEquals(monster, selected)) restored = monster;
+                }
+
+                listBoxMonsters.EndUpdate();
+
+                labelMonsterList.Text = filter.Length == 0
+                    ? $"Monster Count: {_monsters.Count}"
+                    : $"Monster Count: {listBoxMonsters.Items.Count}/{_monsters.Count}";
+
+                var target = restored ?? first;
+
+                if (target != null) listBoxMonsters.SelectedItem = target;
+                else listBoxMonsters.SelectedIndex = -1;
+            }
+            finally
+            {
+                _filteringMonsters = false;
+                Cursor = System.Windows.Forms.Cursors.Default;
+            }
+
+            listBoxMonsters_SelectedItemChanged(listBoxMonsters, EventArgs.Empty);
+        }
+
+        // True when the monster's drop file names an item containing the filter.
+        // Item names carry no spaces, so the filter ignores them too.
+        private bool ContainsDropItem(MonsterDropInfo monster, string filter)
+        {
+            string needle = filter.Replace(" ", string.Empty);
+
+            foreach (var name in GetDropItems(monster))
+                if (name.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+
+            return false;
+        }
+
+        // Item names from the drop file on disk, read once per file and cached until it is saved again.
+        // shortcut: the first search reads every drop file, which is slow on a network share.
+        private string[] GetDropItems(MonsterDropInfo monster)
+        {
+            if (_dropItems.TryGetValue(monster.DropFileName, out string[] cached)) return cached;
+
+            var names = new List<string>();
+            var document = DropFileDocument.Load(DropFilePath(monster));
+
+            foreach (var section in document.Sections)
+            {
+                foreach (var line in section.Lines)
+                {
+                    if (!TryParseDropLine(line.Text, out _, out string name, out _)) continue;
+                    if (string.Equals(name, "Gold", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (name.StartsWith("GROUP", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    names.Add(name);
+                }
+            }
+
+            string[] items = names.ToArray();
+            _dropItems[monster.DropFileName] = items;
+            return items;
+        }
+
+        // A blank bound means "no limit", so a single filled box still filters.
+        private bool TryGetLevelRange(out int minLevel, out int maxLevel)
+        {
+            minLevel = 0;
+            maxLevel = int.MaxValue;
+
+            string min = (textBoxMinLevel.Text ?? string.Empty).Trim();
+            string max = (textBoxMaxLevel.Text ?? string.Empty).Trim();
+
+            if (min.Length > 0 && !int.TryParse(min, out minLevel)) return false;
+            if (max.Length > 0 && !int.TryParse(max, out maxLevel)) return false;
+
+            return true;
         }
 
         private static int IndexForTag(string tag)
@@ -297,25 +410,20 @@ namespace Server.MirForms.DropBuilder
             foreach (var list in ItemListBoxes)
                 list.Items.Clear();
 
+            if (!TryGetLevelRange(out int minLevel, out int maxLevel))
+            {
+                MessageBox.Show(GameLanguage.Get("Unreadable level filters."));
+                return;
+            }
+
             ListBox TempListBox = new ListBox();
             for (int i = 0; i < Envir.ItemInfoList.Count; i++)
             {
-                if (Envir.ItemInfoList[i].Type.ToString() == Tab.SelectedTab.Tag.ToString())
-                {
-                    try
-                    {
-                        if (textBoxMinLevel.Text == string.Empty || textBoxMaxLevel.Text == string.Empty)                            
-                            TempListBox.Items.Add(Envir.ItemInfoList[i].Name);
-                        else if (Envir.ItemInfoList[i].RequiredAmount >= int.Parse(textBoxMinLevel.Text) &
-                            Envir.ItemInfoList[i].RequiredAmount <= int.Parse(textBoxMaxLevel.Text))
-                            TempListBox.Items.Add(Envir.ItemInfoList[i].Name);
-                    }
-                    catch (Exception)
-                    {
-                        MessageBox.Show(GameLanguage.Get("Unreadable level filters."));
-                        break;
-                    }
-                }
+                if (Envir.ItemInfoList[i].Type.ToString() != Tab.SelectedTab.Tag.ToString()) continue;
+                if (Envir.ItemInfoList[i].RequiredAmount < minLevel ||
+                    Envir.ItemInfoList[i].RequiredAmount > maxLevel) continue;
+
+                TempListBox.Items.Add(Envir.ItemInfoList[i].Name);
             }
 
             switch (Tab.SelectedTab.Tag.ToString())
@@ -449,8 +557,19 @@ namespace Server.MirForms.DropBuilder
             int index = IndexForTag(tab.Tag?.ToString());
             if (index < 0) return;
 
-            var listBox = ItemListBoxes[index];
-            if (listBox.SelectedItem == null) return;
+            AddSelectedItem(ItemListBoxes[index]);
+        }
+
+        // Double-clicking an item adds it with the drop rate currently in the odds box.
+        private void listBoxItem_DoubleClick(object sender, EventArgs e)
+        {
+            if (sender is ListBox listBox) AddSelectedItem(listBox);
+        }
+
+        private void AddSelectedItem(ListBox listBox)
+        {
+            int index = Array.IndexOf(ItemListBoxes, listBox);
+            if (index < 0 || listBox.SelectedItem == null) return;
 
             if (!int.TryParse((textBoxItemOdds.Text ?? string.Empty).Trim(), out int chance) || chance < 1)
             {
@@ -475,6 +594,8 @@ namespace Server.MirForms.DropBuilder
         // Choose another monster.
         private void listBoxMonsters_SelectedItemChanged(object sender, EventArgs e)
         {
+            if (_filteringMonsters) return;
+
             // Empty List<DropItem>'s
             foreach (var item in ItemLists)
                 item.Clear();
@@ -490,6 +611,7 @@ namespace Server.MirForms.DropBuilder
             if (listBoxMonsters.SelectedItem is not MonsterDropInfo selectedItem)
             {
                 labelMobLevel.Text = string.Empty;
+                RefreshSpawnMaps(null);
                 return;
             }
 
@@ -498,7 +620,30 @@ namespace Server.MirForms.DropBuilder
                 : string.Empty;
 
             labelMobLevel.Text =
-                $"Currently Editing: {selectedItem.Name} - Level: {Envir.MonsterInfoList[listBoxMonsters.SelectedIndex].Level}" + hidden;
+                $"Currently Editing: {selectedItem.Name} - Level: {selectedItem.Level}" + hidden;
+
+            RefreshSpawnMaps(selectedItem);
+        }
+
+        // Maps whose respawn table contains the selected monster.
+        private void RefreshSpawnMaps(MonsterDropInfo monster)
+        {
+            listBoxSpawnMaps.BeginUpdate();
+            listBoxSpawnMaps.Items.Clear();
+
+            if (monster != null)
+            {
+                foreach (var map in Envir.MapInfoList)
+                {
+                    if (!map.Respawns.Exists(respawn => respawn.MonsterIndex == monster.Index)) continue;
+
+                    listBoxSpawnMaps.Items.Add(string.IsNullOrEmpty(map.Title)
+                        ? map.FileName
+                        : $"{map.FileName} - {map.Title}");
+                }
+            }
+
+            listBoxSpawnMaps.EndUpdate();
         }
 
         public string GetPathOfSelectedItem()
@@ -507,19 +652,12 @@ namespace Server.MirForms.DropBuilder
 
             if (selectedItem == null) return null;
 
-            var path = "";
+            return DropFilePath(selectedItem);
+        }
 
-            if (string.IsNullOrEmpty(selectedItem.Path))
-            {
-                path = Path.Combine(Settings.DropPath, $"{selectedItem.Name}.txt");
-            }
-            else
-            {
-                path = Path.Combine(Settings.DropPath, selectedItem.Path + ".txt");
-            }
-
-            return path;
-
+        private static string DropFilePath(MonsterDropInfo monster)
+        {
+            return Path.Combine(Settings.DropPath, monster.DropFileName);
         }
 
         // Load the selected monster's drop file into the document and the item lists.
@@ -576,6 +714,8 @@ namespace Server.MirForms.DropBuilder
             if (string.IsNullOrEmpty(path)) return;
 
             _document.Save(path);
+
+            if (listBoxMonsters.SelectedItem is MonsterDropInfo selected) _dropItems.Remove(selected.DropFileName);
         }
 
         //Edit gold amount/odds
@@ -597,6 +737,7 @@ namespace Server.MirForms.DropBuilder
             buttonAdd.Enabled = hasSelection && !edit;
             listBoxMonsters.Enabled = !edit;
             textBoxSearch.Enabled = !edit;
+            checkBoxSearchDrops.Enabled = !edit;
             tabControlSeperateItems.Enabled = hasSelection && !edit;
             groupBoxGold.Enabled = hasSelection && !edit;
             groupBoxItem.Enabled = hasSelection && !edit;
@@ -625,16 +766,18 @@ namespace Server.MirForms.DropBuilder
         {
             if (checkBoxCap.Checked == true)
             {
+                if (listBoxMonsters.SelectedItem is not MonsterDropInfo selectedItem) return;
+
                 textBoxMinLevel.Text = "0";
-                textBoxMaxLevel.Text = Envir.MonsterInfoList[listBoxMonsters.SelectedIndices[0]].Level.ToString();
-                tabControlSeperateItems_SelectedIndexChanged(tabControlSeperateItems, null);
+                textBoxMaxLevel.Text = selectedItem.Level.ToString();
             }
             else
             {
                 textBoxMinLevel.Text = string.Empty;
                 textBoxMaxLevel.Text = string.Empty;
-                tabControlSeperateItems_SelectedIndexChanged(tabControlSeperateItems, null);
             }
+
+            tabControlSeperateItems_SelectedIndexChanged(tabControlSeperateItems, null);
         }
 
         private void buttonUpdateGold_Click(object sender, EventArgs e)
@@ -667,19 +810,15 @@ namespace Server.MirForms.DropBuilder
             tabControlSeperateItems.Focus();
         }
 
+        private void checkBoxSearchDrops_CheckedChanged(object sender, EventArgs e)
+        {
+            ApplyMonsterFilter();
+        }
+
         private void textBoxSearch_TextChanged(object sender, EventArgs e)
         {
-            int index = listBoxMonsters.FindString(textBoxSearch.Text, -1);
-
-            if (index != -1)
-            {
-                textBoxSearch.BackColor = System.Drawing.SystemColors.Info;
-                listBoxMonsters.SetSelected(index, true);
-            }
-            else
-            {
-                textBoxSearch.BackColor = System.Drawing.Color.FromArgb(0xCC, 0x33, 0x33);
-            }
+            textBoxSearch.BackColor = System.Drawing.SystemColors.Info;
+            ApplyMonsterFilter();
         }
     }
 

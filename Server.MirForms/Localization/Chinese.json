@@ -7416,6 +7416,10 @@
     "Source": "Currently Editing:",
     "Text": "当前编辑："
   },
+  "ui.DropGenForm.labelSpawnMaps": {
+    "Source": "Spawn Maps:",
+    "Text": "刷新地图："
+  },
   "ui.DropGenForm.groupBoxItem": {
     "Source": "Item Settings",
     "Text": "物品设置"
