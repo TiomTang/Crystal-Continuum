@@ -55,7 +55,7 @@ namespace Server.MirDatabase
         {
             string[] data = text.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
 
-            if (data.Length < 7) return null;
+            if (data.Length < 11) return null;
 
             RespawnInfo info = new RespawnInfo();
 
@@ -75,6 +75,8 @@ namespace Server.MirDatabase
             if (!int.TryParse(data[8], out info.RespawnIndex)) return null;
             if (!bool.TryParse(data[9], out info.SaveRespawnTime)) return null;
             if (!ushort.TryParse(data[10], out info.RespawnTicks)) return null;
+
+            if (data.Length > 11) info.RoutePath = data[11];
 
             return info;
         }

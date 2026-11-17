@@ -1017,12 +1017,27 @@ namespace Server
 
                 if (info == null) continue;
 
+                info.RespawnIndex = ++Envir.RespawnIndex;
+
                 _info.Respawns.Add(info);
             }
 
             UpdateRespawnInterface();
         }
-        //RCopy
+
+        private void RCopyButton_Click(object sender, EventArgs e)
+        {
+            if (_selectedRespawnInfos.Count == 0) return;
+
+            // Field order matches RespawnInfo.FromText, with RoutePath last (a file name under Routes, no commas)
+            string[] lines = _selectedRespawnInfos
+                .Select(info => string.Join(",", info.MonsterIndex, info.Location.X, info.Location.Y,
+                    info.Count, info.Spread, info.Delay, info.Direction, info.RandomDelay,
+                    info.RespawnIndex, info.SaveRespawnTime, info.RespawnTicks, info.RoutePath))
+                .ToArray();
+
+            Clipboard.SetText("Respawn\t" + string.Join("\t", lines));
+        }
 
         private void AddMButton_Click(object sender, EventArgs e)
         {
@@ -1578,25 +1593,38 @@ namespace Server
             {
                 try
                 {
-                    int monsterIndex = Envir.MonsterInfoList.Find(a => a.Name == MirForms.ConvertMonGenInfo.monGenList[i].Name).Index;
+                    MirForms.MonGenInfo item = MirForms.ConvertMonGenInfo.monGenList[i];
+
+                    int monsterIndex = Envir.MonsterInfoList.Find(a => a.Name == item.Name)?.Index ?? -1;
                     if (monsterIndex == -1) continue;
 
-                    RespawnInfo respawnInfo = new RespawnInfo
-                    {
-                        MonsterIndex = monsterIndex,
-                        Location = new Point(MirForms.ConvertMonGenInfo.monGenList[i].X, MirForms.ConvertMonGenInfo.monGenList[i].Y),
-                        Count = (ushort)MirForms.ConvertMonGenInfo.monGenList[i].Count,
-                        Spread = (ushort)MirForms.ConvertMonGenInfo.monGenList[i].Range,
-                        Delay = (ushort)MirForms.ConvertMonGenInfo.monGenList[i].Delay,
-                        Direction = (byte)MirForms.ConvertMonGenInfo.monGenList[i].Direction,
-                        RoutePath = MirForms.ConvertMonGenInfo.monGenList[i].RoutePath,
-                        RespawnIndex = ++Envir.RespawnIndex
-                    };
-
-                    int index = Envir.MapInfoList.FindIndex(a => a.FileName == MirForms.ConvertMonGenInfo.monGenList[i].Map);
+                    int index = Envir.MapInfoList.FindIndex(a => a.FileName == item.Map);
                     if (index == -1) continue;
 
-                    Envir.MapInfoList[index].Respawns.Add(respawnInfo);
+                    List<RespawnInfo> respawns = Envir.MapInfoList[index].Respawns;
+                    Point location = new Point(item.X, item.Y);
+
+                    // Same map, monster, location and patrol path identify one respawn point, so a re-import updates it instead of adding a duplicate
+                    RespawnInfo respawnInfo = respawns.FirstOrDefault(a => a.MonsterIndex == monsterIndex
+                        && a.Location == location
+                        && (a.RoutePath ?? string.Empty) == (item.RoutePath ?? string.Empty));
+
+                    if (respawnInfo == null)
+                    {
+                        respawnInfo = new RespawnInfo
+                        {
+                            MonsterIndex = monsterIndex,
+                            Location = location,
+                            RespawnIndex = ++Envir.RespawnIndex
+                        };
+                        respawns.Add(respawnInfo);
+                    }
+
+                    respawnInfo.Count = (ushort)item.Count;
+                    respawnInfo.Spread = (ushort)item.Range;
+                    respawnInfo.Delay = (ushort)item.Delay;
+                    respawnInfo.Direction = (byte)item.Direction;
+
                     hasImported = true;
                 }
                 catch (Exception)
@@ -1618,13 +1646,12 @@ namespace Server
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.InitialDirectory = Path.Combine(Application.StartupPath, "Exports");
             sfd.Filter = "Text File|*.txt";
-            sfd.ShowDialog();
-
-            if (sfd.FileName == string.Empty) return;
+            if (sfd.ShowDialog() != DialogResult.OK) return;
 
             for (int i = 0; i < _selectedMapInfos.Count; i++)
             {
-                using (StreamWriter sw = File.AppendText(sfd.FileNames[0]))
+                // The first map overwrites and the rest append, so an old export is not stacked
+                using (StreamWriter sw = new StreamWriter(sfd.FileNames[0], i > 0))
                 {
                     for (int j = 0; j < _selectedMapInfos[i].Respawns.Count; j++)
                     {

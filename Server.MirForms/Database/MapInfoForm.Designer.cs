@@ -1034,6 +1034,7 @@ namespace Server
             RCopyButton.TabIndex = 21;
             RCopyButton.Text = "Copy";
             RCopyButton.UseVisualStyleBackColor = true;
+            RCopyButton.Click += RCopyButton_Click;
             // 
             // RemoveRButton
             // 
