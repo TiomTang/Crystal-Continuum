@@ -765,6 +765,7 @@ public static class LocalizationCatalog
         "Item has been repaired.",
         "Item has been upgraded.",
         "Item has increased its sockets.",
+        "Item image",
         "Item info is being loaded...",
         "Item is already sealed.",
         "Item name produced by the recipe.",

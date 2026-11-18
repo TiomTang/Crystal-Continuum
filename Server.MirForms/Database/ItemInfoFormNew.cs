@@ -35,6 +35,8 @@ namespace Server.Database
 
             PopulateTable();
 
+            panel2.Controls.Add(CreateItemPreview());
+
             MapHeaderText();
 
             LoadDropRecipeQuestFiles();

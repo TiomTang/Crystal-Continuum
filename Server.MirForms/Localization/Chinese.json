@@ -16345,10 +16345,6 @@
     "Source": "Fix the red fields before saving.",
     "Text": "请先修正标红的字段。"
   },
-  "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. A new pet starts at the spell level of the cast, name colour only changes between levels 1 and 7.": {
-    "Source": "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. A new pet starts at the spell level of the cast, name colour only changes between levels 1 and 7.",
-    "Text": "宠物等级上限 = 基数 + 系数 × 技能等级（0-3），封顶 255。技能 3 级时为 {0}。新召唤兽以施法时的技能等级为初始等级，名字颜色仅在 1 至 7 级间变化。"
-  },
   "ui.PetSummonForm.tabInheritance": {
     "Source": "Inheritance",
     "Text": "属性继承"
@@ -16516,5 +16512,29 @@
   "ui.PetTameForm.lblInheritHint": {
     "Source": "Inherited values are added on top of the monster template and pet level. Percentages use the owner maximum Magic (MC), health is added per attribute point.",
     "Text": "继承值在怪物模板与宠物等级属性之上叠加。百分比按主人最大魔法计算，血量按每点魔法增加。"
+  },
+  "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.": {
+    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
+    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  },
+  "ui.PetSummonForm.lblSkeletonGrowthHint": {
+    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
+    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  },
+  "ui.PetSummonForm.lblShinsuGrowthHint": {
+    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
+    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  },
+  "ui.PetSummonForm.lblHolyDevaGrowthHint": {
+    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
+    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  },
+  "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. New pets start at the cast level; name colour only changes between levels 1 and 7.": {
+    "Source": "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. New pets start at the cast level; name colour only changes between levels 1 and 7.",
+    "Text": "宠物等级上限 = 基数 + 系数 × 技能等级（0-3），封顶 255。技能 3 级时为 {0}。新召唤物以施法时的技能等级为初始等级；名字颜色仅在 1 至 7 级之间变化。"
+  },
+  "Item image": {
+    "Source": "Item image",
+    "Text": "物品图片"
   }
 }
