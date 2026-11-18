@@ -17,7 +17,6 @@ namespace Server
     {
         internal const string Section = "Game";
 
-        internal const string GroupTaoist = "Taoist summons";
         internal const string GroupClones = "Clones";
         internal const string GroupPoison = "Poison and totem summons";
         internal const string GroupStone = "Stone trap";
@@ -45,10 +44,6 @@ namespace Server
 
         private static readonly Definition[] Definitions =
         {
-            new Definition("SkeletonName", GroupTaoist, "HumanObject"),
-            new Definition("ShinsuName", GroupTaoist, "HumanObject"),
-            new Definition("AngelName", GroupTaoist, "HumanObject"),
-
             new Definition("CloneName", GroupClones, "HumanObject"),
             new Definition("AssassinCloneName", GroupClones, "HumanObject"),
 

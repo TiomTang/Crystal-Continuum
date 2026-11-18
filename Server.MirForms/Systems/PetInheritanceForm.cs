@@ -3,6 +3,10 @@ using Shared;
 
 namespace Server
 {
+    /// <summary>
+    /// Editor for the wizard pet inheritance in Configs/PetInheritance.ini. The Taoist servants
+    /// are configured in the summon window, their values live in Configs/PetSummon.ini.
+    /// </summary>
     public partial class PetInheritanceForm : Form
     {
         public Envir Envir => SMain.Envir;
@@ -21,10 +25,6 @@ namespace Server
         {
             List<NumericUpDown> boxes = new List<NumericUpDown>
             {
-                nudTaoistMinDamage, nudTaoistMaxDamage,
-                nudTaoistMinDefence, nudTaoistMaxDefence,
-                nudTaoistMinMagicDefence, nudTaoistMaxMagicDefence,
-                nudTaoistHealth,
                 nudWizardMinDamage, nudWizardMaxDamage,
                 nudWizardMinDefence, nudWizardMaxDefence,
                 nudWizardMinMagicDefence, nudWizardMaxMagicDefence,
@@ -37,23 +37,12 @@ namespace Server
                 box.Maximum = Settings.PetInheritanceMaxPercent;
             }
 
-            nudTaoistHealth.Maximum = Settings.PetInheritanceMaxHealthPerPoint;
             nudWizardHealth.Maximum = Settings.PetInheritanceMaxHealthPerPoint;
         }
 
         private void LoadSettings()
         {
-            PetInheritanceSettings taoist = Settings.TaoistPetInheritance ?? new PetInheritanceSettings { OwnerStat = Stat.MaxSC };
             PetInheritanceSettings wizard = Settings.WizardPetInheritance ?? new PetInheritanceSettings { OwnerStat = Stat.MaxMC };
-
-            chkTaoistEnabled.Checked = taoist.Enabled;
-            nudTaoistMinDamage.Value = Clamp(taoist.MinDamagePercent, nudTaoistMinDamage.Maximum);
-            nudTaoistMaxDamage.Value = Clamp(taoist.MaxDamagePercent, nudTaoistMaxDamage.Maximum);
-            nudTaoistMinDefence.Value = Clamp(taoist.MinDefencePercent, nudTaoistMinDefence.Maximum);
-            nudTaoistMaxDefence.Value = Clamp(taoist.MaxDefencePercent, nudTaoistMaxDefence.Maximum);
-            nudTaoistMinMagicDefence.Value = Clamp(taoist.MinMagicDefencePercent, nudTaoistMinMagicDefence.Maximum);
-            nudTaoistMaxMagicDefence.Value = Clamp(taoist.MaxMagicDefencePercent, nudTaoistMaxMagicDefence.Maximum);
-            nudTaoistHealth.Value = Clamp(taoist.HealthPerPoint, nudTaoistHealth.Maximum);
 
             chkWizardEnabled.Checked = wizard.Enabled;
             nudWizardMinDamage.Value = Clamp(wizard.MinDamagePercent, nudWizardMinDamage.Maximum);
@@ -75,19 +64,6 @@ namespace Server
 
         private void btnSave_Click(object sender, EventArgs e)
         {
-            Settings.TaoistPetInheritance = new PetInheritanceSettings
-            {
-                OwnerStat = Stat.MaxSC,
-                Enabled = chkTaoistEnabled.Checked,
-                MinDamagePercent = (int)nudTaoistMinDamage.Value,
-                MaxDamagePercent = (int)nudTaoistMaxDamage.Value,
-                MinDefencePercent = (int)nudTaoistMinDefence.Value,
-                MaxDefencePercent = (int)nudTaoistMaxDefence.Value,
-                MinMagicDefencePercent = (int)nudTaoistMinMagicDefence.Value,
-                MaxMagicDefencePercent = (int)nudTaoistMaxMagicDefence.Value,
-                HealthPerPoint = (int)nudTaoistHealth.Value
-            };
-
             Settings.WizardPetInheritance = new PetInheritanceSettings
             {
                 OwnerStat = Stat.MaxMC,

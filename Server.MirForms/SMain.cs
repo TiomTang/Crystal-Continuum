@@ -523,6 +523,13 @@ namespace Server
             form.ShowDialog();
         }
 
+        private void petSummonToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            PetSummonForm form = new PetSummonForm();
+
+            form.ShowDialog();
+        }
+
         private void commandListToolStripMenuItem_Click(object sender, EventArgs e)
         {
             CommandListForm form = new CommandListForm();

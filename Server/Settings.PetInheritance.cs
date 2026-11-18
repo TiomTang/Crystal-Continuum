@@ -5,7 +5,8 @@ namespace Server
 {
     /// <summary>
     /// Inheritance configuration for one pet group. The owner attribute is fixed by the group, the
-    /// remaining values are the parameters an administrator can edit in the pet inheritance window.
+    /// remaining values are the parameters an administrator can edit: the Taoist servants in the
+    /// summon window, the wizard pets in the inheritance window.
     /// </summary>
     public class PetInheritanceSettings
     {
@@ -78,7 +79,7 @@ namespace Server
         {
             var reader = new InIReader(PetInheritancePath);
 
-            TaoistPetInheritance = ReadPetInheritance(reader, "Taoist", Stat.MaxSC, TaoistPetInheritance);
+            // The Taoist servants are configured in PetSummon.ini; only the wizard pets are left.
             WizardPetInheritance = ReadPetInheritance(reader, "Wizard", Stat.MaxMC, WizardPetInheritance);
         }
 
@@ -86,23 +87,22 @@ namespace Server
         {
             var reader = new InIReader(PetInheritancePath);
 
-            WritePetInheritance(reader, "Taoist", TaoistPetInheritance);
             WritePetInheritance(reader, "Wizard", WizardPetInheritance);
         }
 
-        private static PetInheritanceSettings ReadPetInheritance(InIReader reader, string section, Stat ownerStat, PetInheritanceSettings defaults)
+        private static PetInheritanceSettings ReadPetInheritance(InIReader reader, string section, Stat ownerStat, PetInheritanceSettings defaults, bool writeWhenNull = true)
         {
             return new PetInheritanceSettings
             {
                 OwnerStat = ownerStat,
-                Enabled = reader.ReadBoolean(section, "Enabled", defaults.Enabled),
-                MinDamagePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MinDamagePercent", defaults.MinDamagePercent), PetInheritanceMaxPercent),
-                MaxDamagePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MaxDamagePercent", defaults.MaxDamagePercent), PetInheritanceMaxPercent),
-                MinDefencePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MinDefencePercent", defaults.MinDefencePercent), PetInheritanceMaxPercent),
-                MaxDefencePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MaxDefencePercent", defaults.MaxDefencePercent), PetInheritanceMaxPercent),
-                MinMagicDefencePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MinMagicDefencePercent", defaults.MinMagicDefencePercent), PetInheritanceMaxPercent),
-                MaxMagicDefencePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MaxMagicDefencePercent", defaults.MaxMagicDefencePercent), PetInheritanceMaxPercent),
-                HealthPerPoint = ClampPetInheritanceValue(reader.ReadInt32(section, "HealthPerPoint", defaults.HealthPerPoint), PetInheritanceMaxHealthPerPoint)
+                Enabled = reader.ReadBoolean(section, "Enabled", defaults.Enabled, writeWhenNull),
+                MinDamagePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MinDamagePercent", defaults.MinDamagePercent, writeWhenNull), PetInheritanceMaxPercent),
+                MaxDamagePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MaxDamagePercent", defaults.MaxDamagePercent, writeWhenNull), PetInheritanceMaxPercent),
+                MinDefencePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MinDefencePercent", defaults.MinDefencePercent, writeWhenNull), PetInheritanceMaxPercent),
+                MaxDefencePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MaxDefencePercent", defaults.MaxDefencePercent, writeWhenNull), PetInheritanceMaxPercent),
+                MinMagicDefencePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MinMagicDefencePercent", defaults.MinMagicDefencePercent, writeWhenNull), PetInheritanceMaxPercent),
+                MaxMagicDefencePercent = ClampPetInheritanceValue(reader.ReadInt32(section, "MaxMagicDefencePercent", defaults.MaxMagicDefencePercent, writeWhenNull), PetInheritanceMaxPercent),
+                HealthPerPoint = ClampPetInheritanceValue(reader.ReadInt32(section, "HealthPerPoint", defaults.HealthPerPoint, writeWhenNull), PetInheritanceMaxHealthPerPoint)
             };
         }
 

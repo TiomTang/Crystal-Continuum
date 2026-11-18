@@ -29,20 +29,6 @@ namespace Server
         private void InitializeComponent()
         {
             this.lblHint = new System.Windows.Forms.Label();
-            this.grpTaoist = new System.Windows.Forms.GroupBox();
-            this.lblTaoistHealth = new System.Windows.Forms.Label();
-            this.nudTaoistHealth = new System.Windows.Forms.NumericUpDown();
-            this.lblTaoistMagicDefence = new System.Windows.Forms.Label();
-            this.nudTaoistMinMagicDefence = new System.Windows.Forms.NumericUpDown();
-            this.nudTaoistMaxMagicDefence = new System.Windows.Forms.NumericUpDown();
-            this.lblTaoistDefence = new System.Windows.Forms.Label();
-            this.nudTaoistMinDefence = new System.Windows.Forms.NumericUpDown();
-            this.nudTaoistMaxDefence = new System.Windows.Forms.NumericUpDown();
-            this.lblTaoistDamage = new System.Windows.Forms.Label();
-            this.nudTaoistMinDamage = new System.Windows.Forms.NumericUpDown();
-            this.nudTaoistMaxDamage = new System.Windows.Forms.NumericUpDown();
-            this.lblTaoistSource = new System.Windows.Forms.Label();
-            this.chkTaoistEnabled = new System.Windows.Forms.CheckBox();
             this.grpWizard = new System.Windows.Forms.GroupBox();
             this.lblWizardHealth = new System.Windows.Forms.Label();
             this.nudWizardHealth = new System.Windows.Forms.NumericUpDown();
@@ -59,14 +45,6 @@ namespace Server
             this.chkWizardEnabled = new System.Windows.Forms.CheckBox();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
-            this.grpTaoist.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistHealth)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMinMagicDefence)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMaxMagicDefence)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMinDefence)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMaxDefence)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMinDamage)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMaxDamage)).BeginInit();
             this.grpWizard.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudWizardHealth)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudWizardMinMagicDefence)).BeginInit();
@@ -81,135 +59,9 @@ namespace Server
             // 
             this.lblHint.Location = new System.Drawing.Point(12, 9);
             this.lblHint.Name = "lblHint";
-            this.lblHint.Size = new System.Drawing.Size(500, 32);
+            this.lblHint.Size = new System.Drawing.Size(510, 36);
             this.lblHint.TabIndex = 0;
             this.lblHint.Text = "Inherited values are added on top of the servant template and pet level. Percentages use the owner core attribute, health is added per attribute point.";
-            // 
-            // grpTaoist
-            // 
-            this.grpTaoist.Controls.Add(this.lblTaoistHealth);
-            this.grpTaoist.Controls.Add(this.nudTaoistHealth);
-            this.grpTaoist.Controls.Add(this.lblTaoistMagicDefence);
-            this.grpTaoist.Controls.Add(this.nudTaoistMinMagicDefence);
-            this.grpTaoist.Controls.Add(this.nudTaoistMaxMagicDefence);
-            this.grpTaoist.Controls.Add(this.lblTaoistDefence);
-            this.grpTaoist.Controls.Add(this.nudTaoistMinDefence);
-            this.grpTaoist.Controls.Add(this.nudTaoistMaxDefence);
-            this.grpTaoist.Controls.Add(this.lblTaoistDamage);
-            this.grpTaoist.Controls.Add(this.nudTaoistMinDamage);
-            this.grpTaoist.Controls.Add(this.nudTaoistMaxDamage);
-            this.grpTaoist.Controls.Add(this.lblTaoistSource);
-            this.grpTaoist.Controls.Add(this.chkTaoistEnabled);
-            this.grpTaoist.Location = new System.Drawing.Point(12, 44);
-            this.grpTaoist.Name = "grpTaoist";
-            this.grpTaoist.Size = new System.Drawing.Size(500, 150);
-            this.grpTaoist.TabIndex = 1;
-            this.grpTaoist.TabStop = false;
-            this.grpTaoist.Text = "Taoist summons (skeleton, shinsu, holy deva)";
-            // 
-            // chkTaoistEnabled
-            // 
-            this.chkTaoistEnabled.AutoSize = true;
-            this.chkTaoistEnabled.Location = new System.Drawing.Point(14, 22);
-            this.chkTaoistEnabled.Name = "chkTaoistEnabled";
-            this.chkTaoistEnabled.Size = new System.Drawing.Size(114, 17);
-            this.chkTaoistEnabled.TabIndex = 0;
-            this.chkTaoistEnabled.Text = "Enable inheritance";
-            this.chkTaoistEnabled.UseVisualStyleBackColor = true;
-            // 
-            // lblTaoistSource
-            // 
-            this.lblTaoistSource.AutoSize = true;
-            this.lblTaoistSource.Location = new System.Drawing.Point(180, 23);
-            this.lblTaoistSource.Name = "lblTaoistSource";
-            this.lblTaoistSource.Size = new System.Drawing.Size(188, 13);
-            this.lblTaoistSource.TabIndex = 1;
-            this.lblTaoistSource.Text = "Owner attribute source: max Taoism (SC)";
-            // 
-            // lblTaoistDamage
-            // 
-            this.lblTaoistDamage.AutoSize = true;
-            this.lblTaoistDamage.Location = new System.Drawing.Point(14, 52);
-            this.lblTaoistDamage.Name = "lblTaoistDamage";
-            this.lblTaoistDamage.Size = new System.Drawing.Size(124, 13);
-            this.lblTaoistDamage.TabIndex = 2;
-            this.lblTaoistDamage.Text = "Attack min / max percentage";
-            // 
-            // nudTaoistMinDamage
-            // 
-            this.nudTaoistMinDamage.Location = new System.Drawing.Point(183, 50);
-            this.nudTaoistMinDamage.Name = "nudTaoistMinDamage";
-            this.nudTaoistMinDamage.Size = new System.Drawing.Size(70, 20);
-            this.nudTaoistMinDamage.TabIndex = 3;
-            // 
-            // nudTaoistMaxDamage
-            // 
-            this.nudTaoistMaxDamage.Location = new System.Drawing.Point(263, 50);
-            this.nudTaoistMaxDamage.Name = "nudTaoistMaxDamage";
-            this.nudTaoistMaxDamage.Size = new System.Drawing.Size(70, 20);
-            this.nudTaoistMaxDamage.TabIndex = 4;
-            // 
-            // lblTaoistDefence
-            // 
-            this.lblTaoistDefence.AutoSize = true;
-            this.lblTaoistDefence.Location = new System.Drawing.Point(14, 78);
-            this.lblTaoistDefence.Name = "lblTaoistDefence";
-            this.lblTaoistDefence.Size = new System.Drawing.Size(148, 13);
-            this.lblTaoistDefence.TabIndex = 5;
-            this.lblTaoistDefence.Text = "Defence min / max percentage";
-            // 
-            // nudTaoistMinDefence
-            // 
-            this.nudTaoistMinDefence.Location = new System.Drawing.Point(183, 76);
-            this.nudTaoistMinDefence.Name = "nudTaoistMinDefence";
-            this.nudTaoistMinDefence.Size = new System.Drawing.Size(70, 20);
-            this.nudTaoistMinDefence.TabIndex = 6;
-            // 
-            // nudTaoistMaxDefence
-            // 
-            this.nudTaoistMaxDefence.Location = new System.Drawing.Point(263, 76);
-            this.nudTaoistMaxDefence.Name = "nudTaoistMaxDefence";
-            this.nudTaoistMaxDefence.Size = new System.Drawing.Size(70, 20);
-            this.nudTaoistMaxDefence.TabIndex = 7;
-            // 
-            // lblTaoistMagicDefence
-            // 
-            this.lblTaoistMagicDefence.AutoSize = true;
-            this.lblTaoistMagicDefence.Location = new System.Drawing.Point(14, 104);
-            this.lblTaoistMagicDefence.Name = "lblTaoistMagicDefence";
-            this.lblTaoistMagicDefence.Size = new System.Drawing.Size(168, 13);
-            this.lblTaoistMagicDefence.TabIndex = 8;
-            this.lblTaoistMagicDefence.Text = "Magic defence min / max percentage";
-            // 
-            // nudTaoistMinMagicDefence
-            // 
-            this.nudTaoistMinMagicDefence.Location = new System.Drawing.Point(183, 102);
-            this.nudTaoistMinMagicDefence.Name = "nudTaoistMinMagicDefence";
-            this.nudTaoistMinMagicDefence.Size = new System.Drawing.Size(70, 20);
-            this.nudTaoistMinMagicDefence.TabIndex = 9;
-            // 
-            // nudTaoistMaxMagicDefence
-            // 
-            this.nudTaoistMaxMagicDefence.Location = new System.Drawing.Point(263, 102);
-            this.nudTaoistMaxMagicDefence.Name = "nudTaoistMaxMagicDefence";
-            this.nudTaoistMaxMagicDefence.Size = new System.Drawing.Size(70, 20);
-            this.nudTaoistMaxMagicDefence.TabIndex = 10;
-            // 
-            // lblTaoistHealth
-            // 
-            this.lblTaoistHealth.AutoSize = true;
-            this.lblTaoistHealth.Location = new System.Drawing.Point(14, 126);
-            this.lblTaoistHealth.Name = "lblTaoistHealth";
-            this.lblTaoistHealth.Size = new System.Drawing.Size(133, 13);
-            this.lblTaoistHealth.TabIndex = 11;
-            this.lblTaoistHealth.Text = "Health per attribute point";
-            // 
-            // nudTaoistHealth
-            // 
-            this.nudTaoistHealth.Location = new System.Drawing.Point(183, 124);
-            this.nudTaoistHealth.Name = "nudTaoistHealth";
-            this.nudTaoistHealth.Size = new System.Drawing.Size(70, 20);
-            this.nudTaoistHealth.TabIndex = 12;
             // 
             // grpWizard
             // 
@@ -226,7 +78,7 @@ namespace Server
             this.grpWizard.Controls.Add(this.nudWizardMaxDamage);
             this.grpWizard.Controls.Add(this.lblWizardSource);
             this.grpWizard.Controls.Add(this.chkWizardEnabled);
-            this.grpWizard.Location = new System.Drawing.Point(12, 202);
+            this.grpWizard.Location = new System.Drawing.Point(12, 44);
             this.grpWizard.Name = "grpWizard";
             this.grpWizard.Size = new System.Drawing.Size(500, 150);
             this.grpWizard.TabIndex = 2;
@@ -339,7 +191,7 @@ namespace Server
             // 
             // btnSave
             // 
-            this.btnSave.Location = new System.Drawing.Point(336, 362);
+            this.btnSave.Location = new System.Drawing.Point(336, 204);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 26);
             this.btnSave.TabIndex = 3;
@@ -350,7 +202,7 @@ namespace Server
             // btnCancel
             // 
             this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(442, 362);
+            this.btnCancel.Location = new System.Drawing.Point(442, 204);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(70, 26);
             this.btnCancel.TabIndex = 4;
@@ -361,9 +213,8 @@ namespace Server
             // 
             this.AcceptButton = this.btnSave;
             this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(524, 400);
+            this.ClientSize = new System.Drawing.Size(524, 242);
             this.Controls.Add(this.lblHint);
-            this.Controls.Add(this.grpTaoist);
             this.Controls.Add(this.grpWizard);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.btnCancel);
@@ -373,15 +224,6 @@ namespace Server
             this.Name = "PetInheritanceForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Pet Inheritance";
-            this.grpTaoist.ResumeLayout(false);
-            this.grpTaoist.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistHealth)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMinMagicDefence)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMaxMagicDefence)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMinDefence)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMaxDefence)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMinDamage)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudTaoistMaxDamage)).EndInit();
             this.grpWizard.ResumeLayout(false);
             this.grpWizard.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudWizardHealth)).EndInit();
@@ -397,20 +239,6 @@ namespace Server
         #endregion
 
         private System.Windows.Forms.Label lblHint;
-        private System.Windows.Forms.GroupBox grpTaoist;
-        private System.Windows.Forms.CheckBox chkTaoistEnabled;
-        private System.Windows.Forms.Label lblTaoistSource;
-        private System.Windows.Forms.Label lblTaoistDamage;
-        private System.Windows.Forms.NumericUpDown nudTaoistMinDamage;
-        private System.Windows.Forms.NumericUpDown nudTaoistMaxDamage;
-        private System.Windows.Forms.Label lblTaoistDefence;
-        private System.Windows.Forms.NumericUpDown nudTaoistMinDefence;
-        private System.Windows.Forms.NumericUpDown nudTaoistMaxDefence;
-        private System.Windows.Forms.Label lblTaoistMagicDefence;
-        private System.Windows.Forms.NumericUpDown nudTaoistMinMagicDefence;
-        private System.Windows.Forms.NumericUpDown nudTaoistMaxMagicDefence;
-        private System.Windows.Forms.Label lblTaoistHealth;
-        private System.Windows.Forms.NumericUpDown nudTaoistHealth;
         private System.Windows.Forms.GroupBox grpWizard;
         private System.Windows.Forms.CheckBox chkWizardEnabled;
         private System.Windows.Forms.Label lblWizardSource;

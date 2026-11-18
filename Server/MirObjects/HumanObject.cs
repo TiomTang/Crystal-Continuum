@@ -4479,43 +4479,76 @@ namespace Server.MirObjects
         }
         private void SummonSkeleton(UserMagic magic)
         {
+            SummonTaoistPet(magic, Settings.PetSummonSkeleton);
+        }
+
+        /// <summary>
+        /// Shared implementation of the three Taoist summons. Everything they used to hardcode,
+        /// from the monster template to the pet level growth, is read from Configs/PetSummon.ini
+        /// through <see cref="Settings.FindTaoistSummon"/>.
+        /// </summary>
+        private void SummonTaoistPet(UserMagic magic, PetSummonSettings summon)
+        {
             if (CurrentMap.Info.NoPets)
             {
                 ReceiveChat("You cannot summon pets on this map.", ChatType.System);
                 return;
             }
-            
+
+            string monsterName = summon.MonsterName;
             MonsterObject monster;
+            MonsterObject recall = null;
+            int existing = 0;
+
             for (int i = 0; i < Pets.Count; i++)
             {
                 monster = Pets[i];
-                if ((monster.Info.Name != Settings.SkeletonName) || monster.Dead) continue;
+                if ((monster.Info.Name != monsterName) || monster.Dead) continue;
                 if (monster.Node == null) continue;
-                monster.ActionList.Add(new DelayedAction(DelayedType.Recall, Envir.Time + 500));
+
+                if (recall == null) recall = monster;
+                existing++;
+            }
+
+            // Below the skill limit a cast adds another servant, at the limit it recalls one. The
+            // old code always recalled, so a limit of one keeps the original behaviour.
+            PetSummonDecision decision = PetSummonSettings.DecideSummon(existing, summon,
+                Pets.Count(x => x.Race == ObjectType.Monster), Settings.PetSummonShared.MaxActivePets);
+
+            if (decision == PetSummonDecision.Reject) return;
+
+            if (decision == PetSummonDecision.Recall)
+            {
+                recall.ActionList.Add(new DelayedAction(DelayedType.Recall, Envir.Time + 500));
                 return;
             }
 
-            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 2) return;
+            UserItem item = null;
 
-            UserItem item = GetAmulet(1);
-            if (item == null) return;
+            if (summon.AmuletCost > 0)
+            {
+                item = GetAmulet(summon.AmuletCost);
+                if (item == null) return;
+            }
 
-            MonsterInfo info = Envir.GetMonsterInfo(Settings.SkeletonName);
+            MonsterInfo info = Envir.GetMonsterInfo(monsterName);
             if (info == null) return;
 
             LevelMagic(magic);
-            ConsumeItem(item, 1);
+
+            if (item != null) ConsumeItem(item, (byte)summon.AmuletCost);
 
             monster = MonsterObject.GetMonster(info);
             monster.PetLevel = magic.Level;
             monster.Master = this;
-            monster.MaxPetLevel = (byte)(4 + magic.Level);
+            monster.MaxPetLevel = summon.GetMaxPetLevel(magic.Level);
+            monster.Direction = Direction;
             monster.ActionTime = Envir.Time + 1000;
             monster.RefreshNameColour(false);
 
             //Pets.Add(monster);
 
-            DelayedAction action = new DelayedAction(DelayedType.Magic, Envir.Time + 500, this, magic, monster, Front);
+            DelayedAction action = new DelayedAction(DelayedType.Magic, Envir.Time + summon.SummonDelay, this, magic, monster, Front);
             CurrentMap.ActionList.Add(action);
         }
         private void Purification(MapObject target, UserMagic magic)
@@ -4528,44 +4561,7 @@ namespace Server.MirObjects
         }
         private void SummonShinsu(UserMagic magic)
         {
-            if (CurrentMap.Info.NoPets)
-            {
-                ReceiveChat("You cannot summon pets on this map.", ChatType.System);
-                return;
-            }
-            
-            MonsterObject monster;
-            for (int i = 0; i < Pets.Count; i++)
-            {
-                monster = Pets[i];
-                if ((monster.Info.Name != Settings.ShinsuName) || monster.Dead) continue;
-                if (monster.Node == null) continue;
-                monster.ActionList.Add(new DelayedAction(DelayedType.Recall, Envir.Time + 500));
-                return;
-            }
-
-            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 2) return;
-
-            UserItem item = GetAmulet(5);
-            if (item == null) return;
-
-            MonsterInfo info = Envir.GetMonsterInfo(Settings.ShinsuName);
-            if (info == null) return;
-
-            LevelMagic(magic);
-            ConsumeItem(item, 5);
-
-            monster = MonsterObject.GetMonster(info);
-            monster.PetLevel = magic.Level;
-            monster.Master = this;
-            monster.MaxPetLevel = (byte)(1 + magic.Level * 2);
-            monster.Direction = Direction;
-            monster.ActionTime = Envir.Time + 1000;
-
-            //Pets.Add(monster);
-
-            DelayedAction action = new DelayedAction(DelayedType.Magic, Envir.Time + 500, this, magic, monster, Front);
-            CurrentMap.ActionList.Add(action);
+            SummonTaoistPet(magic, Settings.PetSummonShinsu);
         }
         private void Hiding(UserMagic magic)
         {
@@ -4779,44 +4775,7 @@ namespace Server.MirObjects
         }
         private void SummonHolyDeva(UserMagic magic)
         {
-            if (CurrentMap.Info.NoPets)
-            {
-                ReceiveChat("You cannot summon pets on this map.", ChatType.System);
-                return;
-            }
-            
-            MonsterObject monster;
-            for (int i = 0; i < Pets.Count; i++)
-            {
-                monster = Pets[i];
-                if ((monster.Info.Name != Settings.AngelName) || monster.Dead) continue;
-                if (monster.Node == null) continue;
-                monster.ActionList.Add(new DelayedAction(DelayedType.Recall, Envir.Time + 500));
-                return;
-            }
-
-            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 2) return;
-
-            UserItem item = GetAmulet(2);
-            if (item == null) return;
-
-            MonsterInfo info = Envir.GetMonsterInfo(Settings.AngelName);
-            if (info == null) return;
-
-            LevelMagic(magic);
-            ConsumeItem(item, 2);
-
-            monster = MonsterObject.GetMonster(info);
-            monster.PetLevel = magic.Level;
-            monster.Master = this;
-            monster.MaxPetLevel = (byte)(1 + magic.Level * 2);
-            monster.Direction = Direction;
-            monster.ActionTime = Envir.Time + 1000;
-
-            //Pets.Add(monster);
-
-            DelayedAction action = new DelayedAction(DelayedType.Magic, Envir.Time + 1500, this, magic, monster, Front);
-            CurrentMap.ActionList.Add(action);
+            SummonTaoistPet(magic, Settings.PetSummonHolyDeva);
         }
         private void Hallucination(MapObject target, UserMagic magic)
         {

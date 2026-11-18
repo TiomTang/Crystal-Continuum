@@ -27,6 +27,7 @@
       "NPCInfoForm",
       "Namelists",
       "PetInheritanceForm",
+      "PetSummonForm",
       "PlayerInfoForm",
       "QuestInfoForm",
       "RecipeInfoForm",
@@ -3195,34 +3196,6 @@
   "ui.PetInheritanceForm.lblHint": {
     "Source": "Inherited values are added on top of the servant template and pet level. Percentages use the owner core attribute, health is added per attribute point.",
     "Text": "继承值在仆从模板与等级属性之上叠加。百分比按主人对应主属性计算，血量按主属性每点增加。"
-  },
-  "ui.PetInheritanceForm.grpTaoist": {
-    "Source": "Taoist summons (skeleton, shinsu, holy deva)",
-    "Text": "道士召唤兽（骷髅 / 神兽 / 圣兽）"
-  },
-  "ui.PetInheritanceForm.chkTaoistEnabled": {
-    "Source": "Enable inheritance",
-    "Text": "启用继承"
-  },
-  "ui.PetInheritanceForm.lblTaoistSource": {
-    "Source": "Owner attribute source: max Taoism (SC)",
-    "Text": "主人属性来源：最大道术"
-  },
-  "ui.PetInheritanceForm.lblTaoistDamage": {
-    "Source": "Attack min / max percentage",
-    "Text": "攻击下限 / 上限 %"
-  },
-  "ui.PetInheritanceForm.lblTaoistDefence": {
-    "Source": "Defence min / max percentage",
-    "Text": "物防下限 / 上限 %"
-  },
-  "ui.PetInheritanceForm.lblTaoistMagicDefence": {
-    "Source": "Magic defence min / max percentage",
-    "Text": "魔防下限 / 上限 %"
-  },
-  "ui.PetInheritanceForm.lblTaoistHealth": {
-    "Source": "Health per attribute point",
-    "Text": "每点道术增加血量"
   },
   "ui.PetInheritanceForm.grpWizard": {
     "Source": "Wizard tamed pets",
@@ -16219,5 +16192,253 @@
   "Monster image": {
     "Source": "Monster image",
     "Text": "怪物图片"
+  },
+  "ui.PetSummonForm.#Title": {
+    "Source": "Taoist Summons",
+    "Text": "道士召唤物"
+  },
+  "ui.PetSummonForm.tabSkeleton": {
+    "Source": "Summon Skeleton",
+    "Text": "召唤骷髅"
+  },
+  "ui.PetSummonForm.tabShinsu": {
+    "Source": "Summon Shinsu",
+    "Text": "召唤神兽"
+  },
+  "ui.PetSummonForm.tabHolyDeva": {
+    "Source": "Summon Holy Deva",
+    "Text": "召唤圣灵"
+  },
+  "ui.PetSummonForm.tabShared": {
+    "Source": "Shared rules",
+    "Text": "通用规则"
+  },
+  "ui.PetSummonForm.lblSkeletonMonster": {
+    "Source": "Monster template",
+    "Text": "怪物模板"
+  },
+  "ui.PetSummonForm.lblSkeletonAmulet": {
+    "Source": "Amulet cost per cast",
+    "Text": "每次消耗护身符"
+  },
+  "ui.PetSummonForm.lblSkeletonLimit": {
+    "Source": "Max pets (recall at limit)",
+    "Text": "本技能上限（满后召回）"
+  },
+  "ui.PetSummonForm.lblSkeletonDelay": {
+    "Source": "Summon delay (ms)",
+    "Text": "召唤延迟（毫秒）"
+  },
+  "ui.PetSummonForm.lblSkeletonLevelBase": {
+    "Source": "Pet level limit: base",
+    "Text": "宠物等级上限：基数"
+  },
+  "ui.PetSummonForm.lblSkeletonLevelStep": {
+    "Source": "Pet level limit: step per spell level",
+    "Text": "宠物等级上限：每级技能增加"
+  },
+  "ui.PetSummonForm.lblSkeletonHealth": {
+    "Source": "HP per level",
+    "Text": "每级血量"
+  },
+  "ui.PetSummonForm.lblSkeletonDamage": {
+    "Source": "Damage per level",
+    "Text": "每级攻击"
+  },
+  "ui.PetSummonForm.lblSkeletonDefence": {
+    "Source": "Defence per level",
+    "Text": "每级物防"
+  },
+  "ui.PetSummonForm.lblSkeletonMagicDefence": {
+    "Source": "Magic defence per level",
+    "Text": "每级魔防"
+  },
+  "ui.PetSummonForm.lblShinsuMonster": {
+    "Source": "Monster template",
+    "Text": "怪物模板"
+  },
+  "ui.PetSummonForm.lblShinsuAmulet": {
+    "Source": "Amulet cost per cast",
+    "Text": "每次消耗护身符"
+  },
+  "ui.PetSummonForm.lblShinsuLimit": {
+    "Source": "Max pets (recall at limit)",
+    "Text": "本技能上限（满后召回）"
+  },
+  "ui.PetSummonForm.lblShinsuDelay": {
+    "Source": "Summon delay (ms)",
+    "Text": "召唤延迟（毫秒）"
+  },
+  "ui.PetSummonForm.lblShinsuLevelBase": {
+    "Source": "Pet level limit: base",
+    "Text": "宠物等级上限：基数"
+  },
+  "ui.PetSummonForm.lblShinsuLevelStep": {
+    "Source": "Pet level limit: step per spell level",
+    "Text": "宠物等级上限：每级技能增加"
+  },
+  "ui.PetSummonForm.lblShinsuHealth": {
+    "Source": "HP per level",
+    "Text": "每级血量"
+  },
+  "ui.PetSummonForm.lblShinsuDamage": {
+    "Source": "Damage per level",
+    "Text": "每级攻击"
+  },
+  "ui.PetSummonForm.lblShinsuDefence": {
+    "Source": "Defence per level",
+    "Text": "每级物防"
+  },
+  "ui.PetSummonForm.lblShinsuMagicDefence": {
+    "Source": "Magic defence per level",
+    "Text": "每级魔防"
+  },
+  "ui.PetSummonForm.lblHolyDevaMonster": {
+    "Source": "Monster template",
+    "Text": "怪物模板"
+  },
+  "ui.PetSummonForm.lblHolyDevaAmulet": {
+    "Source": "Amulet cost per cast",
+    "Text": "每次消耗护身符"
+  },
+  "ui.PetSummonForm.lblHolyDevaLimit": {
+    "Source": "Max pets (recall at limit)",
+    "Text": "本技能上限（满后召回）"
+  },
+  "ui.PetSummonForm.lblHolyDevaDelay": {
+    "Source": "Summon delay (ms)",
+    "Text": "召唤延迟（毫秒）"
+  },
+  "ui.PetSummonForm.lblHolyDevaLevelBase": {
+    "Source": "Pet level limit: base",
+    "Text": "宠物等级上限：基数"
+  },
+  "ui.PetSummonForm.lblHolyDevaLevelStep": {
+    "Source": "Pet level limit: step per spell level",
+    "Text": "宠物等级上限：每级技能增加"
+  },
+  "ui.PetSummonForm.lblHolyDevaHealth": {
+    "Source": "HP per level",
+    "Text": "每级血量"
+  },
+  "ui.PetSummonForm.lblHolyDevaDamage": {
+    "Source": "Damage per level",
+    "Text": "每级攻击"
+  },
+  "ui.PetSummonForm.lblHolyDevaDefence": {
+    "Source": "Defence per level",
+    "Text": "每级物防"
+  },
+  "ui.PetSummonForm.lblHolyDevaMagicDefence": {
+    "Source": "Magic defence per level",
+    "Text": "每级魔防"
+  },
+  "ui.PetSummonForm.lblMaxActivePets": {
+    "Source": "Pets allowed across the three skills",
+    "Text": "三种召唤共用的宠物数量上限"
+  },
+  "ui.PetSummonForm.lblExpMultiplier": {
+    "Source": "Experience multiplier for the summon",
+    "Text": "召唤兽经验倍率"
+  },
+  "ui.PetSummonForm.lblExpBase": {
+    "Source": "Experience needed: base",
+    "Text": "升级所需经验：基数"
+  },
+  "ui.PetSummonForm.lblExpPerLevel": {
+    "Source": "Experience needed: step per pet level",
+    "Text": "升级所需经验：每级递增"
+  },
+  "ui.PetSummonForm.lblMoveSpeed": {
+    "Source": "Move speed per max pet level",
+    "Text": "每点最大等级移速加成"
+  },
+  "ui.PetSummonForm.lblAttackSpeed": {
+    "Source": "Attack speed per max pet level",
+    "Text": "每点最大等级攻速加成"
+  },
+  "ui.PetSummonForm.lblMinMoveSpeed": {
+    "Source": "Minimum move speed",
+    "Text": "最低移速"
+  },
+  "ui.PetSummonForm.lblMinAttackSpeed": {
+    "Source": "Minimum attack speed",
+    "Text": "最低攻速"
+  },
+  "ui.PetSummonForm.lblSharedHint": {
+    "Source": "The experience values are shared by all three summons. A pet gains the owner experience multiplied by the multiplier while it is in range of the kill.",
+    "Text": "三个召唤兽共用这些经验规则。宠物在主人击杀时处于范围内，即按倍率获得主人所得经验。"
+  },
+  "ui.PetSummonForm.btnSave": {
+    "Source": "Save and apply",
+    "Text": "保存并应用"
+  },
+  "ui.PetSummonForm.btnClose": {
+    "Source": "Close",
+    "Text": "关闭"
+  },
+  "ui.SMain.MainMenu.configToolStripMenuItem1.petSummonToolStripMenuItem": {
+    "Source": "Taoist Summons",
+    "Text": "道士召唤物"
+  },
+  "Monster not found": {
+    "Source": "Monster not found",
+    "Text": "未找到该怪物模板"
+  },
+  "Name not checked, monster database is not loaded.": {
+    "Source": "Name not checked, monster database is not loaded.",
+    "Text": "未加载怪物数据库，未校验名称。"
+  },
+  "Fix the red fields before saving.": {
+    "Source": "Fix the red fields before saving.",
+    "Text": "请先修正标红的字段。"
+  },
+  "ui.PetSummonForm.tabInheritance": {
+    "Source": "Inheritance",
+    "Text": "属性继承"
+  },
+  "ui.PetSummonForm.chkTaoistInherit": {
+    "Source": "Enable inheritance",
+    "Text": "启用属性继承"
+  },
+  "ui.PetSummonForm.lblInheritDamage": {
+    "Source": "Attack min / max percentage",
+    "Text": "攻击下限 / 上限 %"
+  },
+  "ui.PetSummonForm.lblInheritDefence": {
+    "Source": "Defence min / max percentage",
+    "Text": "物防下限 / 上限 %"
+  },
+  "ui.PetSummonForm.lblInheritMagicDefence": {
+    "Source": "Magic defence min / max percentage",
+    "Text": "魔防下限 / 上限 %"
+  },
+  "ui.PetSummonForm.lblInheritHealth": {
+    "Source": "Health per attribute point",
+    "Text": "每点道术增加血量"
+  },
+  "ui.PetSummonForm.lblInheritHint": {
+    "Source": "Inherited values are added on top of the servant template and pet level. Percentages use the owner maximum Taoism (SC), health is added per attribute point.",
+    "Text": "继承值在召唤物模板与等级属性之上叠加。百分比按主人最大道术计算，血量按每点道术增加。"
+  },
+  "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.": {
+    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
+    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  },
+  "ui.PetSummonForm.lblSkeletonGrowthHint": {
+    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
+    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  },
+  "ui.PetSummonForm.lblShinsuGrowthHint": {
+    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
+    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  },
+  "ui.PetSummonForm.lblHolyDevaGrowthHint": {
+    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
+    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  },
+  "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. New pets start at the cast level; name colour only changes between levels 1 and 7.": {
+    "Source": "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. New pets start at the cast level; name colour only changes between levels 1 and 7.",
+    "Text": "宠物等级上限 = 基数 + 系数 × 技能等级（0-3），封顶 255。技能 3 级时为 {0}。新召唤物以施法时的技能等级为初始等级；名字颜色仅在 1 至 7 级之间变化。"
   }
 }

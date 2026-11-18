@@ -1965,6 +1965,7 @@ namespace Server.MirEnvir
             {
                 if (GetMonsterInfo(Settings.SkeletonName, true) == null) return GameLanguage.Get("Cannot start server without mob: ") + Settings.SkeletonName;
                 if (GetMonsterInfo(Settings.ShinsuName, true) == null) return GameLanguage.Get("Cannot start server without mob: ") + Settings.ShinsuName;
+                if (GetMonsterInfo(Settings.AngelName, true) == null) return GameLanguage.Get("Cannot start server without mob: ") + Settings.AngelName;
                 if (GetMonsterInfo(Settings.BugBatName, true) == null) return GameLanguage.Get("Cannot start server without mob: ") + Settings.BugBatName;
                 if (GetMonsterInfo(Settings.Zuma1, true) == null) return GameLanguage.Get("Cannot start server without mob: ") + Settings.Zuma1;
                 if (GetMonsterInfo(Settings.Zuma2, true) == null) return GameLanguage.Get("Cannot start server without mob: ") + Settings.Zuma2;

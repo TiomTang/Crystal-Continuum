@@ -822,22 +822,39 @@ namespace Server.MirObjects
         {
             RefreshBase();
 
-            Stats[Stat.HP] += PetLevel * 20;
-            Stats[Stat.MinAC] += PetLevel * 2;
-            Stats[Stat.MaxAC] += PetLevel * 2;
-            Stats[Stat.MinMAC] += PetLevel * 2;
-            Stats[Stat.MaxMAC] += PetLevel * 2;
-            Stats[Stat.MinDC] += PetLevel;
-            Stats[Stat.MaxDC] += PetLevel;
+            PetSummonSettings summon = Settings.FindTaoistSummon(Info.Name);
 
-            if (Info.Name == Settings.SkeletonName || Info.Name == Settings.ShinsuName || Info.Name == Settings.AngelName)
+            if (summon == null)
             {
-                MoveSpeed = (ushort)Math.Min(ushort.MaxValue, (Math.Max(ushort.MinValue, MoveSpeed - MaxPetLevel * 130)));
-                AttackSpeed = (ushort)Math.Min(ushort.MaxValue, (Math.Max(ushort.MinValue, AttackSpeed - MaxPetLevel * 70)));
+                Stats[Stat.HP] += PetLevel * 20;
+                Stats[Stat.MinAC] += PetLevel * 2;
+                Stats[Stat.MaxAC] += PetLevel * 2;
+                Stats[Stat.MinMAC] += PetLevel * 2;
+                Stats[Stat.MaxMAC] += PetLevel * 2;
+                Stats[Stat.MinDC] += PetLevel;
+                Stats[Stat.MaxDC] += PetLevel;
+            }
+            else
+            {
+                Stats[Stat.HP] += summon.HealthGrowth(PetLevel);
+                Stats[Stat.MinAC] += summon.DefenceGrowth(PetLevel);
+                Stats[Stat.MaxAC] += summon.DefenceGrowth(PetLevel);
+                Stats[Stat.MinMAC] += summon.MagicDefenceGrowth(PetLevel);
+                Stats[Stat.MaxMAC] += summon.MagicDefenceGrowth(PetLevel);
+                Stats[Stat.MinDC] += summon.DamageGrowth(PetLevel);
+                Stats[Stat.MaxDC] += summon.DamageGrowth(PetLevel);
             }
 
-            if (MoveSpeed < 400) MoveSpeed = 400;
-            if (AttackSpeed < 400) AttackSpeed = 400;
+            PetSummonSharedSettings shared = Settings.PetSummonShared;
+
+            if (summon != null)
+            {
+                MoveSpeed = (ushort)Math.Min(ushort.MaxValue, (Math.Max(ushort.MinValue, MoveSpeed - MaxPetLevel * shared.MoveSpeedPerLevel)));
+                AttackSpeed = (ushort)Math.Min(ushort.MaxValue, (Math.Max(ushort.MinValue, AttackSpeed - MaxPetLevel * shared.AttackSpeedPerLevel)));
+            }
+
+            if (MoveSpeed < shared.MinimumMoveSpeed) MoveSpeed = (ushort)shared.MinimumMoveSpeed;
+            if (AttackSpeed < shared.MinimumAttackSpeed) AttackSpeed = (ushort)shared.MinimumAttackSpeed;
 
             ApplyOwnerStatInheritance();
 
@@ -3664,14 +3681,21 @@ namespace Server.MirObjects
         {
             if (PetLevel >= MaxPetLevel) return;
 
-            if (Info.Name == Settings.SkeletonName || Info.Name == Settings.ShinsuName || Info.Name == Settings.AngelName)
-                amount *= 3;
+            PetSummonSharedSettings shared = Settings.PetSummonShared;
+
+            if (Settings.FindTaoistSummon(Info.Name) != null)
+            {
+                long scaled = (long)amount * shared.ExperienceMultiplier;
+                amount = scaled > uint.MaxValue ? uint.MaxValue : (uint)scaled;
+            }
 
             PetExperience += amount;
 
-            if (PetExperience < (PetLevel + 1) * 20000) return;
+            uint required = shared.GetExperienceRequired(PetLevel);
 
-            PetExperience = (uint)(PetExperience - ((PetLevel + 1) * 20000));
+            if (PetExperience < required) return;
+
+            PetExperience -= required;
             PetLevel++;
             RefreshAll();
             OperateTime = 0;

@@ -10,7 +10,7 @@ namespace Server
         private static readonly Dictionary<(string Section, string Key), FieldInfo> MonsterNameFields =
             new[]
             {
-                nameof(SkeletonName), nameof(BugBatName), nameof(ShinsuName),
+                nameof(BugBatName),
                 nameof(Zuma1), nameof(Zuma2), nameof(Zuma3), nameof(Zuma4), nameof(Zuma5), nameof(Zuma6), nameof(Zuma7),
                 nameof(Turtle1), nameof(Turtle2), nameof(Turtle3), nameof(Turtle4), nameof(Turtle5),
                 nameof(BoneMonster1), nameof(BoneMonster2), nameof(BoneMonster3), nameof(BoneMonster4),
@@ -20,7 +20,7 @@ namespace Server
                 nameof(GeneralMeowMeowMob1), nameof(GeneralMeowMeowMob2), nameof(GeneralMeowMeowMob3), nameof(GeneralMeowMeowMob4),
                 nameof(KingHydraxMob), nameof(HornedCommanderMob), nameof(HornedCommanderBombMob), nameof(SnowWolfKingMob),
                 nameof(ScrollMob1), nameof(ScrollMob2), nameof(ScrollMob3), nameof(ScrollMob4),
-                nameof(WhiteSnake), nameof(AngelName), nameof(BombSpiderName), nameof(CloneName), nameof(AssassinCloneName),
+                nameof(WhiteSnake), nameof(BombSpiderName), nameof(CloneName), nameof(AssassinCloneName),
                 nameof(VampireName), nameof(ToadName), nameof(SnakeTotemName), nameof(SnakesName), nameof(StoneName),
                 nameof(AncientBatName), nameof(TucsonGeneralEgg), nameof(FishingMonster)
             }.ToDictionary(name => ("Game", name == nameof(FishingMonster) ? "FishMonster" : name),

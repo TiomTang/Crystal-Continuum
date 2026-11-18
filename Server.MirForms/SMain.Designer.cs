@@ -100,6 +100,7 @@ namespace Server
             serverToolStripMenuItem = new ToolStripMenuItem();
             balanceToolStripMenuItem = new ToolStripMenuItem();
             petInheritanceToolStripMenuItem = new ToolStripMenuItem();
+            petSummonToolStripMenuItem = new ToolStripMenuItem();
             monsterBindingsToolStripMenuItem = new ToolStripMenuItem();
             systemToolStripMenuItem = new ToolStripMenuItem();
             dragonSystemToolStripMenuItem = new ToolStripMenuItem();
@@ -625,7 +626,7 @@ namespace Server
             // 
             // configToolStripMenuItem1
             // 
-            configToolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { serverToolStripMenuItem, balanceToolStripMenuItem, petInheritanceToolStripMenuItem, monsterBindingsToolStripMenuItem, systemToolStripMenuItem, monsterTunerToolStripMenuItem, dropBuilderToolStripMenuItem });
+            configToolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { serverToolStripMenuItem, balanceToolStripMenuItem, petInheritanceToolStripMenuItem, petSummonToolStripMenuItem, monsterBindingsToolStripMenuItem, systemToolStripMenuItem, monsterTunerToolStripMenuItem, dropBuilderToolStripMenuItem });
             configToolStripMenuItem1.Name = "configToolStripMenuItem1";
             configToolStripMenuItem1.Size = new Size(55, 20);
             configToolStripMenuItem1.Text = "Config";
@@ -650,6 +651,13 @@ namespace Server
             petInheritanceToolStripMenuItem.Size = new Size(152, 22);
             petInheritanceToolStripMenuItem.Text = "Servant Inheritance";
             petInheritanceToolStripMenuItem.Click += petInheritanceToolStripMenuItem_Click;
+            // 
+            // petSummonToolStripMenuItem
+            // 
+            petSummonToolStripMenuItem.Name = "petSummonToolStripMenuItem";
+            petSummonToolStripMenuItem.Size = new Size(152, 22);
+            petSummonToolStripMenuItem.Text = "Taoist Summons";
+            petSummonToolStripMenuItem.Click += petSummonToolStripMenuItem_Click;
             // 
             // monsterBindingsToolStripMenuItem
             // 
@@ -882,6 +890,7 @@ namespace Server
         private ToolStripMenuItem serverToolStripMenuItem;
         private ToolStripMenuItem balanceToolStripMenuItem;
         private ToolStripMenuItem petInheritanceToolStripMenuItem;
+        private ToolStripMenuItem petSummonToolStripMenuItem;
         private ToolStripMenuItem monsterBindingsToolStripMenuItem;
         private ToolStripMenuItem systemToolStripMenuItem;
         private ToolStripMenuItem dragonSystemToolStripMenuItem;

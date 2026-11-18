@@ -468,9 +468,7 @@ namespace Server
             MonsterRecallCooldown = Reader.ReadInt32("Game", "MonsterRecallCooldown", MonsterRecallCooldown);
             NewbieGuild = Reader.ReadString("Game", "NewbieGuild", NewbieGuild);
             NewbieGuildMaxSize = Reader.ReadInt32("Game", "NewbieGuildMaxSize", NewbieGuildMaxSize);
-            SkeletonName = Reader.ReadString("Game", "SkeletonName", SkeletonName);
             BugBatName = Reader.ReadString("Game", "BugBatName", BugBatName);
-            ShinsuName = Reader.ReadString("Game", "ShinsuName", ShinsuName);
             Zuma1 = Reader.ReadString("Game", "Zuma1", Zuma1);
             Zuma2 = Reader.ReadString("Game", "Zuma2", Zuma2);
             Zuma3 = Reader.ReadString("Game", "Zuma3", Zuma3);
@@ -510,7 +508,6 @@ namespace Server
             ScrollMob3 = Reader.ReadString("Game", "ScrollMob3", ScrollMob3);
             ScrollMob4 = Reader.ReadString("Game", "ScrollMob4", ScrollMob4);
             WhiteSnake = Reader.ReadString("Game", "WhiteSnake", WhiteSnake);
-            AngelName = Reader.ReadString("Game", "AngelName", AngelName);
             BombSpiderName = Reader.ReadString("Game", "BombSpiderName", BombSpiderName);
             CloneName = Reader.ReadString("Game", "CloneName", CloneName);
             FishingMonster = Reader.ReadString("Game", "FishMonster", FishingMonster);
@@ -644,6 +641,7 @@ namespace Server
             LoadGoods();
             LoadMonsterRarity();
             LoadPetInheritance();
+            LoadPetSummon();
             LoadGem();
             LoadNotice();
             LoadWorldMap();
@@ -797,9 +795,7 @@ namespace Server
             Reader.Write("Game", "MonsterRecallCooldown", MonsterRecallCooldown);
             Reader.Write("Game", "NewbieGuild", NewbieGuild);
             Reader.Write("Game", "NewbieGuildMaxSize", NewbieGuildMaxSize);
-            Reader.Write("Game", "SkeletonName", SkeletonName);
             Reader.Write("Game", "BugBatName", BugBatName);
-            Reader.Write("Game", "ShinsuName", ShinsuName);
 
             Reader.Write("Game", "Zuma1", Zuma1);
             Reader.Write("Game", "Zuma2", Zuma2);
@@ -833,7 +829,6 @@ namespace Server
             Reader.Write("Game", "HellBomb3", HellBomb3);
 
             Reader.Write("Game", "WhiteSnake", WhiteSnake);
-            Reader.Write("Game", "AngelName", AngelName);
             Reader.Write("Game", "BombSpiderName", BombSpiderName);
             Reader.Write("Game", "CloneName", CloneName);
             Reader.Write("Game", "AssassinCloneName", AssassinCloneName);
