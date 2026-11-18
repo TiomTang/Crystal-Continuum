@@ -1395,6 +1395,7 @@ public static class LocalizationCatalog
         "SpawnEgg",
         "Special Stats",
         "Speech weight followed by a space and text.",
+        "Spell level 3: up to {0} pets, shock lasts {1} seconds, the tame roll is Next(caster level + {2}) and must exceed target level + {3}.",
         "Spell {0} changed to level {1}",
         "Spirit Sword\n\nIncreases the chance of hitting the target in\n melee combat.\nPassive Skill\n\nCurrent Skill Level {0}\nNext Level {1}",
         "Split Amount:",

@@ -640,8 +640,8 @@ namespace Server
             LoadMentor();
             LoadGoods();
             LoadMonsterRarity();
-            LoadPetInheritance();
             LoadPetSummon();
+            LoadPetTame();
             LoadGem();
             LoadNotice();
             LoadWorldMap();

@@ -5,8 +5,8 @@ namespace Server
 {
     /// <summary>
     /// Inheritance configuration for one pet group. The owner attribute is fixed by the group, the
-    /// remaining values are the parameters an administrator can edit: the Taoist servants in the
-    /// summon window, the wizard pets in the inheritance window.
+    /// remaining values are the parameters an administrator can edit: the Taoist servants in
+    /// Configs/PetSummon.ini, the wizard pets in Configs/PetTame.ini.
     /// </summary>
     public class PetInheritanceSettings
     {
@@ -73,22 +73,11 @@ namespace Server
             HealthPerPoint = 0
         };
 
+        /// <summary>
+        /// The file both pet groups used to keep their inheritance in. It is only read once, when the
+        /// configuration file that owns the group does not exist yet.
+        /// </summary>
         public static string PetInheritancePath => Path.Combine(ConfigPath, "PetInheritance.ini");
-
-        public static void LoadPetInheritance()
-        {
-            var reader = new InIReader(PetInheritancePath);
-
-            // The Taoist servants are configured in PetSummon.ini; only the wizard pets are left.
-            WizardPetInheritance = ReadPetInheritance(reader, "Wizard", Stat.MaxMC, WizardPetInheritance);
-        }
-
-        public static void SavePetInheritance()
-        {
-            var reader = new InIReader(PetInheritancePath);
-
-            WritePetInheritance(reader, "Wizard", WizardPetInheritance);
-        }
 
         private static PetInheritanceSettings ReadPetInheritance(InIReader reader, string section, Stat ownerStat, PetInheritanceSettings defaults, bool writeWhenNull = true)
         {

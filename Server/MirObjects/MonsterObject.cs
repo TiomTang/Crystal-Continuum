@@ -826,13 +826,15 @@ namespace Server.MirObjects
 
             if (summon == null)
             {
-                Stats[Stat.HP] += PetLevel * 20;
-                Stats[Stat.MinAC] += PetLevel * 2;
-                Stats[Stat.MaxAC] += PetLevel * 2;
-                Stats[Stat.MinMAC] += PetLevel * 2;
-                Stats[Stat.MaxMAC] += PetLevel * 2;
-                Stats[Stat.MinDC] += PetLevel;
-                Stats[Stat.MaxDC] += PetLevel;
+                PetTameSettings tame = Settings.PetTame;
+
+                Stats[Stat.HP] += tame.HealthGrowth(PetLevel);
+                Stats[Stat.MinAC] += tame.DefenceGrowth(PetLevel);
+                Stats[Stat.MaxAC] += tame.DefenceGrowth(PetLevel);
+                Stats[Stat.MinMAC] += tame.MagicDefenceGrowth(PetLevel);
+                Stats[Stat.MaxMAC] += tame.MagicDefenceGrowth(PetLevel);
+                Stats[Stat.MinDC] += tame.DamageGrowth(PetLevel);
+                Stats[Stat.MaxDC] += tame.DamageGrowth(PetLevel);
             }
             else
             {

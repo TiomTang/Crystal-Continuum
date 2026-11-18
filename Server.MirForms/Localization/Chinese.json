@@ -26,8 +26,8 @@
       "MonsterTunerForm",
       "NPCInfoForm",
       "Namelists",
-      "PetInheritanceForm",
       "PetSummonForm",
+      "PetTameForm",
       "PlayerInfoForm",
       "QuestInfoForm",
       "RecipeInfoForm",
@@ -3189,50 +3189,6 @@
     "Source": "OK",
     "Text": "确定"
   },
-  "ui.PetInheritanceForm.#Title": {
-    "Source": "Pet Inheritance",
-    "Text": "仆从属性继承"
-  },
-  "ui.PetInheritanceForm.lblHint": {
-    "Source": "Inherited values are added on top of the servant template and pet level. Percentages use the owner core attribute, health is added per attribute point.",
-    "Text": "继承值在仆从模板与等级属性之上叠加。百分比按主人对应主属性计算，血量按主属性每点增加。"
-  },
-  "ui.PetInheritanceForm.grpWizard": {
-    "Source": "Wizard tamed pets",
-    "Text": "法师诱惑宝宝"
-  },
-  "ui.PetInheritanceForm.chkWizardEnabled": {
-    "Source": "Enable inheritance",
-    "Text": "启用继承"
-  },
-  "ui.PetInheritanceForm.lblWizardSource": {
-    "Source": "Owner attribute source: max Magic (MC)",
-    "Text": "主人属性来源：最大魔法"
-  },
-  "ui.PetInheritanceForm.lblWizardDamage": {
-    "Source": "Attack min / max percentage",
-    "Text": "攻击下限 / 上限 %"
-  },
-  "ui.PetInheritanceForm.lblWizardDefence": {
-    "Source": "Defence min / max percentage",
-    "Text": "物防下限 / 上限 %"
-  },
-  "ui.PetInheritanceForm.lblWizardMagicDefence": {
-    "Source": "Magic defence min / max percentage",
-    "Text": "魔防下限 / 上限 %"
-  },
-  "ui.PetInheritanceForm.lblWizardHealth": {
-    "Source": "Health per attribute point",
-    "Text": "每点魔法增加血量"
-  },
-  "ui.PetInheritanceForm.btnSave": {
-    "Source": "Save and apply",
-    "Text": "保存并应用"
-  },
-  "ui.PetInheritanceForm.btnCancel": {
-    "Source": "Close",
-    "Text": "关闭"
-  },
   "ui.PlayerInfoForm.#Title": {
     "Source": "PlayerInfoForm",
     "Text": "玩家信息"
@@ -5716,10 +5672,6 @@
   "ui.SMain.MainMenu.configToolStripMenuItem1.balanceToolStripMenuItem": {
     "Source": "Balance",
     "Text": "平衡性"
-  },
-  "ui.SMain.MainMenu.configToolStripMenuItem1.petInheritanceToolStripMenuItem": {
-    "Source": "Servant Inheritance",
-    "Text": "仆从属性继承"
   },
   "ui.SMain.MainMenu.configToolStripMenuItem1.monsterBindingsToolStripMenuItem": {
     "Source": "Monster Bindings",
@@ -16393,6 +16345,10 @@
     "Source": "Fix the red fields before saving.",
     "Text": "请先修正标红的字段。"
   },
+  "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. A new pet starts at the spell level of the cast, name colour only changes between levels 1 and 7.": {
+    "Source": "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. A new pet starts at the spell level of the cast, name colour only changes between levels 1 and 7.",
+    "Text": "宠物等级上限 = 基数 + 系数 × 技能等级（0-3），封顶 255。技能 3 级时为 {0}。新召唤兽以施法时的技能等级为初始等级，名字颜色仅在 1 至 7 级间变化。"
+  },
   "ui.PetSummonForm.tabInheritance": {
     "Source": "Inheritance",
     "Text": "属性继承"
@@ -16421,24 +16377,144 @@
     "Source": "Inherited values are added on top of the servant template and pet level. Percentages use the owner maximum Taoism (SC), health is added per attribute point.",
     "Text": "继承值在召唤物模板与等级属性之上叠加。百分比按主人最大道术计算，血量按每点道术增加。"
   },
-  "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.": {
+  "ui.PetTameForm.#Title": {
+    "Source": "Wizard Temptation",
+    "Text": "法师诱惑之光"
+  },
+  "ui.PetTameForm.tabShock": {
+    "Source": "Shock and rage",
+    "Text": "麻痹与激怒"
+  },
+  "ui.PetTameForm.lblShockChanceBase": {
+    "Source": "Shock roll base (lower shocks more often)",
+    "Text": "麻痹判定基数（越小越易麻痹）"
+  },
+  "ui.PetTameForm.lblShockBaseSeconds": {
+    "Source": "Shock duration: base seconds",
+    "Text": "麻痹时长：基础秒数"
+  },
+  "ui.PetTameForm.lblShockSecondsPerLevel": {
+    "Source": "Shock duration: seconds per spell level",
+    "Text": "麻痹时长：每技能等级秒数"
+  },
+  "ui.PetTameForm.lblRageChanceDenominator": {
+    "Source": "Rage roll denominator (5 = 80% rage)",
+    "Text": "激怒判定分母（5 = 80% 激怒）"
+  },
+  "ui.PetTameForm.lblRageBaseSeconds": {
+    "Source": "Rage duration: base seconds",
+    "Text": "激怒时长：基础秒数"
+  },
+  "ui.PetTameForm.lblRageRandomSeconds": {
+    "Source": "Rage duration: extra random seconds",
+    "Text": "激怒时长：额外随机秒数"
+  },
+  "ui.PetTameForm.lblShockHint": {
+    "Source": "The shock roll decides whether the cast does anything at all: Next(base minus spell level) must be zero. A confused monster cannot move or attack until its timer runs out, a raging monster attacks everything nearby.",
+    "Text": "麻痹判定决定这次施法是否生效：Next(基数 - 技能等级) 为 0 即成功。被麻痹的怪物在计时结束前无法移动或攻击，被激怒的怪物会攻击附近的单位。"
+  },
+  "ui.PetTameForm.tabTame": {
+    "Source": "Tame",
+    "Text": "驯服"
+  },
+  "ui.PetTameForm.lblMaxLevelDifference": {
+    "Source": "Tame limit: levels above the caster",
+    "Text": "可驯服上限：高于法师的等级"
+  },
+  "ui.PetTameForm.lblTameChanceBase": {
+    "Source": "Tame roll: base",
+    "Text": "驯服判定：基数"
+  },
+  "ui.PetTameForm.lblTameChancePerMagicLevel": {
+    "Source": "Tame roll: per spell level",
+    "Text": "驯服判定：每技能等级"
+  },
+  "ui.PetTameForm.lblTameChanceTargetOffset": {
+    "Source": "Tame roll: added to the target level",
+    "Text": "驯服判定：加到目标等级"
+  },
+  "ui.PetTameForm.lblPetLimitBase": {
+    "Source": "Pet limit: base",
+    "Text": "宠物上限：基数"
+  },
+  "ui.PetTameForm.lblPetLimitPerMagicLevel": {
+    "Source": "Pet limit: per spell level",
+    "Text": "宠物上限：每技能等级"
+  },
+  "ui.PetTameForm.lblTameHint": {
+    "Source": "Only monsters marked tameable can be tamed. The pet count is still capped by the shared monster pet limit, and the pet level cap is written by the Temptation cast itself.",
+    "Text": "只有标记为可驯服的怪物能被诱惑。宠物数量仍受通用怪物宠物上限限制，宠物等级上限由技能本身决定。"
+  },
+  "ui.PetTameForm.tabGrowth": {
+    "Source": "Pet growth",
+    "Text": "宠物成长"
+  },
+  "ui.PetTameForm.lblHealth": {
+    "Source": "HP per pet level",
+    "Text": "每级生命"
+  },
+  "ui.PetTameForm.lblDamage": {
+    "Source": "Damage per pet level",
+    "Text": "每级攻击"
+  },
+  "ui.PetTameForm.lblDefence": {
+    "Source": "Defence per pet level",
+    "Text": "每级防御"
+  },
+  "ui.PetTameForm.lblMagicDefence": {
+    "Source": "Magic defence per pet level",
+    "Text": "每级魔御"
+  },
+  "ui.PetTameForm.lblGrowthHint": {
     "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
     "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
   },
-  "ui.PetSummonForm.lblSkeletonGrowthHint": {
-    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
-    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  "ui.PetTameForm.btnSave": {
+    "Source": "Save and apply",
+    "Text": "保存并应用"
   },
-  "ui.PetSummonForm.lblShinsuGrowthHint": {
-    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
-    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  "ui.PetTameForm.btnClose": {
+    "Source": "Close",
+    "Text": "关闭"
   },
-  "ui.PetSummonForm.lblHolyDevaGrowthHint": {
-    "Source": "Comma separated increment per pet level, for example 20 or 20,30,40. A sequence shorter than the pet level repeats its last entry. Values are added on top of the monster template.",
-    "Text": "按宠物等级递增的数值，用逗号分隔，例如 20 或 20,30,40。序列比宠物等级短时重复最后一项，数值叠加在怪物模板之上。"
+  "ui.SMain.MainMenu.configToolStripMenuItem1.petTameToolStripMenuItem": {
+    "Source": "Wizard Temptation",
+    "Text": "法师诱惑之光"
   },
-  "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. New pets start at the cast level; name colour only changes between levels 1 and 7.": {
-    "Source": "Max pet level = base + step x spell level (0-3), capped at 255. Spell level 3 gives {0}. New pets start at the cast level; name colour only changes between levels 1 and 7.",
-    "Text": "宠物等级上限 = 基数 + 系数 × 技能等级（0-3），封顶 255。技能 3 级时为 {0}。新召唤物以施法时的技能等级为初始等级；名字颜色仅在 1 至 7 级之间变化。"
+  "Spell level 3: up to {0} pets, shock lasts {1} seconds, the tame roll is Next(caster level + {2}) and must exceed target level + {3}.": {
+    "Source": "Spell level 3: up to {0} pets, shock lasts {1} seconds, the tame roll is Next(caster level + {2}) and must exceed target level + {3}.",
+    "Text": "法术3级：最多 {0} 只，麻痹 {1} 秒，驯服判定 Next(法师等级 + {2}) 需大于目标等级 + {3}。"
+  },
+  "ui.PetTameForm.tabInherit": {
+    "Source": "Pet inheritance",
+    "Text": "宠物属性继承"
+  },
+  "ui.PetTameForm.chkInheritEnabled": {
+    "Source": "Enable inheritance",
+    "Text": "启用继承"
+  },
+  "ui.PetTameForm.lblInheritSource": {
+    "Source": "Owner attribute source: max Magic (MC)",
+    "Text": "主人属性来源：最大魔法"
+  },
+  "ui.PetTameForm.lblInheritDamage": {
+    "Source": "Attack min / max percentage",
+    "Text": "攻击下限 / 上限 %"
+  },
+  "ui.PetTameForm.lblInheritDefence": {
+    "Source": "Defence min / max percentage",
+    "Text": "物防下限 / 上限 %"
+  },
+  "ui.PetTameForm.lblInheritMagicDefence": {
+    "Source": "Magic defence min / max percentage",
+    "Text": "魔防下限 / 上限 %"
+  },
+  "ui.PetTameForm.lblInheritHealth": {
+    "Source": "Health per attribute point",
+    "Text": "每点魔法增加血量"
+  },
+  "ui.PetTameForm.lblInheritHint": {
+    "Source": "Inherited values are added on top of the monster template and pet level. Percentages use the owner maximum Magic (MC), health is added per attribute point.",
+    "Text": "继承值在怪物模板与宠物等级属性之上叠加。百分比按主人最大魔法计算，血量按每点魔法增加。"
   }
 }

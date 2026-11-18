@@ -99,8 +99,8 @@ namespace Server
             configToolStripMenuItem1 = new ToolStripMenuItem();
             serverToolStripMenuItem = new ToolStripMenuItem();
             balanceToolStripMenuItem = new ToolStripMenuItem();
-            petInheritanceToolStripMenuItem = new ToolStripMenuItem();
             petSummonToolStripMenuItem = new ToolStripMenuItem();
+            petTameToolStripMenuItem = new ToolStripMenuItem();
             monsterBindingsToolStripMenuItem = new ToolStripMenuItem();
             systemToolStripMenuItem = new ToolStripMenuItem();
             dragonSystemToolStripMenuItem = new ToolStripMenuItem();
@@ -626,7 +626,7 @@ namespace Server
             // 
             // configToolStripMenuItem1
             // 
-            configToolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { serverToolStripMenuItem, balanceToolStripMenuItem, petInheritanceToolStripMenuItem, petSummonToolStripMenuItem, monsterBindingsToolStripMenuItem, systemToolStripMenuItem, monsterTunerToolStripMenuItem, dropBuilderToolStripMenuItem });
+            configToolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { serverToolStripMenuItem, balanceToolStripMenuItem, petSummonToolStripMenuItem, petTameToolStripMenuItem, monsterBindingsToolStripMenuItem, systemToolStripMenuItem, monsterTunerToolStripMenuItem, dropBuilderToolStripMenuItem });
             configToolStripMenuItem1.Name = "configToolStripMenuItem1";
             configToolStripMenuItem1.Size = new Size(55, 20);
             configToolStripMenuItem1.Text = "Config";
@@ -645,19 +645,19 @@ namespace Server
             balanceToolStripMenuItem.Text = "Balance";
             balanceToolStripMenuItem.Click += balanceToolStripMenuItem_Click;
             // 
-            // petInheritanceToolStripMenuItem
-            // 
-            petInheritanceToolStripMenuItem.Name = "petInheritanceToolStripMenuItem";
-            petInheritanceToolStripMenuItem.Size = new Size(152, 22);
-            petInheritanceToolStripMenuItem.Text = "Servant Inheritance";
-            petInheritanceToolStripMenuItem.Click += petInheritanceToolStripMenuItem_Click;
-            // 
             // petSummonToolStripMenuItem
             // 
             petSummonToolStripMenuItem.Name = "petSummonToolStripMenuItem";
             petSummonToolStripMenuItem.Size = new Size(152, 22);
             petSummonToolStripMenuItem.Text = "Taoist Summons";
             petSummonToolStripMenuItem.Click += petSummonToolStripMenuItem_Click;
+            // 
+            // petTameToolStripMenuItem
+            // 
+            petTameToolStripMenuItem.Name = "petTameToolStripMenuItem";
+            petTameToolStripMenuItem.Size = new Size(152, 22);
+            petTameToolStripMenuItem.Text = "Wizard Temptation";
+            petTameToolStripMenuItem.Click += petTameToolStripMenuItem_Click;
             // 
             // monsterBindingsToolStripMenuItem
             // 
@@ -889,8 +889,8 @@ namespace Server
         private ToolStripMenuItem configToolStripMenuItem1;
         private ToolStripMenuItem serverToolStripMenuItem;
         private ToolStripMenuItem balanceToolStripMenuItem;
-        private ToolStripMenuItem petInheritanceToolStripMenuItem;
         private ToolStripMenuItem petSummonToolStripMenuItem;
+        private ToolStripMenuItem petTameToolStripMenuItem;
         private ToolStripMenuItem monsterBindingsToolStripMenuItem;
         private ToolStripMenuItem systemToolStripMenuItem;
         private ToolStripMenuItem dragonSystemToolStripMenuItem;

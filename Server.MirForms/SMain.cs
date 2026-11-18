@@ -516,16 +516,16 @@ namespace Server
             GenForm.ShowDialog();
         }
 
-        private void petInheritanceToolStripMenuItem_Click(object sender, EventArgs e)
+        private void petSummonToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            PetInheritanceForm form = new PetInheritanceForm();
+            PetSummonForm form = new PetSummonForm();
 
             form.ShowDialog();
         }
 
-        private void petSummonToolStripMenuItem_Click(object sender, EventArgs e)
+        private void petTameToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            PetSummonForm form = new PetSummonForm();
+            PetTameForm form = new PetTameForm();
 
             form.ShowDialog();
         }

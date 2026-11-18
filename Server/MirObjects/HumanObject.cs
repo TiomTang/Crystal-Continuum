@@ -4097,7 +4097,9 @@ namespace Server.MirObjects
             
             if (target == null || !target.IsAttackTarget(this)) return;
 
-            if (Envir.Random.Next(4 - magic.Level) > 0)
+            PetTameSettings tame = Settings.PetTame;
+
+            if (Envir.Random.Next(tame.ShockChance(magic.Level)) > 0)
             {
                 if (Envir.Random.Next(2) == 0) LevelMagic(magic);
                 return;
@@ -4107,19 +4109,19 @@ namespace Server.MirObjects
 
             if (target.Master == this)
             {
-                target.ShockTime = Envir.Time + (magic.Level * 5 + 10) * 1000;
+                target.ShockTime = Envir.Time + tame.ShockDuration(magic.Level);
                 target.Target = null;
                 return;
             }
 
             if (Envir.Random.Next(2) > 0)
             {
-                target.ShockTime = Envir.Time + (magic.Level * 5 + 10) * 1000;
+                target.ShockTime = Envir.Time + tame.ShockDuration(magic.Level);
                 target.Target = null;
                 return;
             }
 
-            if (target.Level > Level + 2 || !target.Info.CanTame) return;
+            if (target.Level > Level + tame.MaxLevelDifference || !target.Info.CanTame) return;
 
             if (target.Info.IsBoss)
             {
@@ -4130,19 +4132,17 @@ namespace Server.MirObjects
                 if (currentBossTames >= limit) return;
             }
 
-            if (Envir.Random.Next(Level + 20 + magic.Level * 5) <= target.Level + 10)
+            if (Envir.Random.Next(Level + tame.TameChanceBase + magic.Level * tame.TameChancePerMagicLevel) <= target.Level + tame.TameChanceTargetOffset)
             {
-                if (Envir.Random.Next(5) > 0 && target.Master == null)
+                if (Envir.Random.Next(tame.RageChance()) > 0 && target.Master == null)
                 {
-                    target.RageTime = Envir.Time + (Envir.Random.Next(20) + 10) * 1000;
+                    target.RageTime = Envir.Time + (Envir.Random.Next(tame.RageRandomSeconds) + tame.RageBaseSeconds) * 1000;
                     target.Target = null;
                 }
                 return;
             }
 
-            var petBonus = Globals.MaxPets - 3;
-
-            if (Pets.Count(t => !t.Dead && t.Race != ObjectType.Creature) >= magic.Level + petBonus) return;
+            if (Pets.Count(t => !t.Dead && t.Race != ObjectType.Creature) >= tame.PetLimit(magic.Level)) return;
 
             int rate = (int)(target.Stats[Stat.HP] / 100);
             if (rate <= 2) rate = 2;
