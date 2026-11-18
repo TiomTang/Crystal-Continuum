@@ -11216,6 +11216,22 @@
     "Source": "No book found",
     "Text": "未找到书籍"
   },
+  "Invalid monster name: check for empty text, whitespace or script delimiters. Press Esc to undo.": {
+    "Source": "Invalid monster name: check for empty text, whitespace or script delimiters. Press Esc to undo.",
+    "Text": "怪物名不能为空，也不能包含空白、不可见字符或脚本分隔符。可继续修改，或按 Esc 撤销。"
+  },
+  "Monster name '{0}' is already used (ID: {1}). Change it or press Esc to undo.": {
+    "Source": "Monster name '{0}' is already used (ID: {1}). Change it or press Esc to undo.",
+    "Text": "怪物名“{0}”已被编号 {1} 使用。可继续修改，或按 Esc 撤销。"
+  },
+  "Original monster name '{0}' is ambiguous. References cannot be renamed. Press Esc to undo.": {
+    "Source": "Original monster name '{0}' is ambiguous. References cannot be renamed. Press Esc to undo.",
+    "Text": "原怪物名“{0}”对应多条记录，无法判断引用属于哪一条。请按 Esc 撤销。"
+  },
+  "Monster name cannot be used as a drop filename. Change it or press Esc to undo.": {
+    "Source": "Monster name cannot be used as a drop filename. Change it or press Esc to undo.",
+    "Text": "该怪物名不能用作爆率文件名。可继续修改，或按 Esc 撤销。"
+  },
   "No columns to import.": {
     "Source": "No columns to import.",
     "Text": "没有可导入的列。"
@@ -15983,5 +15999,225 @@
   "Recharge {0} game gold to the selected account(s)?": {
     "Source": "Recharge {0} game gold to the selected account(s)?",
     "Text": "确定为选中的账号充值 {0} 游戏币吗？"
+  },
+  "Add respawn point": {
+    "Source": "Add respawn point",
+    "Text": "添加刷新点"
+  },
+  "Cancel": {
+    "Source": "Cancel",
+    "Text": "取消"
+  },
+  "Count": {
+    "Source": "Count",
+    "Text": "数量"
+  },
+  "Delay (minutes)": {
+    "Source": "Delay (minutes)",
+    "Text": "刷新间隔（分钟）"
+  },
+  "Direction (0-7)": {
+    "Source": "Direction (0-7)",
+    "Text": "朝向（0–7）"
+  },
+  "Discard selected pending point": {
+    "Source": "Discard selected pending point",
+    "Text": "放弃选中的待保存刷新点"
+  },
+  "Enter a relative route path inside the routes folder.": {
+    "Source": "Enter a relative route path inside the routes folder.",
+    "Text": "请输入相对于路线目录的路径。"
+  },
+  "Map": {
+    "Source": "Map",
+    "Text": "地图"
+  },
+  "Map index": {
+    "Source": "Map index",
+    "Text": "地图编号"
+  },
+  "Map name": {
+    "Source": "Map name",
+    "Text": "地图名称"
+  },
+  "No spawn location could be recommended for this map.": {
+    "Source": "No spawn location could be recommended for this map.",
+    "Text": "无法为此地图推荐刷新坐标，请手动填写。"
+  },
+  "OK": {
+    "Source": "OK",
+    "Text": "确定"
+  },
+  "Pending": {
+    "Source": "Pending",
+    "Text": "待保存"
+  },
+  "Random delay (minutes)": {
+    "Source": "Random delay (minutes)",
+    "Text": "随机延迟（分钟）"
+  },
+  "Respawn points": {
+    "Source": "Respawn points",
+    "Text": "刷新点"
+  },
+  "Respawn ticks": {
+    "Source": "Respawn ticks",
+    "Text": "刷新计时周期"
+  },
+  "Route path": {
+    "Source": "Route path",
+    "Text": "路线文件路径"
+  },
+  "Save respawn time": {
+    "Source": "Save respawn time",
+    "Text": "保存刷新时间"
+  },
+  "Saving respawn time requires a positive respawn tick interval.": {
+    "Source": "Saving respawn time requires a positive respawn tick interval.",
+    "Text": "要保存刷新时间，刷新计时周期必须大于零。"
+  },
+  "Select a map.": {
+    "Source": "Select a map.",
+    "Text": "请选择地图。"
+  },
+  "Select a monster with an index to view its respawn points.": {
+    "Source": "Select a monster with an index to view its respawn points.",
+    "Text": "请选择有编号的怪物以查看刷新点。"
+  },
+  "Select a spawnable tile inside the map.": {
+    "Source": "Select a spawnable tile inside the map.",
+    "Text": "请选择地图内可刷怪的格子。"
+  },
+  "Spread": {
+    "Source": "Spread",
+    "Text": "刷新范围"
+  },
+  "The respawn map or monster has changed. Discard the pending point and select it again.": {
+    "Source": "The respawn map or monster has changed. Discard the pending point and select it again.",
+    "Text": "刷新点对应的地图或怪物已变更。请放弃该待保存刷新点并重新选择。"
+  },
+  "This monster has no respawn points.": {
+    "Source": "This monster has no respawn points.",
+    "Text": "该怪物暂无刷新点。"
+  },
+  "X": {
+    "Source": "X",
+    "Text": "X 坐标"
+  },
+  "Y": {
+    "Source": "Y",
+    "Text": "Y 坐标"
+  },
+  "{0}: enter a whole number from {1} to {2}.": {
+    "Source": "{0}: enter a whole number from {1} to {2}.",
+    "Text": "{0}：请输入 {1} 至 {2} 之间的整数。"
+  },
+  "CSV row {0}, {1}: invalid value '{2}'.": {
+    "Source": "CSV row {0}, {1}: invalid value '{2}'.",
+    "Text": "CSV 第 {0} 行，列 {1}：值“{2}”无效。"
+  },
+  "CSV row {0}: invalid column count or trailing field.": {
+    "Source": "CSV row {0}: invalid column count or trailing field.",
+    "Text": "CSV 第 {0} 行：列数或末尾字段不正确。"
+  },
+  "CSV row {0}: invalid monster name '{1}'.": {
+    "Source": "CSV row {0}: invalid monster name '{1}'.",
+    "Text": "CSV 第 {0} 行：怪物名称“{1}”无效。"
+  },
+  "CSV row {0}: invalid or repeated MonsterIndex '{1}'.": {
+    "Source": "CSV row {0}: invalid or repeated MonsterIndex '{1}'.",
+    "Text": "CSV 第 {0} 行：MonsterIndex“{1}”无效或重复。"
+  },
+  "Conflicting script references: {0}:{1}": {
+    "Source": "Conflicting script references: {0}:{1}",
+    "Text": "脚本引用冲突：{0}:{1}"
+  },
+  "Database save was already requested.": {
+    "Source": "Database save was already requested.",
+    "Text": "已请求保存数据库。"
+  },
+  "Discard this monster's pending respawn points before deleting it.": {
+    "Source": "Discard this monster's pending respawn points before deleting it.",
+    "Text": "请先丢弃此怪物尚未保存的刷新点，再删除怪物。"
+  },
+  "Drop file rename conflict. Existing files will not be overwritten: {0}": {
+    "Source": "Drop file rename conflict. Existing files will not be overwritten: {0}",
+    "Text": "掉落文件重命名冲突，不会覆盖已有文件：{0}"
+  },
+  "Duplicate final monster name: {0}": {
+    "Source": "Duplicate final monster name: {0}",
+    "Text": "导入后的怪物名称重复：{0}"
+  },
+  "Invalid current monster cell.": {
+    "Source": "Invalid current monster cell.",
+    "Text": "当前怪物单元格的值无效。"
+  },
+  "New": {
+    "Source": "New",
+    "Text": "新增"
+  },
+  "No": {
+    "Source": "No",
+    "Text": "否"
+  },
+  "Referenced script outside Envir requires manual synchronization: {0}": {
+    "Source": "Referenced script outside Envir requires manual synchronization: {0}",
+    "Text": "脚本位于 Envir 目录之外，需手动同步：{0}"
+  },
+  "Script changed during synchronization: {0}": {
+    "Source": "Script changed during synchronization: {0}",
+    "Text": "同步期间脚本已更改：{0}"
+  },
+  "Script changed during synchronization: {0}:{1}": {
+    "Source": "Script changed during synchronization: {0}:{1}",
+    "Text": "同步期间脚本已更改：{0}:{1}"
+  },
+  "Script reference scan incomplete: {0}: {1}": {
+    "Source": "Script reference scan incomplete: {0}: {1}",
+    "Text": "脚本引用扫描未完成：{0}：{1}"
+  },
+  "Search...": {
+    "Source": "Search...",
+    "Text": "搜索…"
+  },
+  "The first column must be MonsterIndex, followed by monster fields.": {
+    "Source": "The first column must be MonsterIndex, followed by monster fields.",
+    "Text": "第一列必须是 MonsterIndex，后续列为怪物字段。"
+  },
+  "Unknown, repeated or read-only CSV column: {0}": {
+    "Source": "Unknown, repeated or read-only CSV column: {0}",
+    "Text": "CSV 列未知、重复或为只读：{0}"
+  },
+  "Yes": {
+    "Source": "Yes",
+    "Text": "是"
+  },
+  "the value must be a byte": {
+    "Source": "the value must be a byte",
+    "Text": "请输入 0 至 255 的整数。"
+  },
+  "the value must be a long": {
+    "Source": "the value must be a long",
+    "Text": "请输入 64 位有符号整数。"
+  },
+  "the value must be a positive integer": {
+    "Source": "the value must be a positive integer",
+    "Text": "请输入非负整数。"
+  },
+  "the value must be a short": {
+    "Source": "the value must be a short",
+    "Text": "请输入 16 位有符号整数。"
+  },
+  "the value must be a ushort": {
+    "Source": "the value must be a ushort",
+    "Text": "请输入 0 至 65535 的整数。"
+  },
+  "the value must be an integer": {
+    "Source": "the value must be an integer",
+    "Text": "请输入整数。"
+  },
+  "Monster image": {
+    "Source": "Monster image",
+    "Text": "怪物图片"
   }
 }

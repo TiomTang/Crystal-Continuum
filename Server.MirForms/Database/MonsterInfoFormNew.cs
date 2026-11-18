@@ -17,17 +17,20 @@ namespace Server.Database
         public MonsterInfoFormNew()
         {
             InitializeComponent();
-            UiText.Apply(this);
+            txtSearch.PlaceholderText = GameLanguage.Get("Search...");
 
             SetDoubleBuffered(monsterInfoGridView);
 
             InitializeItemInfoGridView();
-
+            InitializeNameValidation();
             CreateDynamicColumns();
+            UiText.Apply(this);
+            InitializeRespawns();
 
             PopulateTable();
 
             rbtnViewBasic.Checked = true;
+            UpdateMonsterPreview();
         }
 
         public static void SetDoubleBuffered(System.Windows.Forms.Control c)
@@ -292,6 +295,17 @@ namespace Server.Database
 
             var cell = monsterInfoGridView.Rows[e.RowIndex].Cells[col.Name];
 
+            if (col.Name == nameof(MonsterName) && monsterInfoGridView.IsCurrentCellInEditMode)
+            {
+                var error = GetNameError(cell.OwningRow, e.FormattedValue?.ToString() ?? string.Empty);
+                ShowNameError(error);
+                if (error != null)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
+
             if (cell.FormattedValue != null && e.FormattedValue != null && cell.FormattedValue.ToString() == e.FormattedValue.ToString())
             {
                 return;
@@ -306,33 +320,33 @@ namespace Server.Database
             if (col.ValueType == typeof(int) && int.TryParse(val, out int val1) && val1 < 0)
             {
                 e.Cancel = true;
-                monsterInfoGridView.Rows[e.RowIndex].ErrorText = "the value must be a positive integer";
+                monsterInfoGridView.Rows[e.RowIndex].ErrorText = GameLanguage.Get("the value must be a positive integer");
             }
 
             if (col.ValueType == typeof(int) && !int.TryParse(val, out _))
             {
                 e.Cancel = true;
-                monsterInfoGridView.Rows[e.RowIndex].ErrorText = "the value must be an integer";
+                monsterInfoGridView.Rows[e.RowIndex].ErrorText = GameLanguage.Get("the value must be an integer");
             }
             else if (col.ValueType == typeof(byte) && !byte.TryParse(val, out _))
             {
                 e.Cancel = true;
-                monsterInfoGridView.Rows[e.RowIndex].ErrorText = "the value must be a byte";
+                monsterInfoGridView.Rows[e.RowIndex].ErrorText = GameLanguage.Get("the value must be a byte");
             }
             else if (col.ValueType == typeof(short) && !short.TryParse(val, out _))
             {
                 e.Cancel = true;
-                monsterInfoGridView.Rows[e.RowIndex].ErrorText = "the value must be a short";
+                monsterInfoGridView.Rows[e.RowIndex].ErrorText = GameLanguage.Get("the value must be a short");
             }
             else if (col.ValueType == typeof(ushort) && !ushort.TryParse(val, out _))
             {
                 e.Cancel = true;
-                monsterInfoGridView.Rows[e.RowIndex].ErrorText = "the value must be a ushort";
+                monsterInfoGridView.Rows[e.RowIndex].ErrorText = GameLanguage.Get("the value must be a ushort");
             }
             else if (col.ValueType == typeof(long) && !long.TryParse(val, out _))
             {
                 e.Cancel = true;
-                monsterInfoGridView.Rows[e.RowIndex].ErrorText = "the value must be a long";
+                monsterInfoGridView.Rows[e.RowIndex].ErrorText = GameLanguage.Get("the value must be a long");
             }
         }
 
@@ -397,137 +411,22 @@ namespace Server.Database
 
         private void btnImport_Click(object sender, EventArgs e)
         {
-            OpenFileDialog ofd = new OpenFileDialog();
-            ofd.Filter = "CSV (*.csv)|*.csv";
+            using var dialog = new OpenFileDialog { Filter = "CSV (*.csv)|*.csv" };
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
 
-            if (ofd.ShowDialog() == DialogResult.OK)
+            try
             {
-                var fileName = ofd.FileName;
-                bool fileError = false;
-
-                string[][] rows;
-                try
-                {
-                    rows = CsvFile.ReadAllRows(fileName);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(GameLanguage.Get("Error :") + ex.Message);
-                    return;
-                }
-
-                if (rows.Length > 1)
-                {
-                    var columns = rows[0];
-
-                    if (columns.Length < 2)
-                    {
-                        fileError = true;
-                        MessageBox.Show(GameLanguage.Get("No columns to import."));
-                    }
-
-                    if (!fileError)
-                    {
-                        monsterInfoGridView.EditMode = DataGridViewEditMode.EditProgrammatically;
-
-                        int rowsEdited = 0;
-
-                        for (int i = 1; i < rows.Length; i++)
-                        {
-                            var cells = rows[i];
-
-                            if (string.IsNullOrWhiteSpace(cells[0]))
-                            {
-                                continue;
-                            }
-
-                            var dataRow = FindRowByMonsterIndex(cells[0]);
-
-                            try
-                            {
-                                monsterInfoGridView.BeginEdit(true);
-                                bool isNew = false;
-                                if (dataRow == null)
-                                {
-                                    dataRow = Table.NewRow();
-                                    isNew = true;
-                                }
-
-                                for (int j = 1; j < columns.Length; j++)
-                                {
-                                    var column = columns[j];
-
-                                    if (string.IsNullOrWhiteSpace(column))
-                                    {
-                                        continue;
-                                    }
-
-                                    var dataColumn = monsterInfoGridView.Columns[column];
-
-                                    if (dataColumn == null)
-                                    {
-                                        throw new Exception($"Column {column} was not found.");
-                                    }
-                                    if (dataColumn.Name == "MonsterName")
-                                    {
-                                        var existingRow = FindRowByMonsterName(cells[j]);
-                                        if (existingRow != null)
-                                        {
-                                            var existingIndex = existingRow["MonsterIndex"].ToString();
-                                            var currentIndex = dataRow["MonsterIndex"].ToString() ?? "";
-                                            if (existingIndex != currentIndex)
-                                            {
-                                                throw new Exception($"An monster named {cells[j]} already exists.");
-                                            }
-                                        }
-
-                                    }
-                                    if (dataColumn.ValueType.IsEnum)
-                                    {
-                                        dataRow[column] = Enum.Parse(dataColumn.ValueType, cells[j]);
-                                    }
-                                    else
-                                    {
-                                        dataRow[column] = cells[j];
-                                    }
-                                }
-
-                                dataRow["Modified"] = true;
-
-                                monsterInfoGridView.EndEdit();
-                                if (isNew)
-                                {
-                                    Table.Rows.Add(dataRow);
-                                }
-                                rowsEdited++;
-                            }
-                            catch (Exception ex)
-                            {
-                                fileError = true;
-                                monsterInfoGridView.EndEdit();
-
-                                MessageBox.Show($"Error when importing item {cells[0]}. {ex.Message}");
-                                break;
-                            }
-                        }
-
-                        monsterInfoGridView.EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
-                        if (!fileError)
-                        {
-                            MessageBox.Show($"{rowsEdited} monsters have been imported.");
-                        }
-                        else
-                        {
-                            monsterInfoGridView.ClearSelection();
-                            monsterInfoGridView.Rows[rowsEdited].Selected = true;
-                            monsterInfoGridView.CurrentCell = monsterInfoGridView.Rows[rowsEdited].Cells[0];
-                        }
-                    }
-                }
-                else
-                {
-                    MessageBox.Show(GameLanguage.Get("No rows to import."));
-                }
+                var records = CsvFile.ReadAllRows(dialog.FileName);
+                if (!monsterInfoGridView.EndEdit()) throw new FormatException(GameLanguage.Get("Invalid current monster cell."));
+                BindingContext[Table].EndCurrentEdit();
+                var imported = MonsterCsvImport.Prepare(Table, records, out int count);
+                monsterInfoGridView.DataSource = imported;
+                Table = imported;
+                MessageBox.Show(GameLanguage.Get($"{count} monsters have been imported."));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(GameLanguage.Get("Error :") + ex.Message);
             }
         }
 
@@ -569,6 +468,7 @@ namespace Server.Database
 
                             for (int i = 1; (i - 1) < monsterInfoGridView.Rows.Count; i++)
                             {
+                                if (monsterInfoGridView.Rows[i - 1].IsNewRow) continue;
                                 var cells = new string[columnCount];
                                 for (int j = 1; j < columnCount; j++)
                                 {
@@ -641,9 +541,14 @@ namespace Server.Database
         {
             var row = e.Row;
 
-            if (row.Cells["MonsterIndex"].Value != null)
+            if (row.Cells["MonsterIndex"].Value is int index)
             {
-                int index = (int)row.Cells["MonsterIndex"].Value;
+                if (pendingRespawns.Any(p => p.Monster.Index == index))
+                {
+                    e.Cancel = true;
+                    row.ErrorText = GameLanguage.Get("Discard this monster's pending respawn points before deleting it.");
+                    return;
+                }
 
                 var item = Envir.MonsterInfoList.FirstOrDefault(x => x.Index == index);
 
@@ -653,11 +558,19 @@ namespace Server.Database
 
         private void monsterInfoFormNew_FormClosing(object sender, FormClosingEventArgs e)
         {
+            if (monsterInfoGridView.IsCurrentCellInEditMode && nameEditor != null &&
+                GetNameError(monsterInfoGridView.CurrentRow, nameEditor.Text) is { } error)
+            {
+                e.Cancel = true;
+                ShowNameError(error);
+                nameEditor.Focus();
+                return;
+            }
             try { SaveChanges(); }
             catch (Exception ex)
             {
                 e.Cancel = true;
-                MessageBox.Show(this, ex.ToString(), "Failed to save monsters", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.ToString(), GameLanguage.Get("Failed to save monsters"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -669,11 +582,11 @@ namespace Server.Database
                 field.Name == nameof(MonsterInfo.Stats) ? new Stats(x.Stats) : field.GetValue(x)).ToArray());
             try
             {
-                if (!monsterInfoGridView.EndEdit()) throw new IOException("Cannot commit the current monster cell. Check the input value.");
+                if (!monsterInfoGridView.EndEdit()) throw new IOException(GameLanguage.Get("Cannot commit the current monster cell. Check the input value."));
                 ((BindingManagerBase)BindingContext[Table]).EndCurrentEdit();
                 // SaveForm uses the grid: include rows hidden by the search filter.
                 Table.DefaultView.RowFilter = string.Empty;
-                SynchronizeMonsterReferences();
+                SaveWithRespawns(SynchronizeMonsterReferences);
             }
             catch
             {
@@ -686,6 +599,9 @@ namespace Server.Database
             {
                 Table.DefaultView.RowFilter = filter;
             }
+            PopulateTable();
+            Table.DefaultView.RowFilter = filter;
+            RefreshRespawns();
         }
 
         private void SynchronizeMonsterReferences()
@@ -699,7 +615,7 @@ namespace Server.Database
                 {
                     if (int.TryParse(row["MonsterIndex"].ToString(), out var existingIndex) &&
                         Envir.MonsterInfoList.Any(existingMonster => existingMonster.Index == existingIndex))
-                        throw new IOException(string.Format("Monster name cannot be blank: {0}", existingIndex));
+                        throw new IOException(GameLanguage.Get("Monster name cannot be blank: {0}", existingIndex));
                     continue;
                 }
                 var newDropPath = row["MonsterDropPath"].ToString();
@@ -729,11 +645,12 @@ namespace Server.Database
             IEnumerable<(string OldName, string NewName, string OldDropPath, string NewDropPath)> changes,
             IEnumerable<string> retainedPaths, Action save = null)
         {
-            var retained = new HashSet<string>(retainedPaths.Select(path =>
-                Path.GetFullPath(Path.Combine(directory, path + ".txt"))), StringComparer.OrdinalIgnoreCase);
-            var moves = new List<(string Source, string Target)>();
-            var sources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var comparer = StringComparer.OrdinalIgnoreCase;
+            var retained = retainedPaths.GroupBy(path => Path.GetFullPath(Path.Combine(directory, path + ".txt")), comparer)
+                .ToDictionary(group => group.Key, group => group.Count(), comparer);
+            var renames = new List<(string Source, string Target)>();
+            var sources = new HashSet<string>(comparer);
+            var targets = new HashSet<string>(comparer);
             foreach (var change in changes)
             {
                 // Explicit drop paths are independent of the monster's display name.
@@ -743,16 +660,30 @@ namespace Server.Database
                 {
                     if (string.IsNullOrWhiteSpace(name) || name != name.Trim() ||
                         name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-                        throw new IOException($"Monster name cannot be used as a drop filename: {name}");
+                        throw new IOException(GameLanguage.Get($"Monster name cannot be used as a drop filename: {name}"));
                 }
                 var source = Path.GetFullPath(Path.Combine(directory, change.OldName + ".txt"));
                 var target = Path.GetFullPath(Path.Combine(directory, change.NewName + ".txt"));
-                if (!File.Exists(source)) continue;
-                if (retained.Contains(source))
-                    throw new IOException($"Drop file is still used by another monster. Set an explicit drop path first: {source}");
-                if (File.Exists(target) || Directory.Exists(target) || !sources.Add(source) || !targets.Add(target))
-                    throw new IOException($"Drop file rename conflict. Existing files will not be overwritten: {source} -> {target}");
-                moves.Add((source, target));
+                if (!sources.Add(source) || !targets.Add(target) || Directory.Exists(source) || Directory.Exists(target))
+                    throw new IOException(GameLanguage.Get($"Drop file rename conflict. Existing files will not be overwritten: {source} -> {target}"));
+                renames.Add((source, target));
+            }
+
+            var moves = new List<(string Source, string Target, string Temporary)>();
+            var affected = new HashSet<string>(comparer);
+            foreach (var rename in renames)
+            {
+                if (File.Exists(rename.Target) && !sources.Contains(rename.Target))
+                    throw new IOException(GameLanguage.Get($"Drop file rename conflict. Existing files will not be overwritten: {rename.Target}"));
+                if (!File.Exists(rename.Source)) continue; // Absence follows the monster too.
+                foreach (var path in new[] { rename.Source, rename.Target })
+                {
+                    // The incoming rename owns one final reference; all others are independent readers.
+                    if (retained.TryGetValue(path, out int count) && count > (targets.Contains(path) ? 1 : 0))
+                        throw new IOException(GameLanguage.Get($"Drop file is still used by another monster. Set an explicit drop path first: {path}"));
+                    affected.Add(path);
+                }
+                moves.Add((rename.Source, rename.Target, Path.Combine(directory, Guid.NewGuid().ToString("N") + ".tmp")));
             }
 
             if (moves.Count > 0 && Directory.Exists(directory))
@@ -763,8 +694,8 @@ namespace Server.Database
                     var match = Regex.Match(line, @"#INSERT \[(.*?)\]", RegexOptions.IgnoreCase);
                     if (!match.Success) continue;
                     var referenced = Path.GetFullPath(Path.Combine(directory, match.Groups[1].Value));
-                    if (sources.Contains(referenced))
-                        throw new IOException($"Drop file is referenced by #INSERT and cannot be renamed automatically: {file} -> {referenced}");
+                    if (affected.Contains(referenced))
+                        throw new IOException(GameLanguage.Get($"Drop file is referenced by #INSERT and cannot be renamed automatically: {file} -> {referenced}"));
                 }
             }
 
@@ -773,8 +704,13 @@ namespace Server.Database
             {
                 foreach (var move in moves)
                 {
-                    File.Move(move.Source, move.Target);
-                    completed.Push(move);
+                    File.Move(move.Source, move.Temporary);
+                    completed.Push((move.Source, move.Temporary));
+                }
+                foreach (var move in moves)
+                {
+                    File.Move(move.Temporary, move.Target);
+                    completed.Push((move.Temporary, move.Target));
                 }
                 save?.Invoke();
             }
@@ -786,7 +722,7 @@ namespace Server.Database
                     try { File.Move(move.Target, move.Source); }
                     catch (Exception rollbackError) { errors.Add(rollbackError); }
                 }
-                throw new AggregateException("Monster save or drop file rename failed. Drop file rollback was attempted. Check the error details before retrying.", errors);
+                throw new AggregateException(GameLanguage.Get("Monster save or drop file rename failed. Drop file rollback was attempted. Check the error details before retrying."), errors);
             }
         }
 
