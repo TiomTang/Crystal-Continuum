@@ -71,9 +71,9 @@ namespace Server.MirObjects
 
         /// <summary>
         /// Owner-facing state for this tick: forced recall when the maps differ, unfreezing once the
-        /// pet is back on the owner's map, normal recall when the owner walks away, and clearing the
-        /// target in follow and rest stances. Returns false when the pet must stay frozen and skip
-        /// the rest of its AI.
+        /// pet is back on the owner's map, recall when the owner walks or teleports away, and
+        /// clearing the target in follow and rest stances. Returns false when the pet must stay
+        /// frozen and skip the rest of its AI.
         /// </summary>
         protected bool ProcessPetStatus()
         {
@@ -105,10 +105,14 @@ namespace Server.MirObjects
             Map masterMap = Master.CurrentMap;
             Point masterLocation = Master.CurrentLocation;
 
-            if (MasterAllowsMove && masterMap != null)
+            // Recall follows the owner, it is not a movement order: a pet told not to move still has
+            // to come along through a map change or when the owner walks out of data range, otherwise
+            // it is stranded for good. NoPets maps are the only exception, and PetRecall freezes the
+            // pet there instead of refusing to move it.
+            if (masterMap != null &&
+                (CurrentMap != masterMap || !Functions.InRange(CurrentLocation, masterLocation, Globals.DataRange)))
             {
-                if (!Functions.InRange(CurrentLocation, masterLocation, Globals.DataRange) || CurrentMap != masterMap)
-                    PetRecall();
+                PetRecall();
             }
 
             if (MasterClearsTarget)
