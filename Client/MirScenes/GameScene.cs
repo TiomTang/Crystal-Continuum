@@ -12287,6 +12287,14 @@ namespace Client.MirScenes
                     dir = actor.Direction;
             }
 
+            if (magic.Spell.CastsOnSelf())
+            {
+                //Self spells are cast on the caster: a cursor position over a distant target must not gate them.
+                target = null;
+                targetID = 0;
+                location = actor.CurrentLocation;
+            }
+
             if ((magic.Range != 0) && (!Functions.InRange(actor.CurrentLocation, location, magic.Range)))
             {
                 if (CMain.Time >= OutputDelay)

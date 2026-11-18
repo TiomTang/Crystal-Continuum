@@ -3510,7 +3510,12 @@ namespace Server.MirObjects
                 return;
             }
 
-            if ((location.X != 0) && (location.Y != 0) && magic.Info.Range != 0 && Functions.InRange(CurrentLocation, location, magic.Info.Range) == false) return;
+            if (spell.CastsOnSelf())
+            {
+                //Self spells are anchored on the caster; a cursor position sent by the client carries no meaning.
+                location = CurrentLocation;
+            }
+            else if ((location.X != 0) && (location.Y != 0) && magic.Info.Range != 0 && Functions.InRange(CurrentLocation, location, magic.Info.Range) == false) return;
 
             if (Hidden)
             {
