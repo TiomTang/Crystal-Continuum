@@ -56,6 +56,7 @@ namespace Server.Database
             panel3 = new Panel();
             btnExport = new Button();
             btnImport = new Button();
+            btnSave = new Button();
             groupView = new GroupBox();
             rbtnViewAll = new RadioButton();
             rbtnViewBasic = new RadioButton();
@@ -254,6 +255,7 @@ namespace Server.Database
             // 
             panel3.Controls.Add(btnExport);
             panel3.Controls.Add(btnImport);
+            panel3.Controls.Add(btnSave);
             panel3.Controls.Add(groupView);
             panel3.Controls.Add(txtSearch);
             panel3.Dock = DockStyle.Fill;
@@ -284,6 +286,18 @@ namespace Server.Database
             btnImport.Text = "Import";
             btnImport.UseVisualStyleBackColor = true;
             btnImport.Click += btnImport_Click;
+            // 
+            // btnSave
+            // 
+            btnSave.Enabled = false;
+            btnSave.Location = new Point(903, 25);
+            btnSave.Margin = new Padding(4, 3, 4, 3);
+            btnSave.Name = "btnSave";
+            btnSave.Size = new Size(88, 27);
+            btnSave.TabIndex = 7;
+            btnSave.Text = "Save";
+            btnSave.UseVisualStyleBackColor = true;
+            btnSave.Click += btnSave_Click;
             // 
             // groupView
             // 
@@ -349,7 +363,7 @@ namespace Server.Database
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1115, 554);
+            ClientSize = new Size(1280, 720);
             Controls.Add(panel2);
             Controls.Add(panel1);
             Margin = new Padding(4, 3, 4, 3);
@@ -378,6 +392,7 @@ namespace Server.Database
         private System.Windows.Forms.TextBox txtSearch;
         private System.Windows.Forms.Button btnExport;
         private System.Windows.Forms.Button btnImport;
+        private System.Windows.Forms.Button btnSave;
         private System.Windows.Forms.DataGridViewCheckBoxColumn Modified;
         private System.Windows.Forms.DataGridViewTextBoxColumn MonsterIndex;
         private System.Windows.Forms.DataGridViewTextBoxColumn MonsterName;

@@ -16,6 +16,7 @@ public partial class MonsterInfoFormNew
     private readonly Label respawnHint = new() { AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly Button addRespawn = new() { Name = "addRespawn", AutoSize = true };
     private readonly Button discardRespawn = new() { AutoSize = true };
+    private readonly TabControl monsterTabs = new() { Name = "monsterTabs", Dock = DockStyle.Fill };
 
     private void InitializeRespawns()
     {
@@ -23,8 +24,8 @@ public partial class MonsterInfoFormNew
         {
             Name = "monsterRespawnSplit", Dock = DockStyle.Fill, Orientation = Orientation.Horizontal,
             Size = panel2.ClientSize, SplitterWidth = LogicalToDeviceUnits(7),
-            SplitterDistance = panel2.ClientSize.Height * 2 / 3,
-            Panel1MinSize = LogicalToDeviceUnits(90), Panel2MinSize = LogicalToDeviceUnits(100)
+            SplitterDistance = panel2.ClientSize.Height / 2,
+            Panel1MinSize = LogicalToDeviceUnits(90), Panel2MinSize = LogicalToDeviceUnits(180)
         };
         split.Panel1.Controls.Add(monsterInfoGridView);
         split.Panel1.Controls.Add(nameFeedback);
@@ -37,10 +38,12 @@ public partial class MonsterInfoFormNew
         buttons.Controls.AddRange(new Control[] { addRespawn, discardRespawn, respawnHint });
         details.Controls.Add(respawnGrid);
         details.Controls.Add(buttons);
-        split.Panel2.Controls.Add(details);
+        split.Panel2.Controls.Add(monsterTabs);
+        var respawnPage = new TabPage(GameLanguage.Get("Respawn points")) { Name = "respawnPage" };
+        respawnPage.Controls.Add(details);
+        monsterTabs.TabPages.Add(respawnPage);
         panel2.Controls.Add(split);
-        MinimumSize = SizeFromClientSize(new Size(LogicalToDeviceUnits(560),
-            panel1.Height + split.Panel1MinSize + split.SplitterWidth + split.Panel2MinSize));
+        MinimumSize = SizeFromClientSize(new Size(LogicalToDeviceUnits(1000), LogicalToDeviceUnits(620)));
         foreach (var title in new[]
         {
             GameLanguage.Get("Map index"), GameLanguage.Get("Map name"), GameLanguage.Get("X"),
@@ -56,21 +59,23 @@ public partial class MonsterInfoFormNew
         {
             if (respawnGrid.CurrentRow?.Tag is not PendingRespawn pending) return;
             pendingRespawns.Remove(pending);
+            MarkDirty();
             RefreshRespawns();
         };
         addRespawn.Click += (_, _) =>
         {
-            if (!ValidateChildren() || !monsterInfoGridView.EndEdit() || SelectedRespawnMonster() is not { } monster) return;
+            if (!ValidateChildren() || !monsterInfoGridView.EndEdit() || SelectedMonster() is not { } monster) return;
             using var dialog = new MonsterRespawnDialog(Envir.MapInfoList, monster.Index);
             if (dialog.ShowDialog(this) != DialogResult.OK) return;
             pendingRespawns.Add(new(monster, dialog.SelectedMap, dialog.Respawn));
+            MarkDirty();
             RefreshRespawns();
         };
         RefreshRespawns();
         UpdateMonsterPreview();
     }
 
-    private MonsterInfo SelectedRespawnMonster()
+    private MonsterInfo SelectedMonster()
     {
         var cell = monsterInfoGridView.CurrentCell;
         if (cell?.Selected != true || cell.OwningRow.IsNewRow || cell.OwningRow.Cells["MonsterIndex"].Value is not int id) return null;
@@ -79,7 +84,7 @@ public partial class MonsterInfoFormNew
 
     private void RefreshRespawns(bool force = true)
     {
-        var monster = SelectedRespawnMonster();
+        var monster = SelectedMonster();
         if (!force && displayedRespawnMonster == monster) return;
         displayedRespawnMonster = monster;
         respawnGrid.Rows.Clear();

@@ -63,63 +63,6 @@ namespace Server.MirForms.DropBuilder
         List<DropItem>[] ItemLists;
         ListBox[] ItemListBoxes;
 
-        static readonly string[] TabTags =
-        {
-            "Weapon", "Armour", "Helmet", "Necklace", "Bracelet", "Ring", "Amulet", "Belt", "Boots",
-            "Stone", "Torch", "Potion", "Ore", "Meat", "CraftingMaterial", "Scroll", "Gem", "Mount",
-            "Book", "Nothing", "Script", "Reins", "Bells", "Saddle", "Ribbon", "Mask", "Food", "Hook",
-            "Float", "Bait", "Finder", "Reel", "Fish", "Quest", "Awakening", "Pets", "Transform"
-        };
-
-        static readonly string[] CanonicalHeaders =
-        {
-            ";Weapons", ";Armours", ";Helmets", ";Necklaces", ";Bracelets", ";Rings", ";Amulets", ";Belts", ";Boots",
-            ";Stones", ";Torches", ";Potions", ";Ores", ";Meat", ";Crafting Materials", ";Scrolls", ";Gems", ";Mount",
-            ";Books", ";Nothing", ";Script", ";Reins", ";Bells", ";Saddle", ";Ribbon", ";Mask", ";Food", ";Hook",
-            ";Float", ";Bait", ";Finder", ";Reel", ";Fish", ";Quest", ";Awakening", ";Pets", ";Transform"
-        };
-
-        static readonly string[][] HeaderAliases =
-        {
-            new[] { "weapons", "weapon" },
-            new[] { "armours", "armour", "armors", "armor" },
-            new[] { "helmets", "helmet" },
-            new[] { "necklaces", "necklace" },
-            new[] { "bracelets", "bracelet" },
-            new[] { "rings", "ring" },
-            new[] { "amulets", "amulet" },
-            new[] { "belts", "belt" },
-            new[] { "boots", "boot", "shoes", "shoe" },
-            new[] { "stones", "stone" },
-            new[] { "torches", "torch" },
-            new[] { "potions", "potion", "pots + other", "pots", "pot" },
-            new[] { "ores", "ore" },
-            new[] { "meat", "meats" },
-            new[] { "crafting materials", "crafting material", "craftingmaterials", "craftingmaterial", "crafting materals", "craftingmaterals" },
-            new[] { "scrolls", "scroll" },
-            new[] { "gems", "gem" },
-            new[] { "mount", "mounts" },
-            new[] { "books", "book" },
-            new[] { "nothing" },
-            new[] { "script", "scripts" },
-            new[] { "reins" },
-            new[] { "bells" },
-            new[] { "saddle" },
-            new[] { "ribbon" },
-            new[] { "mask" },
-            new[] { "food" },
-            new[] { "hook" },
-            new[] { "float" },
-            new[] { "bait" },
-            new[] { "finder" },
-            new[] { "reel" },
-            new[] { "fish" },
-            new[] { "quest", "quests" },
-            new[] { "awakening" },
-            new[] { "pets", "pet" },
-            new[] { "transform" }
-        };
-
         DropFileDocument _document;
         string _documentPath;
         int _hiddenSections;
@@ -335,7 +278,7 @@ namespace Server.MirForms.DropBuilder
             {
                 foreach (var line in section.Lines)
                 {
-                    if (!TryParseDropLine(line.Text, out _, out string name, out _)) continue;
+                    if (!DropFileSchema.TryParseLine(line.Text, out _, out string name, out _)) continue;
                     if (string.Equals(name, "Gold", StringComparison.OrdinalIgnoreCase)) continue;
                     if (name.StartsWith("GROUP", StringComparison.OrdinalIgnoreCase)) continue;
 
@@ -359,45 +302,6 @@ namespace Server.MirForms.DropBuilder
 
             if (min.Length > 0 && !int.TryParse(min, out minLevel)) return false;
             if (max.Length > 0 && !int.TryParse(max, out maxLevel)) return false;
-
-            return true;
-        }
-
-        private static int IndexForTag(string tag)
-        {
-            if (string.IsNullOrEmpty(tag)) return -1;
-
-            for (int i = 0; i < TabTags.Length; i++)
-                if (string.Equals(TabTags[i], tag, StringComparison.OrdinalIgnoreCase)) return i;
-
-            return -1;
-        }
-
-        private static int IndexForHeader(string header)
-        {
-            if (string.IsNullOrEmpty(header)) return -1;
-
-            for (int i = 0; i < HeaderAliases.Length; i++)
-                if (HeaderAliases[i].Contains(header)) return i;
-
-            return -1;
-        }
-
-        private static bool TryParseDropLine(string text, out string odds, out string name, out string quest)
-        {
-            odds = null;
-            name = null;
-            quest = string.Empty;
-
-            var parts = (text ?? string.Empty).Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 2) return false;
-            if (!parts[0].StartsWith("1/", StringComparison.Ordinal)) return false;
-            if (!int.TryParse(parts[0].Substring(2), out int chance) || chance < 1) return false;
-
-            odds = parts[0];
-            name = parts[1];
-
-            if (parts.Length > 2 && string.Equals(parts[2], "Q", StringComparison.OrdinalIgnoreCase)) quest = "Q";
 
             return true;
         }
@@ -554,7 +458,7 @@ namespace Server.MirForms.DropBuilder
             var tab = tabControlSeperateItems.SelectedTab;
             if (tab == null) return;
 
-            int index = IndexForTag(tab.Tag?.ToString());
+            int index = DropFileSchema.IndexForTag(tab.Tag?.ToString());
             if (index < 0) return;
 
             AddSelectedItem(ItemListBoxes[index]);
@@ -585,7 +489,7 @@ namespace Server.MirForms.DropBuilder
             string line = string.IsNullOrEmpty(quest) ? $"{odds} {name}" : $"{odds} {name} {quest}";
 
             ItemLists[index].Add(new DropItem { Name = name, Odds = odds, Quest = quest });
-            _document.AppendItem(CanonicalHeaders[index], HeaderAliases[index], line);
+            _document.AppendItem(DropFileSchema.Headers[index], DropFileSchema.Aliases[index], line);
 
             UpdateDropFile();
             SaveDropFile();
@@ -678,13 +582,13 @@ namespace Server.MirForms.DropBuilder
             {
                 if (section.IsGold) continue;
 
-                int index = IndexForHeader(section.Header);
+                int index = DropFileSchema.IndexForHeader(section.Header);
 
                 if (index < 0)
                 {
                     foreach (var line in section.Lines)
                     {
-                        if (TryParseDropLine(line.Text, out _, out _, out _))
+                        if (DropFileSchema.TryParseLine(line.Text, out _, out _, out _))
                         {
                             _hiddenSections++;
                             break;
@@ -696,7 +600,7 @@ namespace Server.MirForms.DropBuilder
 
                 foreach (var line in section.Lines)
                 {
-                    if (!TryParseDropLine(line.Text, out string odds, out string name, out string quest)) continue;
+                    if (!DropFileSchema.TryParseLine(line.Text, out string odds, out string name, out string quest)) continue;
                     if (string.Equals(name, "Gold", StringComparison.OrdinalIgnoreCase)) continue;
                     if (name.StartsWith("GROUP", StringComparison.OrdinalIgnoreCase)) continue;
 

@@ -16536,5 +16536,73 @@
   "Item image": {
     "Source": "Item image",
     "Text": "物品图片"
+  },
+  "Drops": {
+    "Source": "Drops",
+    "Text": "掉落表"
+  },
+  "Discard edit": {
+    "Source": "Discard edit",
+    "Text": "放弃编辑"
+  },
+  "Level range:": {
+    "Source": "Level range:",
+    "Text": "等级范围："
+  },
+  "Failed to save the drop file": {
+    "Source": "Failed to save the drop file",
+    "Text": "保存掉落文件失败"
+  },
+  "Sections not shown here, kept as-is: {0}": {
+    "Source": "Sections not shown here, kept as-is: {0}",
+    "Text": "有 {0} 个段落未在此显示，已原样保留"
+  },
+  "Select a monster with an index to edit its drop file.": {
+    "Source": "Select a monster with an index to edit its drop file.",
+    "Text": "选择有索引的怪物以编辑其掉落文件。"
+  },
+  "There are unsaved changes. Save before closing?": {
+    "Source": "There are unsaved changes. Save before closing?",
+    "Text": "有未保存的修改，关闭前是否保存？"
+  },
+  "Gold Settings": {
+    "Source": "Gold Settings",
+    "Text": "金币设置"
+  },
+  "Item Settings": {
+    "Source": "Item Settings",
+    "Text": "物品设置"
+  },
+  "Odds: 1 /": {
+    "Source": "Odds: 1 /",
+    "Text": "几率：1 /"
+  },
+  "Amount:": {
+    "Source": "Amount:",
+    "Text": "数量："
+  },
+  "Update": {
+    "Source": "Update",
+    "Text": "更新"
+  },
+  "Add Item": {
+    "Source": "Add Item",
+    "Text": "添加物品"
+  },
+  "Quest Only": {
+    "Source": "Quest Only",
+    "Text": "仅任务"
+  },
+  "Set cap to mobs level": {
+    "Source": "Set cap to mobs level",
+    "Text": "上限设为怪物等级"
+  },
+  "Currently Editing:": {
+    "Source": "Currently Editing:",
+    "Text": "当前编辑："
+  },
+  "Level": {
+    "Source": "Level",
+    "Text": "等级"
   }
 }

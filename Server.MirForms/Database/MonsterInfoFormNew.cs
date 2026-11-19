@@ -13,6 +13,8 @@ namespace Server.Database
         private readonly Array StatEnums = Enum.GetValues(typeof(Stat));
 
         private DataTable Table;
+        private List<(MonsterInfo Monster, object[] Values)> savedMonsterState;
+        private bool unsavedChanges;
 
         public MonsterInfoFormNew()
         {
@@ -26,8 +28,10 @@ namespace Server.Database
             CreateDynamicColumns();
             UiText.Apply(this);
             InitializeRespawns();
+            InitializeDrops();
 
             PopulateTable();
+            savedMonsterState = CaptureMonsterState();
 
             rbtnViewBasic.Checked = true;
             UpdateMonsterPreview();
@@ -312,6 +316,7 @@ namespace Server.Database
             }
 
             monsterInfoGridView.Rows[e.RowIndex].Cells["Modified"].Value = true;
+            MarkDirty();
 
             var val = e.FormattedValue.ToString();
 
@@ -422,6 +427,7 @@ namespace Server.Database
                 var imported = MonsterCsvImport.Prepare(Table, records, out int count);
                 monsterInfoGridView.DataSource = imported;
                 Table = imported;
+                MarkDirty();
                 MessageBox.Show(GameLanguage.Get($"{count} monsters have been imported."));
             }
             catch (Exception ex)
@@ -509,6 +515,7 @@ namespace Server.Database
             var row = e.Row;
 
             row.Cells["Modified"].Value = (bool)true;
+            MarkDirty();
 
             row.Cells["MonsterName"].Value = "";
             row.Cells["MonsterImage"].Value = (Monster)0;
@@ -553,6 +560,7 @@ namespace Server.Database
                 var item = Envir.MonsterInfoList.FirstOrDefault(x => x.Index == index);
 
                 Envir.MonsterInfoList.Remove(item);
+                MarkDirty();
             }
         }
 
@@ -566,20 +574,30 @@ namespace Server.Database
                 nameEditor.Focus();
                 return;
             }
-            try { SaveChanges(); }
-            catch (Exception ex)
+            bool editingDrops = dropDocument != null && !dropTextBox.ReadOnly;
+            if (!unsavedChanges && !editingDrops) return;
+
+            var answer = MessageBox.Show(this, GameLanguage.Get("There are unsaved changes. Save before closing?"),
+                GameLanguage.Get("Info"), MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            if (answer == DialogResult.Cancel)
             {
                 e.Cancel = true;
-                MessageBox.Show(this, ex.ToString(), GameLanguage.Get("Failed to save monsters"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
+
+            if (answer == DialogResult.No)
+            {
+                DiscardChanges();
+                return;
+            }
+
+            if (!TrySave()) e.Cancel = true;
         }
 
         internal void SaveChanges()
         {
             var filter = Table.DefaultView.RowFilter;
-            var fields = typeof(MonsterInfo).GetFields();
-            var originals = Envir.MonsterInfoList.ToDictionary(x => x, x => fields.Select(field =>
-                field.Name == nameof(MonsterInfo.Stats) ? new Stats(x.Stats) : field.GetValue(x)).ToArray());
             try
             {
                 if (!monsterInfoGridView.EndEdit()) throw new IOException(GameLanguage.Get("Cannot commit the current monster cell. Check the input value."));
@@ -590,9 +608,7 @@ namespace Server.Database
             }
             catch
             {
-                foreach (var entry in originals)
-                    for (int i = 0; i < fields.Length; i++) fields[i].SetValue(entry.Key, entry.Value[i]);
-                Envir.MonsterInfoList.RemoveAll(x => !originals.ContainsKey(x));
+                RestoreMonsterState();
                 throw;
             }
             finally
@@ -602,6 +618,70 @@ namespace Server.Database
             PopulateTable();
             Table.DefaultView.RowFilter = filter;
             RefreshRespawns();
+            // A saved rename moves the drop file, so the editor has to follow it.
+            RefreshDrops(true);
+            savedMonsterState = CaptureMonsterState();
+            unsavedChanges = false;
+            btnSave.Enabled = false;
+        }
+
+        private List<(MonsterInfo Monster, object[] Values)> CaptureMonsterState()
+        {
+            var fields = typeof(MonsterInfo).GetFields();
+            return Envir.MonsterInfoList.Select(monster => (monster, fields.Select(field =>
+                field.Name == nameof(MonsterInfo.Stats) ? new Stats(monster.Stats) : field.GetValue(monster)).ToArray())).ToList();
+        }
+
+        private void RestoreMonsterState()
+        {
+            if (savedMonsterState == null) return;
+            var fields = typeof(MonsterInfo).GetFields();
+            foreach (var (monster, values) in savedMonsterState)
+            {
+                for (int i = 0; i < fields.Length; i++)
+                    fields[i].SetValue(monster, values[i] is Stats stats ? new Stats(stats) : values[i]);
+            }
+            Envir.MonsterInfoList.Clear();
+            foreach (var (monster, _) in savedMonsterState) Envir.MonsterInfoList.Add(monster);
+        }
+
+        private void MarkDirty()
+        {
+            unsavedChanges = true;
+            btnSave.Enabled = true;
+        }
+
+        private bool TrySave()
+        {
+            if (dropDocument != null && !dropTextBox.ReadOnly && !CommitDropText()) return false;
+
+            try
+            {
+                SaveChanges();
+                return true;
+            }
+            catch (Exception error)
+            {
+                MessageBox.Show(this, error.ToString(), GameLanguage.Get("Failed to save monsters"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private void btnSave_Click(object sender, EventArgs e)
+        {
+            TrySave();
+        }
+
+        private void DiscardChanges()
+        {
+            SetDropEditMode(false);
+            RestoreMonsterState();
+            pendingRespawns.Clear();
+            PopulateTable();
+            unsavedChanges = false;
+            btnSave.Enabled = false;
+            RefreshRespawns();
+            RefreshDrops(true);
         }
 
         private void SynchronizeMonsterReferences()
