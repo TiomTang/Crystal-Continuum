@@ -3,7 +3,7 @@ namespace Server.Database;
 public partial class ItemInfoFormNew
 {
     // Icons are authored for their own pixel size, so they are shown unscaled and centred.
-    private readonly PictureBox itemPreview = new() { Dock = DockStyle.Fill };
+    private readonly PictureBox itemPreview = new() { Dock = DockStyle.Fill, BackColor = Color.Black };
     private Bitmap itemPreviewImage;
 
     private Control CreateItemPreview()

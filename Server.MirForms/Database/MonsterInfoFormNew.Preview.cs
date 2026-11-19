@@ -2,7 +2,7 @@ namespace Server.Database;
 
 public partial class MonsterInfoFormNew
 {
-    private readonly PictureBox monsterPreview = new() { SizeMode = PictureBoxSizeMode.Normal };
+    private readonly PictureBox monsterPreview = new() { SizeMode = PictureBoxSizeMode.Normal, BackColor = Color.Black };
 
     private Control CreateMonsterPreview()
     {
