@@ -4162,10 +4162,39 @@ namespace Server.MirObjects
                             MyGuild.NewBuff(item.Info.Effect, false);
                             break;
                         case 11://HomeTeleport
-                            if (MyGuild != null && MyGuild.Conquest != null && !MyGuild.Conquest.WarIsOn && MyGuild.Conquest.PalaceMap != null && !TeleportRandom(200, 0, MyGuild.Conquest.PalaceMap))
                             {
-                                Enqueue(p);
-                                return;
+                                GuildHomeTeleportResult result = GuildHomeTeleportRules.Evaluate(MyGuild);
+
+                                string message = null;
+                                switch (result)
+                                {
+                                    case GuildHomeTeleportResult.NotInGuild:
+                                        message = GameLanguage.Get("You are not in a guild.");
+                                        break;
+                                    case GuildHomeTeleportResult.NotOwner:
+                                        message = GameLanguage.Get("Your guild does not currently own the palace.");
+                                        break;
+                                    case GuildHomeTeleportResult.PalaceUnavailable:
+                                        message = GameLanguage.Get("The guild palace is currently unavailable.");
+                                        break;
+                                    case GuildHomeTeleportResult.WarInProgress:
+                                        message = GameLanguage.Get("You cannot return to the palace while the war is in progress.");
+                                        break;
+                                }
+
+                                if (message != null)
+                                {
+                                    ReceiveChat(message, ChatType.Hint);
+                                    Enqueue(p);
+                                    return;
+                                }
+
+                                if (!TeleportRandom(200, 0, MyGuild.Conquest.PalaceMap))
+                                {
+                                    ReceiveChat(GameLanguage.Get("Unable to teleport to the palace."), ChatType.Hint);
+                                    Enqueue(p);
+                                    return;
+                                }
                             }
                             break;
                         case 12://LotteryTicket                                                                                    
