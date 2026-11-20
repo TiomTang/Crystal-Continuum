@@ -19,6 +19,9 @@
     <Compile Update="BalanceConfigForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="Commands\CommandListForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="ConfigForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -29,6 +32,9 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="Database\ItemInfoFormNew.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\ItemInfoFormNew.Preview.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="Database\MagicInfoForm.cs">
@@ -46,6 +52,21 @@
     <Compile Update="Database\MonsterInfoFormNew.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="Database\MonsterInfoFormNew.Drops.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\MonsterInfoFormNew.NameValidation.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\MonsterInfoFormNew.Preview.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\MonsterInfoFormNew.Respawns.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Database\MonsterRespawnDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="Database\NPCInfoForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -53,6 +74,18 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="Database\RecipeInfoForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="IPBlockForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Scripts\ScriptEditorForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Scripts\ScriptEditorForm.Documents.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Scripts\ScriptEditorForm.Quests.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="SMain.cs">
@@ -64,6 +97,9 @@
     <Compile Update="Systems\DragonInfoForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="Systems\ExpConfigForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="Systems\GuildInfoForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -73,7 +109,16 @@
     <Compile Update="Systems\MiningInfoForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="Systems\MonsterBindingForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="Systems\MonsterTunerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Systems\PetSummonForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Systems\PetTameForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="Systems\SystemInfoForm.cs">
