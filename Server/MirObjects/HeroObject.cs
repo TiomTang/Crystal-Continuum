@@ -52,9 +52,64 @@ namespace Server.MirObjects
         {
             if (Owner == null) return false;
 
+            if (Owner.Info.HeroBehaviour == HeroBehaviour.Custom) return true;
+
             return Owner.Info.HeroBehaviour == HeroBehaviour.Attack ||
                 Owner.Info.HeroBehaviour == HeroBehaviour.CounterAttack &&
                 (target == Target || target == LastHitter || target == Owner.LastHitter);
+        }
+
+        protected virtual int CustomLeash => 0;
+
+        protected virtual int KiteRadius => 0;
+
+        protected bool DefensiveBehaviour =>
+            Owner != null &&
+            (Owner.Info.HeroBehaviour == HeroBehaviour.CounterAttack || Owner.Info.HeroBehaviour == HeroBehaviour.Custom);
+
+        protected bool TryStepAwayFromThreats(int radius)
+        {
+            if (!CanMove || CurrentMap == null) return false;
+
+            List<MapObject> threats = FindAllTargets(radius, CurrentLocation);
+            threats.RemoveAll(x => x.Dead || x is TownArcher);
+
+            if (threats.Count == 0) return false;
+
+            int currentScore = DistanceScore(CurrentLocation, threats);
+            int bestScore = currentScore;
+            Point best = CurrentLocation;
+
+            for (int i = 0; i < 8; i++)
+            {
+                Point point = Functions.PointMove(CurrentLocation, (MirDirection)i, 1);
+
+                if (!CurrentMap.ValidPoint(point)) continue;
+
+                Cell cell = CurrentMap.GetCell(point);
+                if (cell.Objects != null && cell.Objects.Any(o => o.Blocking)) continue;
+
+                int score = DistanceScore(point, threats);
+                if (score <= bestScore) continue;
+
+                bestScore = score;
+                best = point;
+            }
+
+            if (best == CurrentLocation) return false;
+
+            MoveTo(best);
+            return true;
+        }
+
+        private static int DistanceScore(Point point, List<MapObject> threats)
+        {
+            int score = 0;
+
+            for (int i = 0; i < threats.Count; i++)
+                score += Functions.MaxDistance(point, threats[i].CurrentLocation);
+
+            return score;
         }
 
         public override int PotionBeltMinimum => 0;
@@ -100,8 +155,8 @@ namespace Server.MirObjects
             }
         }
 
-        public const int SearchDelay = 3000, ViewRange = 8, RoamDelay = 1000, RevivalDelay = 2000, AutoPotDelay = 1000;
-        public long RoamTime, AutoPotTime;
+        public const int SearchDelay = 3000, ViewRange = 8, RoamDelay = 1000, RevivalDelay = 2000, AutoPotDelay = 1000, SpeechDelay = 60000;
+        public long RoamTime, AutoPotTime, LowHealthSpeechTime, LowManaSpeechTime;
 
         public override long BrownTime
         {
@@ -342,7 +397,11 @@ namespace Server.MirObjects
         protected bool CanUseMagic(UserMagic magic)
         {
             if (magic == null) return false;
-            if (MagicCost(magic) > MP) return false;
+            if (MagicCost(magic) > MP)
+            {
+                SpeakLowMana();
+                return false;
+            }
             if (magic.Key <= 0) return false;
 
             return true;
@@ -831,6 +890,10 @@ namespace Server.MirObjects
             if (Target != null && (Target.CurrentMap != CurrentMap || !Target.IsAttackTarget(this) || !Functions.InRange(CurrentLocation, Target.CurrentLocation, Globals.DataRange)))
                 Target = null;
 
+            if (Target != null && Owner != null && Owner.Info.HeroBehaviour == HeroBehaviour.Custom && CustomLeash > 0 &&
+                (Owner.CurrentMap != CurrentMap || Functions.MaxDistance(Owner.CurrentLocation, Target.CurrentLocation) > CustomLeash))
+                Target = null;
+
             if (Owner != null && !Owner.CurrentMap.Info.NoHero)
             {
                 if ((!Functions.InRange(CurrentLocation, Owner.CurrentLocation, Globals.DataRange) || CurrentMap != Owner.CurrentMap) && CanMove)
@@ -843,11 +906,82 @@ namespace Server.MirObjects
                 Target = null;
 
             ProcessAutoPot();
+            ProcessSpeech();
             ProcessStacking();
             ProcessSearch();
             ProcessAI();            
             ProcessTarget();
             ProcessRoam();
+        }
+
+        protected void ProcessSpeech()
+        {
+            if (PercentHealth < 20)
+                SpeakLowHealth();
+
+            if (Stats[Stat.MP] > 0 && PercentMana < 20)
+                SpeakLowMana();
+        }
+
+        private void SpeakLowHealth()
+        {
+            if (Envir.Time < LowHealthSpeechTime) return;
+            LowHealthSpeechTime = Envir.Time + SpeechDelay;
+
+            string text;
+
+            switch (Envir.Random.Next(3))
+            {
+                case 0:
+                    text = GameLanguage.Get("My health is critical! Cover me!");
+                    break;
+                case 1:
+                    text = GameLanguage.Get("I'm badly wounded. I can't hold much longer!");
+                    break;
+                default:
+                    text = GameLanguage.Get("I'm nearly out of life. Help me!");
+                    break;
+            }
+
+            Speak(text);
+        }
+
+        private void SpeakLowMana()
+        {
+            if (Dead || Envir.Time < LowManaSpeechTime) return;
+            LowManaSpeechTime = Envir.Time + SpeechDelay;
+
+            string text;
+
+            switch (Envir.Random.Next(3))
+            {
+                case 0:
+                    text = GameLanguage.Get("Not enough mana to cast. I'm drained!");
+                    break;
+                case 1:
+                    text = GameLanguage.Get("My mana is running out. Give me a moment!");
+                    break;
+                default:
+                    text = GameLanguage.Get("I can't cast. I need mana!");
+                    break;
+            }
+
+            Speak(text);
+        }
+
+        private void Speak(string text)
+        {
+            if (string.IsNullOrEmpty(text) || CurrentMap == null) return;
+
+            string name = CurrentMap.Info.NoNames ? "?????" : Name;
+            Packet p = new S.ObjectChat
+            {
+                ObjectID = ObjectID,
+                Text = $"{name}: {text}",
+                Type = ChatType.Normal
+            };
+
+            Broadcast(p);
         }
 
         protected void ProcessAutoPot()
@@ -1113,6 +1247,7 @@ namespace Server.MirObjects
         protected virtual void FindTarget()
         {
             Map Current = CurrentMap;
+            List<MapObject> candidates = new List<MapObject>();
 
             for (int d = 0; d <= ViewRange; d++)
             {
@@ -1141,15 +1276,15 @@ namespace Server.MirObjects
                                     if (ob.Hidden && (!CoolEye || Level < ob.Level)) continue;
                                     if (ob.Master != null && Target != ob) continue;
 
-                                    Target = ob;
-                                    return;
+                                    candidates.Add(ob);
+                                    continue;
                                 case ObjectType.Player:
                                     PlayerObject playerob = (PlayerObject)ob;
                                     if (!ob.IsAttackTarget(Owner)) continue;
                                     if (playerob.GMGameMaster || ob.Hidden && (!CoolEye || Level < ob.Level)) continue;
                                     if (Target != ob && LastHitter != ob && Owner.LastHitter != ob && ob.LastHitter != Owner) continue;
 
-                                    Target = ob;
+                                    MapObject selected = ob;
 
                                     if (Owner.Info.HeroBehaviour == HeroBehaviour.Attack)
                                     {
@@ -1158,11 +1293,12 @@ namespace Server.MirObjects
                                             MonsterObject pet = playerob.Pets[j];
 
                                             if (!pet.IsAttackTarget(this)) continue;
-                                            Target = pet;
+                                            selected = pet;
                                             break;
                                         }
                                     }
-                                    return;
+                                    candidates.Add(selected);
+                                    continue;
                                 default:
                                     continue;
                             }
@@ -1170,6 +1306,16 @@ namespace Server.MirObjects
                     }
                 }
             }
+
+            MapObject best = SelectTarget(candidates);
+
+            if (best != null)
+                Target = best;
+        }
+
+        protected virtual MapObject SelectTarget(List<MapObject> candidates)
+        {
+            return candidates.Count == 0 ? null : candidates[0];
         }
         public override bool IsAttackTarget(HumanObject attacker)
         {

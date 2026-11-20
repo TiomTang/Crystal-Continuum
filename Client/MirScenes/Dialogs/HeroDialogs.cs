@@ -771,7 +771,7 @@ namespace Client.MirScenes.Dialogs
                     Library = Libraries.Prguse,
                     Parent = this,
                     Sound = SoundList.ButtonA,
-                    Hint = GameLanguage.Get("Hero Behaviour: {0}", GameLanguage.Get(Enum.Parse<HeroBehaviour>(i.ToString()))),
+                    Hint = GetBehaviourHint(hb),
                     AllowDisabledMouseOver = true
                 };
                 BehaviourButtons[i].Click += (o, e) =>
@@ -789,6 +789,33 @@ namespace Client.MirScenes.Dialogs
         {
             for (int i = 0; i < BehaviourButtons.Length; i++)
                 BehaviourButtons[i].Enabled = (byte)behaviour != i;
+
+            RefreshHint();
+        }
+        public void RefreshHint()
+        {
+            BehaviourButtons[(int)HeroBehaviour.Custom].Hint = GetBehaviourHint(HeroBehaviour.Custom);
+        }
+        private static string GetBehaviourHint(HeroBehaviour behaviour)
+        {
+            if (behaviour != HeroBehaviour.Custom)
+                return GameLanguage.Get("Hero Behaviour: {0}", GameLanguage.Get(behaviour));
+
+            switch (GameScene.Hero?.Class)
+            {
+                case MirClass.Warrior:
+                    return GameLanguage.Get("Hero Behaviour: Vanguard");
+                case MirClass.Wizard:
+                    return GameLanguage.Get("Hero Behaviour: Kiting");
+                case MirClass.Taoist:
+                    return GameLanguage.Get("Hero Behaviour: Medic");
+                case MirClass.Archer:
+                    return GameLanguage.Get("Hero Behaviour: Skirmisher");
+                case MirClass.Assassin:
+                    return GameLanguage.Get("Hero Behaviour: Finisher");
+                default:
+                    return GameLanguage.Get("Hero Behaviour: {0}", GameLanguage.Get(behaviour));
+            }
         }
     }
     public sealed class HeroManageDialog : MirImageControl

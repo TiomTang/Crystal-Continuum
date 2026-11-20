@@ -2015,6 +2015,26 @@
     "Source": "Hero Behaviour: {0}",
     "Text": "英雄行为：{0}"
   },
+  "Hero Behaviour: Vanguard": {
+    "Source": "Hero Behaviour: Vanguard",
+    "Text": "英雄行为：专精（先锋）"
+  },
+  "Hero Behaviour: Kiting": {
+    "Source": "Hero Behaviour: Kiting",
+    "Text": "英雄行为：专精（风筝）"
+  },
+  "Hero Behaviour: Medic": {
+    "Source": "Hero Behaviour: Medic",
+    "Text": "英雄行为：专精（医护）"
+  },
+  "Hero Behaviour: Skirmisher": {
+    "Source": "Hero Behaviour: Skirmisher",
+    "Text": "英雄行为：专精（游击）"
+  },
+  "Hero Behaviour: Finisher": {
+    "Source": "Hero Behaviour: Finisher",
+    "Text": "英雄行为：专精（收割）"
+  },
   "Would you like to make {0} your active Hero?": {
     "Source": "Would you like to make {0} your active Hero?",
     "Text": "是否要将 {0} 设为你的当前英雄？"
@@ -4973,7 +4993,7 @@
   },
   "enum.HeroBehaviour_Custom": {
     "Source": "Custom",
-    "Text": "自动"
+    "Text": "专精"
   },
   "Your Hero recently left combat. Please wait {0} seconds before desummoning.": {
     "Source": "Your Hero recently left combat. Please wait {0} seconds before desummoning.",

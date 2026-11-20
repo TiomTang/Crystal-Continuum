@@ -5,6 +5,7 @@ namespace Server.MirObjects
     public class WizardHero : HeroObject
     {
         public WizardHero(CharacterInfo info, PlayerObject owner) : base(info, owner) { }
+        protected override int KiteRadius => 2;
         public int SurroundedCount;
         public int TargetSurroundedCount;
         protected override bool InAttackRange()
@@ -170,7 +171,7 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (CanMove && ((!CanCast || NextMagicSpell == Spell.None) && Owner.Info.HeroBehaviour == HeroBehaviour.CounterAttack))
+            if (CanMove && (!CanCast || NextMagicSpell == Spell.None) && Owner.Info.HeroBehaviour == HeroBehaviour.CounterAttack)
             {
                 MoveTo(Owner.Back);
                 return;
@@ -182,7 +183,16 @@ namespace Server.MirObjects
             {
                 Magic(NextMagicSpell, NextMagicDirection, NextMagicTargetID, NextMagicLocation);
                 NextMagicSpell = Spell.None;
-            }            
+            }
+
+            TargetDistance = Functions.MaxDistance(CurrentLocation, Target.CurrentLocation);
+
+            if (DefensiveBehaviour && HasRangedSpell)
+            {
+                TryStepAwayFromThreats(KiteRadius);
+
+                return;
+            }
 
             if (CanAttack && (!HasRangedSpell && InAttackRange() || NextMagicSpell == Spell.None && Owner.Info.HeroBehaviour == HeroBehaviour.Attack && TargetDistance == 1))
             {

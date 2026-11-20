@@ -6308,6 +6308,7 @@ namespace Client.MirScenes
             MainDialog.HeroInfoPanel.Visible = p.State > HeroSpawnState.Unsummoned;
             MainDialog.HeroMenuButton.Visible = p.State > HeroSpawnState.Unsummoned;
             HeroBehaviourPanel.Visible = p.State > HeroSpawnState.Unsummoned;
+            HeroBehaviourPanel.RefreshHint();
             HeroMenuPanel.Visible = HeroMenuPanel.Visible && MainDialog.HeroMenuButton.Visible;
 
             //A hero out of play will not answer item requests that are still pending, release the cells so they stay usable.

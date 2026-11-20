@@ -2033,6 +2033,30 @@
     "Source": "Hero has been added to your hero storage.",
     "Text": "英雄已加入到你的英雄仓库。"
   },
+  "My health is critical! Cover me!": {
+    "Source": "My health is critical! Cover me!",
+    "Text": "生命危急，快掩护我！"
+  },
+  "I'm badly wounded. I can't hold much longer!": {
+    "Source": "I'm badly wounded. I can't hold much longer!",
+    "Text": "伤得太重，我快撑不住了！"
+  },
+  "I'm nearly out of life. Help me!": {
+    "Source": "I'm nearly out of life. Help me!",
+    "Text": "气血将尽，快帮帮我！"
+  },
+  "Not enough mana to cast. I'm drained!": {
+    "Source": "Not enough mana to cast. I'm drained!",
+    "Text": "魔法值不足，无法施法！"
+  },
+  "My mana is running out. Give me a moment!": {
+    "Source": "My mana is running out. Give me a moment!",
+    "Text": "魔法值见底了，先缓一缓！"
+  },
+  "I can't cast. I need mana!": {
+    "Source": "I can't cast. I need mana!",
+    "Text": "魔法值不够了，掩护我！"
+  },
   "I'm starving!!.": {
     "Source": "I'm starving!!.",
     "Text": "我快饿死了！！。"

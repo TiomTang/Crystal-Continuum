@@ -43,6 +43,25 @@ namespace Server.MirObjects
                 }
             }
         }
+        protected override int CustomLeash => 10;
+        protected override MapObject SelectTarget(List<MapObject> candidates)
+        {
+            if (Owner.Info.HeroBehaviour != HeroBehaviour.Custom) return base.SelectTarget(candidates);
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (IsThreatToOwner(candidates[i]))
+                    return candidates[i];
+            }
+
+            return null;
+        }
+        private bool IsThreatToOwner(MapObject ob)
+        {
+            return ob.Target == Owner || ob.Target == this
+                || ob.LastHitter == Owner || ob.LastHitter == this
+                || Owner.LastHitter == ob || LastHitter == ob;
+        }
         protected override void ProcessAttack()
         {
             if (Target == null || Target.Dead) return;

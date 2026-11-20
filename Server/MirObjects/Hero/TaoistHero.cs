@@ -5,6 +5,8 @@ namespace Server.MirObjects
     public class TaoistHero : HeroObject
     {
         public TaoistHero(CharacterInfo info, PlayerObject owner) : base(info, owner) { }
+        protected override int CustomLeash => 3;
+        protected override int KiteRadius => 2;
         protected override bool InAttackRange()
         {
             if (Target.CurrentMap != CurrentMap) return false;
@@ -16,13 +18,14 @@ namespace Server.MirObjects
         }
         protected override void ProcessFriend()
         {
+            if (Owner.Info.HeroBehaviour == HeroBehaviour.Attack) return;
             if (!CanCast) return;
             UserMagic magic;
-            List<MapObject> TargetList = new List<MapObject>()
-            {
-                this,
-                Owner
-            };
+            bool custom = Owner.Info.HeroBehaviour == HeroBehaviour.Custom;
+            int healThreshold = custom ? 95 : 90;
+            List<MapObject> TargetList = custom
+                ? new List<MapObject>() { Owner, this }
+                : new List<MapObject>() { this, Owner };
 
             for (int i = 0; i < TargetList.Count; i++)
             {
@@ -41,7 +44,7 @@ namespace Server.MirObjects
                     }
                 }
 
-                if (target.PercentHealth < 90)
+                if (target.PercentHealth < healThreshold)
                 {
                     magic = GetMagic(Spell.MassHealing);
                     if (CanUseMagic(magic))
@@ -60,7 +63,7 @@ namespace Server.MirObjects
 
                 UserItem item = GetAmulet(1);
 
-                if (Target != null)
+                if (Target != null || custom)
                 {
                     magic = GetMagic(Spell.SoulShield);
                     if (CanUseMagic(magic) && item != null && !target.HasBuff(BuffType.SoulShield))
@@ -158,7 +161,7 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (CanMove && ((!CanCast || NextMagicSpell == Spell.None) && Owner.Info.HeroBehaviour == HeroBehaviour.CounterAttack))
+            if (CanMove && (!CanCast || NextMagicSpell == Spell.None) && Owner.Info.HeroBehaviour == HeroBehaviour.CounterAttack)
             {
                 MoveTo(Owner.Back);
                 return;
@@ -172,6 +175,14 @@ namespace Server.MirObjects
             }
 
             if (Target == null || !CanAttack) return;
+
+            TargetDistance = Functions.MaxDistance(CurrentLocation, Target.CurrentLocation);
+
+            if (DefensiveBehaviour && HasRangedSpell)
+            {
+                TryStepAwayFromThreats(KiteRadius);
+                return;
+            }
 
             if (CanAttack && (!HasRangedSpell && InAttackRange() || NextMagicSpell == Spell.None && Owner.Info.HeroBehaviour == HeroBehaviour.Attack && TargetDistance == 1))
             {

@@ -34,7 +34,7 @@ namespace Server.MirObjects
         {
             if (!CanCast) return;
 
-            if (Target != null)
+            if (Target != null || Owner.Info.HeroBehaviour == HeroBehaviour.Custom)
             {
                 UserMagic magic = GetMagic(Spell.Haste);
                 if (CanUseMagic(magic) && !HasBuff(BuffType.Haste))
@@ -50,6 +50,34 @@ namespace Server.MirObjects
                     return;
                 }
             }
+        }
+        protected override MapObject SelectTarget(List<MapObject> candidates)
+        {
+            if (Owner.Info.HeroBehaviour != HeroBehaviour.Custom) return base.SelectTarget(candidates);
+
+            MapObject best = null;
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                MapObject candidate = candidates[i];
+
+                if (best == null)
+                {
+                    best = candidate;
+                    continue;
+                }
+
+                if (candidate.Race == ObjectType.Player && best.Race != ObjectType.Player)
+                {
+                    best = candidate;
+                    continue;
+                }
+
+                if (candidate.Race == best.Race && candidate.PercentHealth < best.PercentHealth)
+                    best = candidate;
+            }
+
+            return best;
         }
         protected override void ProcessAttack()
         {

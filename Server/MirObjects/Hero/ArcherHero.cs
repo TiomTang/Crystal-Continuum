@@ -8,35 +8,7 @@ namespace Server.MirObjects
     public class ArcherHero : HeroObject
     {
         public ArcherHero(CharacterInfo info, PlayerObject owner) : base(info, owner) { }
-
-        private static Point GetAdjacentPoint(Point currentLocation, Point targetLocation, Point playerLocation)
-        {
-            int deltaX = targetLocation.X - currentLocation.X;
-            int deltaY = targetLocation.Y - currentLocation.Y;
-
-            int adjacentX = currentLocation.X - Math.Sign(deltaX);
-            int adjacentY = currentLocation.Y - Math.Sign(deltaY);
-
-            Point awayFromTarget = new Point(adjacentX, adjacentY);
-
-            // Check if the calculated point is the same as the player's current location
-            if (awayFromTarget == playerLocation)
-            {
-                // Calculate a new point that is away from the target but not the player's current location
-                if (deltaX != 0)
-                {
-                    adjacentX = currentLocation.X + Math.Sign(deltaX);
-                    awayFromTarget = new Point(adjacentX, adjacentY);
-                }
-                else if (deltaY != 0)
-                {
-                    adjacentY = currentLocation.Y + Math.Sign(deltaY);
-                    awayFromTarget = new Point(adjacentX, adjacentY);
-                }
-            }
-
-            return awayFromTarget;
-        }
+        protected override int KiteRadius => 3;
 
         protected override bool InAttackRange()
         {
@@ -64,6 +36,21 @@ namespace Server.MirObjects
                     }
                 }
             }
+        }
+
+        protected override MapObject SelectTarget(List<MapObject> candidates)
+        {
+            if (Owner.Info.HeroBehaviour != HeroBehaviour.Custom) return base.SelectTarget(candidates);
+
+            MapObject best = null;
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (best == null || candidates[i].PercentHealth < best.PercentHealth)
+                    best = candidates[i];
+            }
+
+            return best;
         }
 
         protected override void ProcessAttack()
@@ -128,6 +115,12 @@ namespace Server.MirObjects
                 return;
             }
 
+            if (CanMove && Owner.Info.HeroBehaviour == HeroBehaviour.CounterAttack && (Target == null || !CanAttack) && distanceToPlayer > 2)
+            {
+                MoveTo(Owner.Back);
+                return;
+            }
+
             if (Target == null || !CanAttack) return;
 
             if (HasClassWeapon && CanCast && NextMagicSpell != Spell.None)
@@ -136,17 +129,10 @@ namespace Server.MirObjects
                 NextMagicSpell = Spell.None;
             }
 
-            if (CanMove && !CanAttack && (TargetDistance < 3 && Owner.Info.HeroBehaviour == HeroBehaviour.Attack && distanceToPlayer < 6))
-            {
-                Point awayFromTarget = GetAdjacentPoint(CurrentLocation, Target.CurrentLocation, Owner.CurrentLocation);
-                MoveTo(awayFromTarget);
+            TargetDistance = Functions.MaxDistance(CurrentLocation, Target.CurrentLocation);
+
+            if (DefensiveBehaviour && HasClassWeapon && TryStepAwayFromThreats(KiteRadius))
                 return;
-            }
-            if (CanMove && ((Owner.Info.HeroBehaviour == HeroBehaviour.CounterAttack && distanceToPlayer > 2) || (Owner.Info.HeroBehaviour == HeroBehaviour.Attack && distanceToPlayer > 5)))
-            {
-                MoveTo(Owner.Back);
-                return;
-            }
 
             if ((CanAttack && Target != null && HasClassWeapon && (NextMagicSpell == Spell.None || !HasRangedSpell || !CanCast)))
             {
