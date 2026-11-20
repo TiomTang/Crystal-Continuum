@@ -224,7 +224,7 @@ namespace Client.MirControls
 
             if (TextBox.Visible && TextBox.CanFocus)
                 if (Program.Form.ActiveControl == null || Program.Form.ActiveControl == Program.Form)
-                    Program.Form.ActiveControl = TextBox;
+                    FocusNativeTextBox();
 
             if (!TextBox.Visible)
                 if (Program.Form.ActiveControl == TextBox)
@@ -237,9 +237,7 @@ namespace Client.MirControls
             if (TextBox.Parent != null)
                 TextBox.ParentChanged -= SetFocus;
 
-            if (TextBox.CanFocus) TextBox.Focus();
-            else if (TextBox.Visible && TextBox.Parent != null)
-                Program.Form.ActiveControl = TextBox;
+            FocusNativeTextBox();
 
 
         }
@@ -404,7 +402,25 @@ namespace Client.MirControls
             else if (TextBox.Parent == null)
                 TextBox.ParentChanged += SetFocus;
             else
-                TextBox.Focus();
+                FocusNativeTextBox();
+        }
+
+        private void FocusNativeTextBox()
+        {
+            // Focusing a TextBox parked at -32000 makes the IME spin when CapsLock is on.
+            Point hidden = TextBox.Location;
+            TextBox.Location = new Point(-TextBox.Width, -TextBox.Height);
+            try
+            {
+                if (TextBox.CanFocus)
+                    TextBox.Focus();
+                else if (TextBox.Visible && TextBox.Parent != null)
+                    Program.Form.ActiveControl = TextBox;
+            }
+            finally
+            {
+                TextBox.Location = hidden;
+            }
         }
 
         public void DialogChanged()
