@@ -86,6 +86,9 @@ namespace Client.MirSounds.Libraries
                 if (_isDisposing) return;
                 try
                 {
+                    // Apply volume changes even when an existing loop is already playing.
+                    SetVolume(volume);
+
                     if (outputDevice?.PlaybackState == PlaybackState.Playing)
                     {
                         return;
@@ -95,7 +98,11 @@ namespace Client.MirSounds.Libraries
 
                     if (outputDevice == null)
                     {
-                        outputDevice = new WaveOutEvent();
+                        outputDevice = new WaveOutEvent
+                        {
+                            DesiredLatency = SoundManager.OutputLatency,
+                            NumberOfBuffers = SoundManager.OutputBufferCount
+                        };
                         outputDevice.PlaybackStopped += OutputDevice_PlaybackStopped;
                     }
 
@@ -108,10 +115,18 @@ namespace Client.MirSounds.Libraries
                     // loop or sound already cached
                     if (outputDevice?.PlaybackState == PlaybackState.Stopped)
                     {
-                        audioFile.Seek(0, SeekOrigin.Begin);
+                        try
+                        {
+                            audioFile.Seek(0, SeekOrigin.Begin);
+                        }
+                        catch
+                        {
+                            audioFile = new AudioFileReader(_fileName);
+                            outputDevice.Init(audioFile);
+                        }
                     }
 
-                    outputDevice.Volume = ScaleVolume(volume);
+                    audioFile.Volume = ScaleVolume(volume);
                     outputDevice.Play();
                 }
                 catch
@@ -128,7 +143,7 @@ namespace Client.MirSounds.Libraries
         {
             SoundManager.WithAudio(() =>
             {
-                if (!_isDisposing && outputDevice != null) outputDevice.Volume = ScaleVolume(vol);
+                if (!_isDisposing && audioFile != null) audioFile.Volume = ScaleVolume(vol);
             });
         }
 

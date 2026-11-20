@@ -722,6 +722,7 @@ public class UserItem
             SealedInfo?.ExpiryDate == other.SealedInfo?.ExpiryDate &&
             SealedInfo?.NextSealDate == other.SealedInfo?.NextSealDate &&
             Cursed == other.Cursed && WeddingRing == other.WeddingRing &&
+            (!Info.NeedIdentify || Identified == other.Identified) &&
             CurrentDura == other.CurrentDura && MaxDura == other.MaxDura && GemCount == other.GemCount &&
             RefineAdded == other.RefineAdded && RefinedValue == other.RefinedValue &&
             RefineSuccessChance == other.RefineSuccessChance && AddedStats.Equals(other.AddedStats) &&
