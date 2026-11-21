@@ -2771,13 +2771,36 @@ namespace Server.MirObjects
                 attacker.DamageWeapon();
             damage += attacker.Stats[Stat.AttackBonus];
 
+            if (Stats[Stat.Reflect] > 0 && Envir.Random.Next(100) < Stats[Stat.Reflect])
+            {
+                if (attacker.IsAttackTarget(this))
+                {
+                    attacker.Attacked(this, damage, type);
+                    CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.Reflect }, CurrentLocation);
+                }
+                return 0;
+            }
+
+            if (Stats[Stat.DamageReductionPercent] > 0)
+            {
+                damage -= (damage * Stats[Stat.DamageReductionPercent]) / 100;
+            }
+
             if (armour >= damage)
             {
                 BroadcastDamageIndicator(DamageType.Miss);
                 return 0;
             }
 
-            if (Envir.Random.Next(100) < (attacker.Stats[Stat.CriticalRate] * Settings.CriticalRateWeight))
+            if (Stats[Stat.EnergyShieldPercent] > 0 && Envir.Random.Next(100) < Stats[Stat.EnergyShieldPercent])
+            {
+                if (HP + Stats[Stat.EnergyShieldHPGain] >= Stats[Stat.HP])
+                    SetHP(Stats[Stat.HP]);
+                else
+                    ChangeHP(Stats[Stat.EnergyShieldHPGain]);
+            }
+
+            if (attacker.Stats[Stat.CriticalRate] > 0 && Envir.Random.Next(100) < (attacker.Stats[Stat.CriticalRate] * Settings.CriticalRateWeight))
             {
                 Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.Critical });
                 damage = Math.Min(int.MaxValue, damage + (int)Math.Floor(damage * (((double)attacker.Stats[Stat.CriticalDamage] / (double)Settings.CriticalDamageWeight) * 10)));
@@ -2875,10 +2898,40 @@ namespace Server.MirObjects
 
             damage = ScaleIncomingDamage(damage);
 
+            if (Stats[Stat.Reflect] > 0 && Envir.Random.Next(100) < Stats[Stat.Reflect])
+            {
+                if (attacker.IsAttackTarget(this))
+                {
+                    attacker.Attacked(this, damage, type);
+                    CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.Reflect }, CurrentLocation);
+                }
+                return 0;
+            }
+
+            if (Stats[Stat.DamageReductionPercent] > 0)
+            {
+                damage -= (damage * Stats[Stat.DamageReductionPercent]) / 100;
+            }
+
             if (armour >= damage)
             {
                 BroadcastDamageIndicator(DamageType.Miss);
                 return 0;
+            }
+
+            if (Stats[Stat.EnergyShieldPercent] > 0 && Envir.Random.Next(100) < Stats[Stat.EnergyShieldPercent])
+            {
+                if (HP + Stats[Stat.EnergyShieldHPGain] >= Stats[Stat.HP])
+                    SetHP(Stats[Stat.HP]);
+                else
+                    ChangeHP(Stats[Stat.EnergyShieldHPGain]);
+            }
+
+            if (attacker.Stats[Stat.CriticalRate] > 0 && Envir.Random.Next(100) < (attacker.Stats[Stat.CriticalRate] * Settings.CriticalRateWeight))
+            {
+                Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.Critical });
+                damage = Math.Min(int.MaxValue, damage + (int)Math.Floor(damage * (((double)attacker.Stats[Stat.CriticalDamage] / (double)Settings.CriticalDamageWeight) * 10)));
+                BroadcastDamageIndicator(DamageType.Critical);
             }
 
             if (Target != this && attacker.IsAttackTarget(this) && CanFocusAttacker(attacker))
