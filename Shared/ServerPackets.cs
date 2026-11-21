@@ -6886,4 +6886,44 @@ namespace ServerPackets
             writer.Write(Combat);
         }
     }
+
+    public sealed class SelfStatMultipliers : Packet
+    {
+        public override short Index
+        {
+            get { return (short)ServerPacketIds.SelfStatMultipliers; }
+        }
+
+        public override bool Observable => false;
+
+        // One entry per affected stat, already aggregated by the server. The client
+        // applies the factor blindly, so it never needs to know which sources exist.
+        public Stat[] Stats = Array.Empty<Stat>();
+        public float[] Factors = Array.Empty<float>();
+
+        protected override void ReadPacket(BinaryReader reader)
+        {
+            int count = reader.ReadInt32();
+
+            Stats = new Stat[count];
+            Factors = new float[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                Stats[i] = (Stat)reader.ReadByte();
+                Factors[i] = reader.ReadSingle();
+            }
+        }
+
+        protected override void WritePacket(BinaryWriter writer)
+        {
+            writer.Write(Stats.Length);
+
+            for (int i = 0; i < Stats.Length; i++)
+            {
+                writer.Write((byte)Stats[i]);
+                writer.Write(Factors[i]);
+            }
+        }
+    }
 }
