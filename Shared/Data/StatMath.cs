@@ -54,21 +54,6 @@ public static class StatMath
     }
 
     /// <summary>
-    /// Applies an armour penalty to the four defence stats in place. The client
-    /// preview engine folds this directly; the server folds the same penalty through
-    /// its modifier list, so the constant lives in one place.
-    /// </summary>
-    public static void ApplyArmourPenalty(Stats stats, float penalty)
-    {
-        float factor = 1F - penalty;
-
-        stats[Stat.MinAC] = RoundEff(stats[Stat.MinAC] * factor);
-        stats[Stat.MaxAC] = RoundEff(stats[Stat.MaxAC] * factor);
-        stats[Stat.MinMAC] = RoundEff(stats[Stat.MinMAC] * factor);
-        stats[Stat.MaxMAC] = RoundEff(stats[Stat.MaxMAC] * factor);
-    }
-
-    /// <summary>
     /// Picks a value from the effective (already scaled) range. The caller owns
     /// the random source so the same contract can be exercised in tests.
     /// </summary>

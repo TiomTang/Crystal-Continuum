@@ -141,6 +141,9 @@ namespace Client.MirObjects
             base.SetEffects();
         }
 
+        private Stat[] serverMultiplierStats = Array.Empty<Stat>();
+        private float[] serverMultiplierFactors = Array.Empty<float>();
+
         public void RefreshStats()
         {
             Stats.Clear();
@@ -169,10 +172,7 @@ namespace Client.MirObjects
 
             RefreshStatCaps();
 
-            if (Poison.HasFlag(PoisonType.Red))
-            {
-                StatMath.ApplyArmourPenalty(Stats, StatMath.PlayerRedPoisonArmourPenalty);
-            }
+            ApplyServerMultipliers();
 
             if (this == User && Light < 3) Light = 3;
             AttackSpeed = 1400 - ((Stats[Stat.AttackSpeed] * 60) + Math.Min(370, (Level * 14)));
@@ -704,6 +704,28 @@ namespace Client.MirObjects
             Stats[Stat.MinSC] = Math.Min(Stats[Stat.MinSC], Stats[Stat.MaxSC]);
         }
 
+        /// <summary>
+        /// The server owns the multiplier layer. The client keeps deriving the base values
+        /// (gear, skills, buffs) locally and applies the net factors afterwards, so a new
+        /// multiplier source never requires a client change.
+        /// </summary>
+        public void ApplyStatMultipliers(S.SelfStatMultipliers p)
+        {
+            serverMultiplierStats = p.Stats ?? Array.Empty<Stat>();
+            serverMultiplierFactors = p.Factors ?? Array.Empty<float>();
+
+            RefreshStats();
+        }
+
+        private void ApplyServerMultipliers()
+        {
+            for (int i = 0; i < serverMultiplierStats.Length; i++)
+            {
+                Stat stat = serverMultiplierStats[i];
+
+                Stats[stat] = StatMath.RoundEff(Stats[stat] * serverMultiplierFactors[i]);
+            }
+        }
 
         public void BindAllItems()
         {

@@ -321,6 +321,8 @@ namespace Server.MirObjects
             ArmourMulFactor = StatMath.MulFactor(Modifiers, Stat.MinAC);
 
             RebuildDefenceEffect();
+
+            OnStatMultipliersChanged();
         }
 
         /// <summary>
@@ -334,6 +336,38 @@ namespace Server.MirObjects
                 Stats[Stat.MinMAC], Stats[Stat.MaxMAC],
                 ArmourMulFactor, ArmourMulFactor);
         }
+
+        /// <summary>
+        /// Aggregates every Mul rule into one factor per stat. Sources are folded here,
+        /// so consumers only ever see the net effect.
+        /// </summary>
+        public void BuildStatMultipliers(List<Stat> stats, List<float> factors)
+        {
+            for (int i = 0; i < Modifiers.Count; i++)
+            {
+                StatModifier modifier = Modifiers[i];
+
+                if (modifier.Op != StatModOp.Mul) continue;
+
+                int index = stats.IndexOf(modifier.Stat);
+
+                if (index < 0)
+                {
+                    stats.Add(modifier.Stat);
+                    factors.Add(modifier.Value);
+                }
+                else
+                {
+                    factors[index] *= modifier.Value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Called whenever the aggregated multipliers change. Human objects forward it
+        /// to their client; monsters have no consumer.
+        /// </summary>
+        protected virtual void OnStatMultipliersChanged() { }
 
         public int GetRangeAttackPower(int min, int max, int range)
         {

@@ -1624,6 +1624,9 @@ namespace Client.MirScenes
                 case (short)ServerPacketIds.ObjectPoisoned:
                     ObjectPoisoned((S.ObjectPoisoned)p);
                     break;
+                case (short)ServerPacketIds.SelfStatMultipliers:
+                    SelfStatMultipliers((S.SelfStatMultipliers)p);
+                    break;
                 case (short)ServerPacketIds.MapChanged:
                     MapChanged((S.MapChanged)p);
                     break;
@@ -4026,6 +4029,11 @@ namespace Client.MirScenes
         {
             if (MapControl.Objects.TryGetValue(p.ObjectID, out var ob))
                 ob.ActionFeed.Add(new QueuedAction { Action = MirAction.Show, Direction = ob.Direction, Location = ob.CurrentLocation });
+        }
+
+        private void SelfStatMultipliers(S.SelfStatMultipliers p)
+        {
+            User?.ApplyStatMultipliers(p);
         }
 
         private void Poisoned(S.Poisoned p)

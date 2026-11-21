@@ -1782,6 +1782,20 @@ namespace Server.MirObjects
             Broadcast(new S.ObjectRevived { ObjectID = ObjectID, Effect = effect });
         }
 
+        protected override void OnStatMultipliersChanged()
+        {
+            var stats = new List<Stat>();
+            var factors = new List<float>();
+
+            BuildStatMultipliers(stats, factors);
+
+            Enqueue(new S.SelfStatMultipliers
+            {
+                Stats = stats.ToArray(),
+                Factors = factors.ToArray(),
+            });
+        }
+
         protected virtual void SendBaseStats()
         {
             Enqueue(new S.BaseStatsInfo { Stats = Settings.ClassBaseStats[(byte)Class] });
@@ -1794,6 +1808,7 @@ namespace Server.MirObjects
             {
                 SendBaseStats();                
                 HasUpdatedBaseStats = true;
+                OnStatMultipliersChanged();
             }
 
             Stats.Clear();
