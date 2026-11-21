@@ -7211,7 +7211,7 @@ namespace Server.MirObjects
 
             damage += attacker.Stats[Stat.AttackBonus];
 
-            if (Envir.Random.Next(100) < Stats[Stat.Reflect])
+            if (Stats[Stat.Reflect] > 0 && Envir.Random.Next(100) < Stats[Stat.Reflect])
             {
                 if (attacker.IsAttackTarget(this))
                 {
@@ -7242,7 +7242,7 @@ namespace Server.MirObjects
             //EnergyShield
             TryEnergyShield();
 
-            if (Envir.Random.Next(100) < (attacker.Stats[Stat.CriticalRate] * Settings.CriticalRateWeight))
+            if (attacker.Stats[Stat.CriticalRate] > 0 && Envir.Random.Next(100) < (attacker.Stats[Stat.CriticalRate] * Settings.CriticalRateWeight))
             {
                 CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.Critical }, CurrentLocation);
                 damage = Math.Min(int.MaxValue, damage + (int)Math.Floor(damage * (((double)attacker.Stats[Stat.CriticalDamage] / (double)Settings.CriticalDamageWeight) * 10)));
@@ -7303,7 +7303,7 @@ namespace Server.MirObjects
                 return 0;
             }
 
-            if (Envir.Random.Next(100) < Stats[Stat.Reflect])
+            if (Stats[Stat.Reflect] > 0 && Envir.Random.Next(100) < Stats[Stat.Reflect])
             {
                 if (attacker.IsAttackTarget(this))
                 {
@@ -7334,6 +7334,13 @@ namespace Server.MirObjects
             }
 
             TryEnergyShield();
+
+            if (attacker.Stats[Stat.CriticalRate] > 0 && Envir.Random.Next(100) < (attacker.Stats[Stat.CriticalRate] * Settings.CriticalRateWeight))
+            {
+                CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.Critical }, CurrentLocation);
+                damage = Math.Min(int.MaxValue, damage + (int)Math.Floor(damage * (((double)attacker.Stats[Stat.CriticalDamage] / (double)Settings.CriticalDamageWeight) * 10)));
+                BroadcastDamageIndicator(DamageType.Critical);
+            }
 
             DrainDamageShields(damage, armour);
 
