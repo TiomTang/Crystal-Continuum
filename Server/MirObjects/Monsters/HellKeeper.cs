@@ -35,23 +35,13 @@ namespace Server.MirObjects.Monsters
             switch (type)
             {
                 case DefenceType.ACAgility:
-                    if (Envir.Random.Next(Stats[Stat.Agility] + 1) > attacker.Stats[Stat.Accuracy]) return 0;
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
-                    break;
-                case DefenceType.AC:
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
-                    break;
                 case DefenceType.MACAgility:
-                    if (Envir.Random.Next(Stats[Stat.Agility] + 1) > attacker.Stats[Stat.Accuracy]) return 0;
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
-                    break;
-                case DefenceType.MAC:
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
-                    break;
                 case DefenceType.Agility:
                     if (Envir.Random.Next(Stats[Stat.Agility] + 1) > attacker.Stats[Stat.Accuracy]) return 0;
                     break;
             }
+
+            armour = RollTypeArmour(type);
 
             if (armour >= damage) return 0;
 
@@ -93,23 +83,13 @@ namespace Server.MirObjects.Monsters
             switch (type)
             {
                 case DefenceType.ACAgility:
-                    if (Envir.Random.Next(Stats[Stat.Agility] + 1) > attacker.Stats[Stat.Accuracy]) return 0;
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
-                    break;
-                case DefenceType.AC:
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
-                    break;
                 case DefenceType.MACAgility:
-                    if (Envir.Random.Next(Stats[Stat.Agility] + 1) > attacker.Stats[Stat.Accuracy]) return 0;
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
-                    break;
-                case DefenceType.MAC:
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
-                    break;
                 case DefenceType.Agility:
                     if (Envir.Random.Next(Stats[Stat.Agility] + 1) > attacker.Stats[Stat.Accuracy]) return 0;
                     break;
             }
+
+            armour = RollTypeArmour(type);
 
             if (armour >= damage) return 0;
 

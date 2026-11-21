@@ -861,6 +861,8 @@ namespace Server.MirObjects
             ApplyOwnerStatInheritance();
 
             RefreshBuffs();
+
+            RebuildDefenceEffect();
         }
 
         /// <summary>
@@ -1549,10 +1551,13 @@ namespace Server.MirObjects
             }
             if (HP == Stats[Stat.HP]) HealAmount = 0;
         }
+
+        protected override float RedPoisonArmourPenalty => StatMath.MonsterRedPoisonArmourPenalty;
+
         protected virtual void ProcessPoison()
         {
             PoisonType type = PoisonType.None;
-            ArmourRate = 1F;
+            bool redPoisoned = false;
             DamageRate = 1F;
 
             for (int i = PoisonList.Count - 1; i >= 0; i--)
@@ -1633,7 +1638,7 @@ namespace Server.MirObjects
                 switch (poison.PType)
                 {
                     case PoisonType.Red:
-                        ArmourRate -= 0.5F;
+                        redPoisoned = true;
                         break;
                     case PoisonType.Stun:
                         DamageRate += 0.5F;
@@ -1660,6 +1665,8 @@ namespace Server.MirObjects
                  */
             }
 
+
+            SetRedArmourPoison(redPoisoned);
 
             if (type == CurrentPoison) return;
 
@@ -2758,7 +2765,6 @@ namespace Server.MirObjects
             if (!hit)
                 return 0;
 
-            armour = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(armour * ArmourRate))));
             damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
 
             if (damageWeapon)
@@ -2873,7 +2879,6 @@ namespace Server.MirObjects
             if (!hit)
                 return 0;
 
-            armour = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(armour * ArmourRate))));
             damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
 
             if (armour >= damage)
@@ -2934,22 +2939,21 @@ namespace Server.MirObjects
             switch (type)
             {
                 case DefenceType.ACAgility:
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
+                    armour = RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
                     break;
                 case DefenceType.AC:
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
+                    armour = RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
                     break;
                 case DefenceType.MACAgility:
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
+                    armour = RollEffective(Stats[Stat.MinMAC], Stats[Stat.MaxMAC], ArmourMulFactor);
                     break;
                 case DefenceType.MAC:
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
+                    armour = RollEffective(Stats[Stat.MinMAC], Stats[Stat.MaxMAC], ArmourMulFactor);
                     break;
                 case DefenceType.Agility:
                     break;
             }
 
-            armour = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(armour * ArmourRate))));
             damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
 
             if (armour >= damage) return 0;

@@ -702,7 +702,7 @@ namespace Server.MirObjects
         private void ProcessPoison()
         {
             PoisonType type = PoisonType.None;
-            ArmourRate = 1F;
+            bool redPoisoned = false;
             DamageRate = 1F;
 
             for (int i = PoisonList.Count - 1; i >= 0; i--)
@@ -764,7 +764,7 @@ namespace Server.MirObjects
                 switch (poison.PType)
                 {
                     case PoisonType.Red:
-                        ArmourRate -= 0.10F;
+                        redPoisoned = true;
                         break;
                     case PoisonType.Stun:
                         DamageRate += 0.20F;
@@ -775,6 +775,8 @@ namespace Server.MirObjects
 
                 type |= poison.PType;
             }
+
+            SetRedArmourPoison(redPoisoned);
 
             if (type == CurrentPoison) return;
 
@@ -1827,6 +1829,8 @@ namespace Server.MirObjects
             if (AttackSpeed < 550) AttackSpeed = 550;
 
             RefreshPetInheritance();
+
+            RebuildDefenceEffect();
         }
 
         /// <summary>
@@ -7152,7 +7156,6 @@ namespace Server.MirObjects
                 return 0;
             }
 
-            armour = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(armour * ArmourRate))));
             damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
 
             if (damageWeapon)
@@ -7287,7 +7290,6 @@ namespace Server.MirObjects
                 return 0;
             }
 
-            armour = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(armour * ArmourRate))));
             damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
 
             //MagicShield, ElementalBarrier
@@ -7375,22 +7377,21 @@ namespace Server.MirObjects
             switch (type)
             {
                 case DefenceType.ACAgility:
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
+                    armour = RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
                     break;
                 case DefenceType.AC:
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
+                    armour = RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
                     break;
                 case DefenceType.MACAgility:
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
+                    armour = RollEffective(Stats[Stat.MinMAC], Stats[Stat.MaxMAC], ArmourMulFactor);
                     break;
                 case DefenceType.MAC:
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
+                    armour = RollEffective(Stats[Stat.MinMAC], Stats[Stat.MaxMAC], ArmourMulFactor);
                     break;
                 case DefenceType.Agility:
                     break;
             }
 
-            armour = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(armour * ArmourRate))));
             damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
 
             //MagicShield, ElementalBarrier

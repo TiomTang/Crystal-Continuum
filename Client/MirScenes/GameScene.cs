@@ -4042,6 +4042,12 @@ namespace Client.MirScenes
             {
                 User.BlindCount = 0;
             }
+
+            // Red poison changes displayed armour, so the panel has to be recomputed.
+            if (previousPoisons.HasFlag(PoisonType.Red) != User.Poison.HasFlag(PoisonType.Red))
+            {
+                User.RefreshStats();
+            }
         }
 
         private void ObjectPoisoned(S.ObjectPoisoned p)

@@ -156,6 +156,18 @@ namespace Server.MirObjects
 
         public Stats Stats;
 
+        // Attribute modifiers, collected from their sources on every rebuild. Stage 1
+        // only poison feeds this list; equipment, skills and buffs still write Stats.
+        protected readonly List<StatModifier> Modifiers = new List<StatModifier>();
+
+        // Effective defence range after attribute multipliers. Stats keeps the raw
+        // values in stage 1, so this is the only place the multiplier is applied.
+        protected DefenceValues DefenceEff;
+
+        protected float ArmourMulFactor = 1F;
+
+        private bool? redArmourActive;
+
         public List<MonsterObject> Pets = new List<MonsterObject>();
         public virtual List<Buff> Buffs { get; set; } = new List<Buff>();
 
@@ -175,7 +187,7 @@ namespace Server.MirObjects
             }
         }
 
-        public float ArmourRate, DamageRate; //recieved not given
+        public float DamageRate; //recieved not given
 
         public virtual List<Poison> PoisonList { get; set; } = new List<Poison>();
         public PoisonType CurrentPoison = PoisonType.None;
@@ -269,6 +281,60 @@ namespace Server.MirObjects
             return Envir.Random.Next(min, max + 1);
         }
 
+        /// <summary>
+        /// Effective defence for display and script reads. Settlement moves to
+        /// GetDefencePower in stage 2; until then Attacked keeps using ArmourRate.
+        /// </summary>
+        public int GetDefenceDisplay(Stat stat)
+        {
+            return DefenceEff.Display(stat);
+        }
+
+        /// <summary>
+        /// Armour penalty applied per active red poison. Players lose 10%, monsters 50%.
+        /// </summary>
+        protected virtual float RedPoisonArmourPenalty => StatMath.PlayerRedPoisonArmourPenalty;
+
+        /// <summary>
+        /// Rebuilds the poison-derived modifiers. ProcessPoison calls this every tick;
+        /// the cached flag leaves the list untouched when the state did not change.
+        /// </summary>
+        protected void SetRedArmourPoison(bool active)
+        {
+            if (redArmourActive == active) return;
+
+            redArmourActive = active;
+
+            Modifiers.RemoveAll(m => m.Source.Kind == ModSourceKind.Poison);
+
+            if (active)
+            {
+                float factor = 1F - RedPoisonArmourPenalty;
+                ModSource source = new ModSource(ModSourceKind.Poison, (int)PoisonType.Red);
+
+                Modifiers.Add(new StatModifier(Stat.MinAC, StatModOp.Mul, factor, source));
+                Modifiers.Add(new StatModifier(Stat.MaxAC, StatModOp.Mul, factor, source));
+                Modifiers.Add(new StatModifier(Stat.MinMAC, StatModOp.Mul, factor, source));
+                Modifiers.Add(new StatModifier(Stat.MaxMAC, StatModOp.Mul, factor, source));
+            }
+
+            ArmourMulFactor = StatMath.MulFactor(Modifiers, Stat.MinAC);
+
+            RebuildDefenceEffect();
+        }
+
+        /// <summary>
+        /// Recalculates the effective defence range from the current raw stats and
+        /// multiplier. Called after any stat rebuild and after any multiplier change.
+        /// </summary>
+        protected void RebuildDefenceEffect()
+        {
+            DefenceEff = new DefenceValues(
+                Stats[Stat.MinAC], Stats[Stat.MaxAC],
+                Stats[Stat.MinMAC], Stats[Stat.MaxMAC],
+                ArmourMulFactor, ArmourMulFactor);
+        }
+
         public int GetRangeAttackPower(int min, int max, int range)
         {
             //maxRange = highest possible damage
@@ -287,6 +353,16 @@ namespace Server.MirObjects
             if (min > max) max = min;
 
             return Envir.Random.Next(min, max + 1);
+        }
+
+        /// <summary>
+        /// Rolls a value out of the effective defence range. The multiplier is applied
+        /// to both endpoints as a float and the result is rounded once, so a 50%
+        /// reduction halves the expectation instead of shifting it down by truncation.
+        /// </summary>
+        protected int RollEffective(int min, int max, float factor)
+        {
+            return StatMath.RollBetween(min * factor, max * factor, Envir.Random.NextDouble());
         }
 
         public virtual void Remove(HumanObject player)
@@ -469,7 +545,6 @@ namespace Server.MirObjects
 
         public virtual int GetArmour(DefenceType type, MapObject attacker, out bool hit)
         {
-            var armour = 0;
             hit = true;
             switch (type)
             {
@@ -479,10 +554,6 @@ namespace Server.MirObjects
                         BroadcastDamageIndicator(DamageType.Miss);
                         hit = false;
                     }
-                    armour = GetDefencePower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
-                    break;
-                case DefenceType.AC:
-                    armour = GetDefencePower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
                     break;
                 case DefenceType.MACAgility:
                     if (Envir.Random.Next(Settings.MagicResistWeight) < Stats[Stat.MagicResist])
@@ -495,7 +566,6 @@ namespace Server.MirObjects
                         BroadcastDamageIndicator(DamageType.Miss);
                         hit = false;
                     }
-                    armour = GetDefencePower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
                     break;
                 case DefenceType.MAC:
                     if (Envir.Random.Next(Settings.MagicResistWeight) < Stats[Stat.MagicResist])
@@ -503,7 +573,6 @@ namespace Server.MirObjects
                         BroadcastDamageIndicator(DamageType.Miss);
                         hit = false;
                     }
-                    armour = GetDefencePower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
                     break;
                 case DefenceType.Agility:
                     if (Envir.Random.Next(Stats[Stat.Agility] + 1) > attacker.Stats[Stat.Accuracy])
@@ -513,7 +582,27 @@ namespace Server.MirObjects
                     }
                     break;
             }
-            return armour;
+            return RollTypeArmour(type);
+        }
+
+        /// <summary>
+        /// Rolls the effective armour for a defence type. Agility and agility+armour
+        /// types share the physical range, magic types share the magic range, and a
+        /// pure agility defence carries no armour value.
+        /// </summary>
+        protected int RollTypeArmour(DefenceType type)
+        {
+            switch (type)
+            {
+                case DefenceType.ACAgility:
+                case DefenceType.AC:
+                    return RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
+                case DefenceType.MACAgility:
+                case DefenceType.MAC:
+                    return RollEffective(Stats[Stat.MinMAC], Stats[Stat.MaxMAC], ArmourMulFactor);
+                default:
+                    return 0;
+            }
         }
 
         public virtual void ApplyNegativeEffects(HumanObject attacker, DefenceType type, ushort levelOffset)

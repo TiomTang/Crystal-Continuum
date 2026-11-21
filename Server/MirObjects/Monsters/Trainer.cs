@@ -67,19 +67,8 @@ namespace Server.MirObjects.Monsters
 
             damage += attacker.Stats[Stat.AttackBonus];
 
-            int armour = 0;
             //deal with trainers defense
-            switch (type)
-            {
-                case DefenceType.AC:
-                case DefenceType.ACAgility:
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
-                    break;
-                case DefenceType.MAC:
-                case DefenceType.MACAgility:
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
-                    break;
-            }
+            int armour = RollTypeArmour(type);
             if (armour >= damage)
             {
                 BroadcastDamageIndicator(DamageType.Miss);
@@ -114,19 +103,8 @@ namespace Server.MirObjects.Monsters
 
 
 
-            int armour = 0;
             //deal with trainers defense
-            switch (type)
-            {
-                case DefenceType.AC:
-                case DefenceType.ACAgility:
-                    armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
-                    break;
-                case DefenceType.MAC:
-                case DefenceType.MACAgility:
-                    armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
-                    break;
-            }
+            int armour = RollTypeArmour(type);
             if (armour >= damage)
             {
                 BroadcastDamageIndicator(DamageType.Miss);

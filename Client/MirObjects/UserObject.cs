@@ -169,6 +169,11 @@ namespace Client.MirObjects
 
             RefreshStatCaps();
 
+            if (Poison.HasFlag(PoisonType.Red))
+            {
+                StatMath.ApplyArmourPenalty(Stats, StatMath.PlayerRedPoisonArmourPenalty);
+            }
+
             if (this == User && Light < 3) Light = 3;
             AttackSpeed = 1400 - ((Stats[Stat.AttackSpeed] * 60) + Math.Min(370, (Level * 14)));
             if (AttackSpeed < 550) AttackSpeed = 550;
@@ -698,6 +703,7 @@ namespace Client.MirObjects
             Stats[Stat.MinMC] = Math.Min(Stats[Stat.MinMC], Stats[Stat.MaxMC]);
             Stats[Stat.MinSC] = Math.Min(Stats[Stat.MinSC], Stats[Stat.MaxSC]);
         }
+
 
         public void BindAllItems()
         {

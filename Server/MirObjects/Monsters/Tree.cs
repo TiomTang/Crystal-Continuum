@@ -64,7 +64,7 @@ namespace Server.MirObjects.Monsters
             else
             {
                 if (Envir.Random.Next(Stats[Stat.Agility] + 1) > attacker.Stats[Stat.Accuracy]) return 0;
-                armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
+                armour = RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
             }
 
             if (armour >= damage) return 0;
@@ -131,7 +131,7 @@ namespace Server.MirObjects.Monsters
             else
             {
                 if (Envir.Random.Next(Stats[Stat.Agility] + 1) > attacker.Stats[Stat.Accuracy]) return 0;
-                armour = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
+                armour = RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
             }
 
             if (armour >= damage) return 0;
