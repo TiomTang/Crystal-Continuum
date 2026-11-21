@@ -219,7 +219,7 @@ namespace Server.MirObjects
             Info = info;
             Account = Connection.Account;
 
-            Stats = new Stats();
+            BaseStats = new Stats();
 
             Report = new Reporting(this);
 
@@ -1840,7 +1840,7 @@ namespace Server.MirObjects
                 GuildBuff buff = MyGuild.BuffList[i];
                 if ((buff.Info == null) || (!buff.Active)) continue;
 
-                Stats.Add(buff.Info.Stats);
+                BaseStats.Add(buff.Info.Stats);
             }
         }
 
@@ -5856,10 +5856,10 @@ namespace Server.MirObjects
                 info.Combat = true;
                 info.MinDC = monster.Stats[Stat.MinDC];
                 info.MaxDC = monster.Stats[Stat.MaxDC];
-                info.MinAC = monster.GetDefenceDisplay(Stat.MinAC);
-                info.MaxAC = monster.GetDefenceDisplay(Stat.MaxAC);
-                info.MinMAC = monster.GetDefenceDisplay(Stat.MinMAC);
-                info.MaxMAC = monster.GetDefenceDisplay(Stat.MaxMAC);
+                info.MinAC = monster.Stats[Stat.MinAC];
+                info.MaxAC = monster.Stats[Stat.MaxAC];
+                info.MinMAC = monster.Stats[Stat.MinMAC];
+                info.MaxMAC = monster.Stats[Stat.MaxMAC];
             }
             else
             {

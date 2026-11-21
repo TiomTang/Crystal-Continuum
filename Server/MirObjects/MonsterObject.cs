@@ -677,7 +677,7 @@ namespace Server.MirObjects
         {
             Info = info;
 
-            Stats = new Stats();
+            BaseStats = new Stats();
 
             Undead = Info.Undead;
             AutoRev = info.AutoRev;
@@ -755,9 +755,9 @@ namespace Server.MirObjects
 
         protected virtual void RefreshBase()
         {
-            Stats.Clear();
+            BaseStats.Clear();
 
-            Stats.Add(Info.Stats);
+            BaseStats.Add(Info.Stats);
             ApplyMonsterTypeBonuses();
 
             MoveSpeed = Info.MoveSpeed;
@@ -789,15 +789,15 @@ namespace Server.MirObjects
         {
             if (Math.Abs(multiplier - 1D) < double.Epsilon) return;
 
-            int value = Stats[stat];
+            int value = BaseStats[stat];
             if (value == 0) return;
 
             double scaled = value * multiplier;
 
             if (stat == Stat.HP)
-                Stats[stat] = Math.Max(1, (int)Math.Round(scaled));
+                BaseStats[stat] = Math.Max(1, (int)Math.Round(scaled));
             else
-                Stats[stat] = (int)Math.Round(scaled);
+                BaseStats[stat] = (int)Math.Round(scaled);
         }
 
         protected MonsterRarityProfile GetRarityProfile()
@@ -828,23 +828,23 @@ namespace Server.MirObjects
             {
                 PetTameSettings tame = Settings.PetTame;
 
-                Stats[Stat.HP] += tame.HealthGrowth(PetLevel);
-                Stats[Stat.MinAC] += tame.DefenceGrowth(PetLevel);
-                Stats[Stat.MaxAC] += tame.DefenceGrowth(PetLevel);
-                Stats[Stat.MinMAC] += tame.MagicDefenceGrowth(PetLevel);
-                Stats[Stat.MaxMAC] += tame.MagicDefenceGrowth(PetLevel);
-                Stats[Stat.MinDC] += tame.DamageGrowth(PetLevel);
-                Stats[Stat.MaxDC] += tame.DamageGrowth(PetLevel);
+                BaseStats[Stat.HP] += tame.HealthGrowth(PetLevel);
+                BaseStats[Stat.MinAC] += tame.DefenceGrowth(PetLevel);
+                BaseStats[Stat.MaxAC] += tame.DefenceGrowth(PetLevel);
+                BaseStats[Stat.MinMAC] += tame.MagicDefenceGrowth(PetLevel);
+                BaseStats[Stat.MaxMAC] += tame.MagicDefenceGrowth(PetLevel);
+                BaseStats[Stat.MinDC] += tame.DamageGrowth(PetLevel);
+                BaseStats[Stat.MaxDC] += tame.DamageGrowth(PetLevel);
             }
             else
             {
-                Stats[Stat.HP] += summon.HealthGrowth(PetLevel);
-                Stats[Stat.MinAC] += summon.DefenceGrowth(PetLevel);
-                Stats[Stat.MaxAC] += summon.DefenceGrowth(PetLevel);
-                Stats[Stat.MinMAC] += summon.MagicDefenceGrowth(PetLevel);
-                Stats[Stat.MaxMAC] += summon.MagicDefenceGrowth(PetLevel);
-                Stats[Stat.MinDC] += summon.DamageGrowth(PetLevel);
-                Stats[Stat.MaxDC] += summon.DamageGrowth(PetLevel);
+                BaseStats[Stat.HP] += summon.HealthGrowth(PetLevel);
+                BaseStats[Stat.MinAC] += summon.DefenceGrowth(PetLevel);
+                BaseStats[Stat.MaxAC] += summon.DefenceGrowth(PetLevel);
+                BaseStats[Stat.MinMAC] += summon.MagicDefenceGrowth(PetLevel);
+                BaseStats[Stat.MaxMAC] += summon.MagicDefenceGrowth(PetLevel);
+                BaseStats[Stat.MinDC] += summon.DamageGrowth(PetLevel);
+                BaseStats[Stat.MaxDC] += summon.DamageGrowth(PetLevel);
             }
 
             PetSummonSharedSettings shared = Settings.PetSummonShared;
@@ -862,7 +862,7 @@ namespace Server.MirObjects
 
             RefreshBuffs();
 
-            RebuildDefenceEffect();
+            RebuildEffectiveStats();
         }
 
         /// <summary>
@@ -889,7 +889,7 @@ namespace Server.MirObjects
             AddInheritedStat(Stat.MaxMAC, source, settings.MaxMagicDefencePercent);
 
             if (settings.HealthPerPoint > 0)
-                Stats[Stat.HP] += source * settings.HealthPerPoint;
+                BaseStats[Stat.HP] += source * settings.HealthPerPoint;
 
             if (HP > Stats[Stat.HP]) HP = Stats[Stat.HP];
         }
@@ -930,7 +930,7 @@ namespace Server.MirObjects
         {
             if (percent <= 0) return;
 
-            Stats[stat] += (int)((long)source * percent / 100);
+            BaseStats[stat] += (int)((long)source * percent / 100);
         }
 
         protected virtual void RefreshBuffs()
@@ -939,7 +939,7 @@ namespace Server.MirObjects
             {
                 Buff buff = Buffs[i];
 
-                Stats.Add(buff.Stats);
+                BaseStats.Add(buff.Stats);
 
                 switch (buff.Type)
                 {
@@ -2977,23 +2977,7 @@ namespace Server.MirObjects
         {
             int armour = 0;
 
-            switch (type)
-            {
-                case DefenceType.ACAgility:
-                    armour = RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
-                    break;
-                case DefenceType.AC:
-                    armour = RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
-                    break;
-                case DefenceType.MACAgility:
-                    armour = RollEffective(Stats[Stat.MinMAC], Stats[Stat.MaxMAC], ArmourMulFactor);
-                    break;
-                case DefenceType.MAC:
-                    armour = RollEffective(Stats[Stat.MinMAC], Stats[Stat.MaxMAC], ArmourMulFactor);
-                    break;
-                case DefenceType.Agility:
-                    break;
-            }
+            armour = RollTypeArmour(type);
 
             damage = ScaleIncomingDamage(damage);
 
@@ -3017,7 +3001,7 @@ namespace Server.MirObjects
 
             if (!ignoreDefence && (p.PType == PoisonType.Green))
             {
-                int armour = GetAttackPower(Stats[Stat.MinMAC], Stats[Stat.MaxMAC]);
+                int armour = GetAttackPower(BaseStats[Stat.MinMAC], BaseStats[Stat.MaxMAC]);
 
                 if (p.Value < armour)
                     p.PType = PoisonType.None;

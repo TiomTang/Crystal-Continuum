@@ -23,10 +23,10 @@ namespace Server.MirObjects.Monsters
         {
             if (Master != null)
             {
-                Stats.Clear();
-                Stats.Add(Master.Stats);
+                BaseStats.Clear();
+                BaseStats.Add(Master.RawStats);
 
-                Stats[Stat.HP] = 1500;
+                BaseStats[Stat.HP] = 1500;
 
                 MoveSpeed = 100;
                 AttackSpeed = Master.AttackSpeed;
@@ -37,18 +37,20 @@ namespace Server.MirObjects.Monsters
         {
             RefreshBase();
 
-            Stats[Stat.HP] += PetLevel * 20;
-            Stats[Stat.MinAC] += PetLevel * 2;
-            Stats[Stat.MaxAC] += PetLevel * 2;
-            Stats[Stat.MinMAC] += PetLevel * 2;
-            Stats[Stat.MaxMAC] += PetLevel * 2;
-            Stats[Stat.MinDC] += PetLevel;
-            Stats[Stat.MaxDC] += PetLevel;
+            BaseStats[Stat.HP] += PetLevel * 20;
+            BaseStats[Stat.MinAC] += PetLevel * 2;
+            BaseStats[Stat.MaxAC] += PetLevel * 2;
+            BaseStats[Stat.MinMAC] += PetLevel * 2;
+            BaseStats[Stat.MaxMAC] += PetLevel * 2;
+            BaseStats[Stat.MinDC] += PetLevel;
+            BaseStats[Stat.MaxDC] += PetLevel;
 
             if (MoveSpeed < 100) MoveSpeed = 100;
             if (AttackSpeed < 100) AttackSpeed = 100;
 
             RefreshBuffs();
+
+            RebuildEffectiveStats();
         }
 
         public override bool Walk(MirDirection dir)

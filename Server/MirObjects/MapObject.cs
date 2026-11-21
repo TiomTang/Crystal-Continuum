@@ -8,6 +8,11 @@ namespace Server.MirObjects
 {
     public abstract class MapObject
     {
+        protected MapObject()
+        {
+            Stats = new StatView(effectiveStats);
+        }
+
         protected static MessageQueue MessageQueue
         {
             get { return MessageQueue.Instance; }
@@ -154,14 +159,36 @@ namespace Server.MirObjects
         public long ExpireTime, OwnerTime, OperateTime;
         public int OperateDelay = 100;
 
-        public Stats Stats;
+        /// <summary>
+        /// Raw attribute layer. Level, equipment, set bonuses and buffs accumulate
+        /// here; this is the only layer any code writes to.
+        /// </summary>
+        protected Stats BaseStats = new Stats();
+
+        private readonly Stats effectiveStats = new Stats();
+
+        /// <summary>
+        /// Effective attribute layer: <see cref="BaseStats"/> with every modifier folded
+        /// in. All readers use this layer, so no call site needs to know which stat
+        /// currently has a modifier. It is a read-only projection on purpose: writing
+        /// here would be undone by the next rebuild and hide the mistake, so changes go
+        /// through <see cref="BaseStats"/> plus <see cref="RebuildEffectiveStats"/>.
+        /// </summary>
+        public StatView Stats { get; }
+
+        /// <summary>
+        /// Raw layer for cross-object reads that must not follow modifiers, such as pets
+        /// inheriting their owner's base attributes.
+        /// </summary>
+        internal Stats RawStats => BaseStats;
 
         // Attribute modifiers, collected from their sources on every rebuild. Stage 1
-        // only poison feeds this list; equipment, skills and buffs still write Stats.
+        // only poison feeds this list; equipment, skills and buffs still write BaseStats.
         protected readonly List<StatModifier> Modifiers = new List<StatModifier>();
 
-        // Effective defence range after attribute multipliers. Stats keeps the raw
-        // values in stage 1, so this is the only place the multiplier is applied.
+        // Effective defence range as floats. Kept apart from Stats because a 50%
+        // reduction of 3..5 has to stay 1.5..2.5 through the roll, and Stats can only
+        // hold integers.
         protected DefenceValues DefenceEff;
 
         protected float ArmourMulFactor = 1F;
@@ -282,15 +309,6 @@ namespace Server.MirObjects
         }
 
         /// <summary>
-        /// Effective defence for display and script reads. Settlement moves to
-        /// GetDefencePower in stage 2; until then Attacked keeps using ArmourRate.
-        /// </summary>
-        public int GetDefenceDisplay(Stat stat)
-        {
-            return DefenceEff.Display(stat);
-        }
-
-        /// <summary>
         /// Armour penalty applied per active red poison. Players lose 10%, monsters 50%.
         /// </summary>
         protected virtual float RedPoisonArmourPenalty => StatMath.PlayerRedPoisonArmourPenalty;
@@ -320,20 +338,45 @@ namespace Server.MirObjects
 
             ArmourMulFactor = StatMath.MulFactor(Modifiers, Stat.MinAC);
 
-            RebuildDefenceEffect();
+            RebuildEffectiveStats();
 
             OnStatMultipliersChanged();
         }
 
         /// <summary>
-        /// Recalculates the effective defence range from the current raw stats and
-        /// multiplier. Called after any stat rebuild and after any multiplier change.
+        /// Rebuilds the effective layer from the raw layer. Every stat is copied first,
+        /// then each stat carrying a Mul rule is scaled by its net factor and rounded
+        /// exactly once. Repeating a stat is harmless: the net factor always comes from
+        /// the full rule list, so the second pass writes the same value.
+        /// </summary>
+        protected void RebuildEffectiveStats()
+        {
+            effectiveStats.Clear();
+            effectiveStats.Add(BaseStats);
+
+            for (int i = 0; i < Modifiers.Count; i++)
+            {
+                StatModifier modifier = Modifiers[i];
+
+                if (modifier.Op != StatModOp.Mul) continue;
+
+                float factor = StatMath.MulFactor(Modifiers, modifier.Stat);
+
+                effectiveStats[modifier.Stat] = StatMath.RoundEff(BaseStats[modifier.Stat] * factor);
+            }
+
+            RebuildDefenceEffect();
+        }
+
+        /// <summary>
+        /// Recalculates the float defence range used by settlement. Called after any
+        /// stat rebuild and after any multiplier change.
         /// </summary>
         protected void RebuildDefenceEffect()
         {
             DefenceEff = new DefenceValues(
-                Stats[Stat.MinAC], Stats[Stat.MaxAC],
-                Stats[Stat.MinMAC], Stats[Stat.MaxMAC],
+                BaseStats[Stat.MinAC], BaseStats[Stat.MaxAC],
+                BaseStats[Stat.MinMAC], BaseStats[Stat.MaxMAC],
                 ArmourMulFactor, ArmourMulFactor);
         }
 
@@ -387,16 +430,6 @@ namespace Server.MirObjects
             if (min > max) max = min;
 
             return Envir.Random.Next(min, max + 1);
-        }
-
-        /// <summary>
-        /// Rolls a value out of the effective defence range. The multiplier is applied
-        /// to both endpoints as a float and the result is rounded once, so a 50%
-        /// reduction halves the expectation instead of shifting it down by truncation.
-        /// </summary>
-        protected int RollEffective(int min, int max, float factor)
-        {
-            return StatMath.RollBetween(min * factor, max * factor, Envir.Random.NextDouble());
         }
 
         public virtual void Remove(HumanObject player)
@@ -653,10 +686,10 @@ namespace Server.MirObjects
             {
                 case DefenceType.ACAgility:
                 case DefenceType.AC:
-                    return RollEffective(Stats[Stat.MinAC], Stats[Stat.MaxAC], ArmourMulFactor);
+                    return StatMath.RollBetween(DefenceEff.MinAC, DefenceEff.MaxAC, Envir.Random.NextDouble());
                 case DefenceType.MACAgility:
                 case DefenceType.MAC:
-                    return RollEffective(Stats[Stat.MinMAC], Stats[Stat.MaxMAC], ArmourMulFactor);
+                    return StatMath.RollBetween(DefenceEff.MinMAC, DefenceEff.MaxMAC, Envir.Random.NextDouble());
                 default:
                     return 0;
             }

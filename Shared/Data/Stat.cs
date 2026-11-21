@@ -150,3 +150,23 @@ public enum Stat : byte
 
     Unknown = 255
 }
+
+/// <summary>
+/// Read-only projection of an effective attribute table. Only the indexer is exposed,
+/// so a consumer cannot assign into the layer it reads even by accident; every write
+/// belongs to the raw table followed by a rebuild.
+/// </summary>
+public readonly struct StatView
+{
+    private readonly Stats source;
+
+    public StatView(Stats source)
+    {
+        this.source = source;
+    }
+
+    public int this[Stat stat]
+    {
+        get { return source == null ? 0 : source[stat]; }
+    }
+}

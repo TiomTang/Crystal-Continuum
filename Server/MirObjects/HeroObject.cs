@@ -234,7 +234,7 @@ namespace Server.MirObjects
             Info = info;
             HInfo = (HeroInfo)info;
 
-            Stats = new Stats();            
+            BaseStats = new Stats();            
 
             if (Level == 0) NewCharacter();
 
@@ -1469,7 +1469,7 @@ namespace Server.MirObjects
 
             foreach (var stat in Settings.HeroBaseStats[(byte)Class].Stats)
             {
-                Stats[stat.Type] = stat.Calculate(Class, Level);
+                BaseStats[stat.Type] = stat.Calculate(Class, Level);
             }
         }
         public override void RefreshMaxExperience()
