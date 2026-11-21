@@ -5856,11 +5856,10 @@ namespace Server.MirObjects
                 info.Combat = true;
                 info.MinDC = monster.Stats[Stat.MinDC];
                 info.MaxDC = monster.Stats[Stat.MaxDC];
-                float armourRate = monster.ArmourRate > 0F ? monster.ArmourRate : 1F;
-                info.MinAC = (int)(monster.Stats[Stat.MinAC] * armourRate);
-                info.MaxAC = (int)(monster.Stats[Stat.MaxAC] * armourRate);
-                info.MinMAC = (int)(monster.Stats[Stat.MinMAC] * armourRate);
-                info.MaxMAC = (int)(monster.Stats[Stat.MaxMAC] * armourRate);
+                info.MinAC = monster.GetDefenceDisplay(Stat.MinAC);
+                info.MaxAC = monster.GetDefenceDisplay(Stat.MaxAC);
+                info.MinMAC = monster.GetDefenceDisplay(Stat.MinMAC);
+                info.MaxMAC = monster.GetDefenceDisplay(Stat.MaxMAC);
             }
             else
             {

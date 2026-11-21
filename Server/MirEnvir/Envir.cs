@@ -37,6 +37,8 @@ namespace Server.MirEnvir
             RandomWrapper.Value.Next(maxValue);
         public int Next(int minValue, int maxValue) =>
             RandomWrapper.Value.Next(minValue, maxValue);
+        public double NextDouble() =>
+            RandomWrapper.Value.NextDouble();
     }
 
     public class Envir
