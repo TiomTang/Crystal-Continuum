@@ -7153,6 +7153,39 @@ namespace Server.MirObjects
         }
         public override void ReceiveChat(string text, ChatType type) { }
         public override Packet GetInfo() { return null; }
+        /// <summary>
+        /// Energy shield: a chance for incoming damage to restore health instead of
+        /// removing it. Rolled only when the stat is present, matching the original order.
+        /// </summary>
+        protected void TryEnergyShield()
+        {
+            if (Stats[Stat.EnergyShieldPercent] <= 0) return;
+            if (Envir.Random.Next(100) >= Stats[Stat.EnergyShieldPercent]) return;
+
+            if (HP + Stats[Stat.EnergyShieldHPGain] >= Stats[Stat.HP])
+                SetHP(Stats[Stat.HP]);
+            else
+                ChangeHP(Stats[Stat.EnergyShieldHPGain]);
+        }
+
+        /// <summary>
+        /// Damage shields lose duration in proportion to the damage that got through.
+        /// </summary>
+        protected void DrainDamageShields(int damage, int armour)
+        {
+            if (HasBuff(BuffType.MagicShield, out Buff magicShield))
+            {
+                var duration = (int)Math.Min(int.MaxValue, magicShield.ExpireTime - ((damage - armour) * 60));
+                AddBuff(BuffType.MagicShield, this, duration, null);
+            }
+
+            if (HasBuff(BuffType.ElementalBarrier, out Buff elementalBarrier))
+            {
+                var duration = (int)Math.Min(int.MaxValue, elementalBarrier.ExpireTime - ((damage - armour) * 60));
+                AddBuff(BuffType.ElementalBarrier, this, duration, null);
+            }
+        }
+
         public override int Attacked(HumanObject attacker, int damage, DefenceType type = DefenceType.ACAgility, bool damageWeapon = true)
         {
             if (attacker.Race == ObjectType.Hero)
@@ -7171,7 +7204,7 @@ namespace Server.MirObjects
                 return 0;
             }
 
-            damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
+            damage = ScaleIncomingDamage(damage);
 
             if (damageWeapon)
                 attacker.DamageWeapon();
@@ -7207,16 +7240,7 @@ namespace Server.MirObjects
             }
 
             //EnergyShield
-            if (Stats[Stat.EnergyShieldPercent] > 0)
-            {
-                if (Envir.Random.Next(100) < Stats[Stat.EnergyShieldPercent])
-                {
-                    if (HP + (Stats[Stat.EnergyShieldHPGain]) >= Stats[Stat.HP])
-                        SetHP(Stats[Stat.HP]);
-                    else
-                        ChangeHP(Stats[Stat.EnergyShieldHPGain]);
-                }
-            }
+            TryEnergyShield();
 
             if (Envir.Random.Next(100) < (attacker.Stats[Stat.CriticalRate] * Settings.CriticalRateWeight))
             {
@@ -7225,17 +7249,7 @@ namespace Server.MirObjects
                 BroadcastDamageIndicator(DamageType.Critical);
             }
 
-            if (HasBuff(BuffType.MagicShield, out Buff magicShield))
-            {
-                var duration = (int)Math.Min(int.MaxValue, magicShield.ExpireTime - ((damage - armour) * 60));
-                AddBuff(BuffType.MagicShield, this, duration, null);
-            }
-
-            if (HasBuff(BuffType.ElementalBarrier, out Buff elementalBarrier))
-            {
-                var duration = (int)Math.Min(int.MaxValue, elementalBarrier.ExpireTime - ((damage - armour) * 60));
-                AddBuff(BuffType.ElementalBarrier, this, duration, null);
-            }
+            DrainDamageShields(damage, armour);
 
             if (attacker.Stats[Stat.HPDrainRatePercent] > 0 && damageWeapon)
             {
@@ -7248,13 +7262,7 @@ namespace Server.MirObjects
                 }
             }
 
-            for (int i = PoisonList.Count - 1; i >= 0; i--)
-            {
-                if (PoisonList[i].PType != PoisonType.LRParalysis) continue;
-
-                PoisonList.RemoveAt(i);
-                OperateTime = 0;
-            }
+            ClearParalysisOnHit();
 
             LastHitter = attacker;
             LastHitTime = Envir.Time + 10000;
@@ -7305,7 +7313,7 @@ namespace Server.MirObjects
                 return 0;
             }
 
-            damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
+            damage = ScaleIncomingDamage(damage);
 
             //MagicShield, ElementalBarrier
             if (Stats[Stat.DamageReductionPercent] != 0)
@@ -7325,36 +7333,11 @@ namespace Server.MirObjects
                 RemoveBuff(BuffType.DarkBody);
             }
 
-            if (Stats[Stat.EnergyShieldPercent] > 0)
-            {
-                if (Envir.Random.Next(100) < Stats[Stat.EnergyShieldPercent])
-                {
-                    if (HP + (Stats[Stat.EnergyShieldHPGain]) >= Stats[Stat.HP])
-                        SetHP(Stats[Stat.HP]);
-                    else
-                        ChangeHP(Stats[Stat.EnergyShieldHPGain]);
-                }
-            }
+            TryEnergyShield();
 
-            if (HasBuff(BuffType.MagicShield, out Buff magicShield))
-            {
-                var duration = (int)Math.Min(int.MaxValue, magicShield.ExpireTime - ((damage - armour) * 60));
-                AddBuff(BuffType.MagicShield, this, duration, null);
-            }
+            DrainDamageShields(damage, armour);
 
-            if (HasBuff(BuffType.ElementalBarrier, out Buff elementalBarrier))
-            {
-                var duration = (int)Math.Min(int.MaxValue, elementalBarrier.ExpireTime - ((damage - armour) * 60));
-                AddBuff(BuffType.ElementalBarrier, this, duration, null);
-            }
-
-            for (int i = PoisonList.Count - 1; i >= 0; i--)
-            {
-                if (PoisonList[i].PType != PoisonType.LRParalysis) continue;
-
-                PoisonList.RemoveAt(i);
-                OperateTime = 0;
-            }
+            ClearParalysisOnHit();
 
             LastHitter = attacker.Master ?? attacker;
             LastHitTime = Envir.Time + 10000;
@@ -7407,7 +7390,7 @@ namespace Server.MirObjects
                     break;
             }
 
-            damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
+            damage = ScaleIncomingDamage(damage);
 
             //MagicShield, ElementalBarrier
             if (Stats[Stat.DamageReductionPercent] != 0)
@@ -7417,17 +7400,7 @@ namespace Server.MirObjects
 
             if (armour >= damage) return 0;
 
-            if (HasBuff(BuffType.MagicShield, out Buff magicShield))
-            {
-                var duration = (int)Math.Min(int.MaxValue, magicShield.ExpireTime - ((damage - armour) * 60));
-                AddBuff(BuffType.MagicShield, this, duration, null);
-            }
-
-            if (HasBuff(BuffType.ElementalBarrier, out Buff elementalBarrier))
-            {
-                var duration = (int)Math.Min(int.MaxValue, elementalBarrier.ExpireTime - ((damage - armour) * 60));
-                AddBuff(BuffType.ElementalBarrier, this, duration, null);
-            }
+            DrainDamageShields(damage, armour);
 
             RegenTime = Envir.Time + RegenDelay;
             LogTime = Envir.Time + Globals.LogDelay;

@@ -2765,7 +2765,7 @@ namespace Server.MirObjects
             if (!hit)
                 return 0;
 
-            damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
+            damage = ScaleIncomingDamage(damage);
 
             if (damageWeapon)
                 attacker.DamageWeapon();
@@ -2798,13 +2798,7 @@ namespace Server.MirObjects
             if (BindingShotCenter) ReleaseBindingShot();
             ShockTime = 0;
 
-            for (int i = PoisonList.Count - 1; i >= 0; i--)
-            {
-                if (PoisonList[i].PType != PoisonType.LRParalysis) continue;
-
-                PoisonList.RemoveAt(i);
-                OperateTime = 0;
-            }
+            ClearParalysisOnHit();
 
             if (Master != null && Master != attacker && (Master.Race != ObjectType.Hero || Master.Race == ObjectType.Hero && attacker != ((HeroObject)Master).Owner))
                 if (Envir.Time > Master.BrownTime && Master.PKPoints < 200)
@@ -2879,7 +2873,7 @@ namespace Server.MirObjects
             if (!hit)
                 return 0;
 
-            damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
+            damage = ScaleIncomingDamage(damage);
 
             if (armour >= damage)
             {
@@ -2893,13 +2887,7 @@ namespace Server.MirObjects
             if (BindingShotCenter) ReleaseBindingShot();
             ShockTime = 0;
 
-            for (int i = PoisonList.Count - 1; i >= 0; i--)
-            {
-                if (PoisonList[i].PType != PoisonType.LRParalysis) continue;
-
-                PoisonList.RemoveAt(i);
-                OperateTime = 0;
-            }
+            ClearParalysisOnHit();
 
             if (attacker.Info.AI == 6 || attacker.Info.AI == 58 || attacker.Info.AI == 113)
                 EXPOwner = null;
@@ -2954,7 +2942,7 @@ namespace Server.MirObjects
                     break;
             }
 
-            damage = (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
+            damage = ScaleIncomingDamage(damage);
 
             if (armour >= damage) return 0;
             Broadcast(new S.ObjectStruck { ObjectID = ObjectID, AttackerID = 0, Direction = Direction, Location = CurrentLocation });

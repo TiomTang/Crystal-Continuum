@@ -620,6 +620,29 @@ namespace Server.MirObjects
         }
 
         /// <summary>
+        /// Applies the incoming damage multiplier. Every attack path funnels through here
+        /// so a new damage-taken modifier cannot be missed by one entry point.
+        /// </summary>
+        protected int ScaleIncomingDamage(int damage)
+        {
+            return (int)Math.Max(int.MinValue, (Math.Min(int.MaxValue, (decimal)(damage * DamageRate))));
+        }
+
+        /// <summary>
+        /// A landed hit clears low-level paralysis, on every attack path.
+        /// </summary>
+        protected void ClearParalysisOnHit()
+        {
+            for (int i = PoisonList.Count - 1; i >= 0; i--)
+            {
+                if (PoisonList[i].PType != PoisonType.LRParalysis) continue;
+
+                PoisonList.RemoveAt(i);
+                OperateTime = 0;
+            }
+        }
+
+        /// <summary>
         /// Rolls the effective armour for a defence type. Agility and agility+armour
         /// types share the physical range, magic types share the magic range, and a
         /// pure agility defence carries no armour value.
