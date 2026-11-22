@@ -1330,9 +1330,17 @@ namespace Server.MirObjects
             ProcessPoison();
         }
 
+        /// <summary>
+        /// Base re-check deadline, spread per object. Every monster processed in one pass is
+        /// re-armed to the same instant, so the whole world woke in 2s-aligned bursts: measured
+        /// 125ms of CPU in a single cycle while neighbouring cycles sat at 0. Jittering the base
+        /// by up to 500ms keeps the same average cadence and spreads the work over ~25 cycles.
+        /// </summary>
+        private static int RearmJitter(uint objectId) => (int)(objectId % 500u);
+
         public override void SetOperateTime()
         {
-            long time = Envir.Time + 2000;
+            long time = Envir.Time + 2000 + RearmJitter(ObjectID);
 
             if (AloneTime < time && AloneTime > Envir.Time)
                 time = AloneTime;
@@ -1802,7 +1810,16 @@ namespace Server.MirObjects
         {
             if (Envir.Time < AloneTime) return;
 
-            AloneTime = Envir.Time + AloneDelay;
+            // AloneTime is picked up by SetOperateTime whenever it is closer than the base re-arm,
+            // and every monster processed in one pass gets the identical value, so a whole
+            // partition expired together every 3s (measured: due_max == partition size).
+            //
+            // Only wild monsters are spread: they are the ones that arrive in tens of thousands and
+            // can be paced without anyone noticing. A pet's whole rhythm hangs off this anchor
+            // (SetOperateTime falls back to it on every second tick), so adding up to 500ms here
+            // slows that pet's actions by 8-17% for good, and which pets suffer depends on their
+            // ObjectID: owners report "sometimes it lags half a beat".
+            AloneTime = Envir.Time + AloneDelay + (master == null ? RearmJitter(ObjectID) : 0);
 
             if (Route.Count > 0)
             {

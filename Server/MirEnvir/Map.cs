@@ -29,6 +29,10 @@ namespace Server.MirEnvir
         public List<Door> Doors = new List<Door>();
         public MineSpot[,] Mine;
         public long LightningTime, FireTime;
+        // Spawn delays are seconds to minutes and RespawnTicks is a 10s counter, so a 100ms
+        // rescan is well inside the original timing while removing 90% of the map ticks.
+        private const int RespawnCheckInterval = 100;
+        private long NextRespawnCheck;
         public int MonsterCount;
 
         public List<NPCObject> NPCs = new List<NPCObject>();
@@ -652,7 +656,11 @@ namespace Server.MirEnvir
 
         public void Process()
         {
-            ProcessRespawns();
+            if (Envir.Time >= NextRespawnCheck)
+            {
+                NextRespawnCheck = Envir.Time + RespawnCheckInterval;
+                ProcessRespawns();
+            }
 
             for (int i = 0; i < Doors.Count; i++)
             {

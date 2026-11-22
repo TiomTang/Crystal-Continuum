@@ -21,7 +21,12 @@ namespace Server.MirEnvir
         public int Id = 0;
         public long LastRunTime = 0;
         public long StartTime = 0;
-        public LinkedList<MapObject> ObjectsList = new LinkedList<MapObject>();
+
+        /// <summary>
+        /// Deadline wheel holding the monsters this partition owns. Replaced the flat object list
+        /// so a pass pays for the due objects instead of the whole population.
+        /// </summary>
+        public readonly MobWheel Wheel = new MobWheel();
     }
     public class RandomProvider
     {
@@ -182,6 +187,12 @@ namespace Server.MirEnvir
 
         public LightSetting Lights;
         public LinkedList<MapObject> Objects = new LinkedList<MapObject>();
+        /// <summary>
+        /// Objects the main work loop scans each cycle: everything except monsters a partition
+        /// thread owns. Membership is maintained by MapObject.Spawned/Despawn and the Master
+        /// setter, so Envir.Objects stays the full spawn root used by liveness checks and scripts.
+        /// </summary>
+        public LinkedList<MapObject> MainLoopObjects = new LinkedList<MapObject>();
         public Dictionary<int, NPCScript> Scripts = new Dictionary<int, NPCScript>();
         public Dictionary<string, Timer> Timers = new Dictionary<string, Timer>();
 
@@ -2045,6 +2056,8 @@ namespace Server.MirEnvir
                 var startTime = Time;
 
                 var processCount = 0;
+                var walkVisited = 0;
+                var walkDue = 0;
                 var processRealCount = 0;
 
                 LinkedListNode<MapObject> current = null;
@@ -2083,6 +2096,10 @@ namespace Server.MirEnvir
                     {
                         var cycleStart = Stopwatch.ElapsedMilliseconds;
                         Time = cycleStart;
+                        SchedulerProbe.MarkCycleStart();
+                        SchedulerProbe.MarkPhaseStart();
+                        walkVisited = 0;
+                        walkDue = 0;
 
                         if (Time >= processTime)
                         {
@@ -2117,12 +2134,13 @@ namespace Server.MirEnvir
                                 }
                             }
                         }
+                        SchedulerProbe.EndPhase(0);
 
 
                         if (current == null)
-                            current = Objects.First;
+                            current = MainLoopObjects.First;
 
-                        if (current == Objects.First)
+                        if (current == MainLoopObjects.First)
                         {
                             LastRunTime = Time - startTime;
                             startTime = Time;
@@ -2133,6 +2151,7 @@ namespace Server.MirEnvir
                             // A finite pass per map partition; Parallel.For joins all work before world mutations.
                             Parallel.For(0, MobThreads.Length, j => ThreadLoop(MobThreads[j]));
                         }
+                        SchedulerProbe.EndPhase(1);
 
                         if (!Running) break;
 
@@ -2147,10 +2166,12 @@ namespace Server.MirEnvir
                             }
 
                             var next = current.Next;
+                            walkVisited++;
                             if (!Settings.Multithreaded || current.Value.Race != ObjectType.Monster || current.Value.Master != null)
                             {
                                 if (Time > current.Value.OperateTime)
                                 {
+                                    walkDue++;
                                     current.Value.Process();
                                     current.Value.SetOperateTime();
                                 }
@@ -2158,13 +2179,16 @@ namespace Server.MirEnvir
                             }
                             current = next;
                         }
+                        SchedulerProbe.EndPhase(2);
 
                         for (var i = 0; i < MapList.Count; i++)
                             MapList[i].Process();
 
                         DragonSystem?.Process();
+                        SchedulerProbe.EndPhase(3);
 
                         Process();
+                        SchedulerProbe.EndPhase(4);
 
                         if (Time >= saveTime)
                         {
@@ -2196,7 +2220,10 @@ namespace Server.MirEnvir
                             });
                         }
 
-                        WaitForNextCycle(cycleStart);
+                        SchedulerProbe.MarkWorkEnd();
+                        long probeWaitMs = WaitForNextCycle(cycleStart);
+                        SchedulerProbe.NoteCycle(this, probeWaitMs, walkVisited, walkDue);
+                        SchedulerProbe.ReportDue(this);
                     }
                 }
                 catch (Exception ex)
@@ -2248,11 +2275,13 @@ namespace Server.MirEnvir
             }
         }
 
-        private void WaitForNextCycle(long cycleStart)
+        private long WaitForNextCycle(long cycleStart)
         {
             var remaining = cycleStart + CycleInterval - Stopwatch.ElapsedMilliseconds;
-            if (remaining > 0)
-                _stopEvent.WaitOne((int)remaining);
+            if (remaining <= 0) return 0;
+            var before = Stopwatch.ElapsedMilliseconds;
+            _stopEvent.WaitOne((int)remaining);
+            return Stopwatch.ElapsedMilliseconds - before;
         }
 
         // Keep the stopped world available for a later Stop retry if any final save
@@ -2307,28 +2336,34 @@ namespace Server.MirEnvir
         {
             Info.LastRunTime = (Info.LastRunTime + (Time - Info.StartTime)) / 2;
             Info.StartTime = Time;
-            var current = Info.ObjectsList.First;
-            var remaining = Info.ObjectsList.Count;
 
-            // Cache Next before Process, which may despawn the current monster. Never wrap to First.
-            while (Running && current != null && remaining-- > 0)
+            // Only objects whose deadline has arrived leave the wheel; everything else stays parked
+            // in its bucket, so an idle partition costs almost nothing per pass.
+            var batch = Info.Wheel.TakeDue(Time, out var probeEarliest, out var probeLatest, out var probeLateMax);
+            var probeDue = 0;
+
+            for (var i = 0; i < batch.Count; i++)
             {
-                var next = current.Next;
+                var obj = batch[i];
                 try
                 {
-                    if (Time > current.Value.OperateTime && current.Value.Master == null)
+                    if (obj.Master == null)
                     {
-                        current.Value.Process();
-                        current.Value.SetOperateTime();
+                        probeDue++;
+                        obj.Process();
                     }
+                    // Pets belong to the main loop; re-arm them so they keep their own cadence.
+                    obj.SetOperateTime();
                 }
                 catch (Exception ex)
                 {
                     // A bad object must not permanently disable the rest of its map partition.
                     MessageQueue.Enqueue(GameLanguage.Get("[threadloop error]{0}", ex));
                 }
-                current = next;
+                Info.Wheel.Reinsert(obj);
             }
+
+            SchedulerProbe.NotePartition(Info.Id, Info.Wheel.Count, probeDue, probeEarliest, probeLatest, probeLateMax, Time);
         }
 
         private void AdjustLights()
@@ -3708,7 +3743,7 @@ namespace Server.MirEnvir
         private void ReleaseRuntimeState()
         {
             for (var i = 0; i < MobThreads.Length; i++)
-                MobThreads[i]?.ObjectsList.Clear();
+                MobThreads[i]?.Wheel.Clear();
 
             // Maps (and everything they own: Cells, Doors, NPCs, Respawns) are only
             // reachable through these roots once the world is torn down.
@@ -3718,6 +3753,7 @@ namespace Server.MirEnvir
             GTMapList.Clear();
 
             Objects.Clear();
+            MainLoopObjects.Clear();
             Players.Clear();
             Heroes.Clear();
             Spells.Clear();

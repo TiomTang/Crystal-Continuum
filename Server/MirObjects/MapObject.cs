@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Threading;
 ﻿using Server.MirDatabase;
 using Server.MirEnvir;
 using Server.MirObjects.Monsters;
@@ -32,7 +33,7 @@ namespace Server.MirObjects
         public long ExplosionInflictedTime;
         public int ExplosionInflictedStage;
 
-        private int SpawnThread;
+        private int SpawnThread = -1;
 
         private Map _currentMap;
         public Map CurrentMap
@@ -152,12 +153,54 @@ namespace Server.MirObjects
         public virtual MapObject Master
         {
             get { return master; }
-            set { master = value; }
+            set
+            {
+                if (master == value) return;
+                master = value;
+                SyncLoopMembership();
+            }
         }
 
         public MapObject LastHitter, EXPOwner, Owner;
-        public long ExpireTime, OwnerTime, OperateTime;
+        public long ExpireTime, OwnerTime;
         public int OperateDelay = 100;
+
+        private long _operateTime;
+
+        /// <summary>
+        /// Deadline used by both work loops. It runs through a property so a deadline pulled
+        /// forward from another thread (a player hitting this object sets it to zero) is re-parked
+        /// in its partition wheel immediately; as a plain field it would have waited for the bucket
+        /// its old deadline pointed at, up to a few seconds of missing reaction.
+        /// </summary>
+        public long OperateTime
+        {
+            get { return Volatile.Read(ref _operateTime); }
+            set
+            {
+                if (Interlocked.Exchange(ref _operateTime, value) == value) return;
+
+                var wheel = Wheel;
+                if (wheel != null) wheel.Reslot(this);
+            }
+        }
+
+        /// <summary>Set while a partition pass is processing this object; the pass re-parks it after.</summary>
+        internal bool WheelDetached;
+
+        private MobWheel Wheel
+        {
+            get
+            {
+                if (NodeThreaded == null) return null;
+
+                var threads = Envir.MobThreads;
+                if (threads == null || SpawnThread < 0 || SpawnThread >= threads.Length) return null;
+
+                var thread = threads[SpawnThread];
+                return thread == null ? null : thread.Wheel;
+            }
+        }
 
         /// <summary>
         /// Raw attribute layer. Level, equipment, set bonuses and buffs accumulate
@@ -239,6 +282,7 @@ namespace Server.MirObjects
 
         public LinkedListNode<MapObject> Node;
         public LinkedListNode<MapObject> NodeThreaded;
+        public LinkedListNode<MapObject> NodeMainLoop;
         public long RevTime;
 
         public virtual bool Blocking
@@ -533,6 +577,44 @@ namespace Server.MirObjects
             return true;
         }
 
+        /// <summary>
+        /// Keeps both scanning structures aligned with who actually runs where: everything that is
+        /// not a monster owned by a partition thread (see Envir.WorkLoop). Pets stay in the main
+        /// list, so taming and untaming must move membership through the Master setter.
+        /// Callers run on the main thread; partition threads only despawn non-pet monsters, which
+        /// never belong to this list.
+        /// </summary>
+        private void SyncLoopMembership()
+        {
+            if (Node == null) return;
+
+            bool scanInMainLoop = !Settings.Multithreaded || Race != ObjectType.Monster || master != null;
+            if (scanInMainLoop)
+            {
+                if (NodeMainLoop == null) NodeMainLoop = Envir.MainLoopObjects.AddLast(this);
+            }
+            else if (NodeMainLoop != null)
+            {
+                Envir.MainLoopObjects.Remove(NodeMainLoop);
+                NodeMainLoop = null;
+            }
+
+            // A plain monster is parked in its partition wheel; pets and everything else stay on
+            // the main list above, so the two structures never hold the same object.
+            if (!scanInMainLoop)
+            {
+                if (NodeThreaded == null)
+                {
+                    if (SpawnThread < 0) SpawnThread = CurrentMap.Thread;
+                    Envir.MobThreads[SpawnThread].Wheel.Add(this);
+                }
+            }
+            else if (NodeThreaded != null)
+            {
+                Envir.MobThreads[SpawnThread].Wheel.Remove(this);
+            }
+        }
+
         public virtual void Spawned()
         {
             if (Node != null)
@@ -540,11 +622,11 @@ namespace Server.MirObjects
 
             Node = Envir.Objects.AddLast(this);
             if ((Race == ObjectType.Monster) && Settings.Multithreaded)
-            {
                 SpawnThread = CurrentMap.Thread;
-                NodeThreaded = Envir.MobThreads[SpawnThread].ObjectsList.AddLast(this);
-            }
 
+            SyncLoopMembership();
+
+            // Set after membership so the wheel parks the object by its real deadline.
             OperateTime = Envir.Time + Envir.Random.Next(OperateDelay);
 
             BroadcastInfo();
@@ -559,9 +641,14 @@ namespace Server.MirObjects
             
             Broadcast(new S.ObjectRemove { ObjectID = ObjectID });
             Envir.Objects.Remove(Node);
-            if (Settings.Multithreaded && (Race == ObjectType.Monster))
+            if (NodeMainLoop != null)
             {
-                Envir.MobThreads[SpawnThread].ObjectsList.Remove(NodeThreaded);
+                Envir.MainLoopObjects.Remove(NodeMainLoop);
+                NodeMainLoop = null;
+            }
+            if (NodeThreaded != null)
+            {
+                Envir.MobThreads[SpawnThread].Wheel.Remove(this);
             }
 
             ActionList.Clear();
