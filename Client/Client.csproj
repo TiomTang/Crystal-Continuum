@@ -41,8 +41,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Shared\Shared.csproj" />
-    <ProjectReference Include="../Client.Bootstrap/Client.Bootstrap.csproj" />
-    <ProjectReference Include="../Launcher/Launcher.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

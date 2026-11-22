@@ -16,6 +16,9 @@ namespace Client.Resolution
         {
             bool parsedOK = false;
 
+            // Repeated calls replace the previous result instead of appending to it.
+            DisplaySupportedResolutions.Clear();
+
             var supportedResolutions = Enum.GetNames(typeof(eSupportedResolution));
             try
             {
@@ -61,6 +64,21 @@ namespace Client.Resolution
             }
 
             return parsedOK;
+        }
+
+        /// <summary>
+        /// Widest width the monitor reports among the choices the client offers, used to fall back
+        /// from a saved resolution the monitor cannot show. Zero when nothing was enumerated.
+        /// </summary>
+        internal static int MaxSupportedWidth()
+        {
+            int widest = 0;
+
+            foreach (eSupportedResolution resolution in DisplaySupportedResolutions)
+                if ((int)resolution > widest)
+                    widest = (int)resolution;
+
+            return widest;
         }
 
         internal static bool IsSupported(int resolution)

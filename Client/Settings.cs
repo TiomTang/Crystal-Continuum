@@ -1,4 +1,7 @@
-﻿using Client.MirSounds;
+﻿using System.Globalization;
+using Client.Launching;
+using Client.MirSounds;
+using Client.Resolution;
 
 namespace Client
 {
@@ -6,8 +9,11 @@ namespace Client
     {
         public const long CleanDelay = 600000;
 
+        public const string StandardConfigFile = @".\Mir2Config.ini";
+        public const string TestConfigFile = @".\Mir2Test.ini";
+
         public static int ScreenWidth = 1024, ScreenHeight = 768;
-        private static InIReader Reader = new InIReader(@".\Mir2Config.ini");
+        private static InIReader Reader = new InIReader(StandardConfigFile);
         private static InIReader QuestTrackingReader = new InIReader(Path.Combine(UserDataPath, @".\QuestTracking.ini"));
 
         private static bool _useTestConfig;
@@ -19,13 +25,19 @@ namespace Client
             }
             set
             {
-                if (value == true)
-                {
-                    Reader = new InIReader(@".\Mir2Test.ini");
-                }
+                Reader = new InIReader(value ? TestConfigFile : StandardConfigFile);
                 _useTestConfig = value;
             }
         }
+
+        /// <summary>Configuration file this run reads and writes, chosen by <see cref="UseTestConfig"/>.</summary>
+        public static string ConfigFile => UseTestConfig ? TestConfigFile : StandardConfigFile;
+
+        /// <summary>
+        /// Set while a start had no configuration file yet. Loading fills missing keys as it
+        /// reads, so a first launch completes the file in one verified save afterwards.
+        /// </summary>
+        public static bool IsFirstLaunch { get; private set; }
 
         public const string DataPath = @".\Data\",
                             MapPath = @".\Map\",
@@ -204,27 +216,107 @@ namespace Client
             FilterGuildChat = false;
 
 
-        public static void ApplyLaunchOptions(Client.Bootstrap.LaunchOptions options)
+        /// <summary>
+        /// Apply launch arguments in memory only. Nothing reaches the configuration file until
+        /// <see cref="SaveLaunchOverrides"/> runs, so a rejected value or a failure later in
+        /// startup cannot leave a half-applied configuration behind.
+        /// </summary>
+        public static void ApplyLaunchOptions(LaunchOptions options)
         {
             if (options.Host != null) IPAddress = options.Host;
             if (options.Port.HasValue) Port = options.Port.Value;
-            if (options.Resolution != null)
+            if (options.Resolution.HasValue)
             {
-                string[] dimensions = options.Resolution.Split('x');
-                Resolution = int.Parse(dimensions[0]); ResolutionHeight = int.Parse(dimensions[1]);
+                ResolutionOptions.Option resolution = options.Resolution.Value;
+                Resolution = resolution.Width;
+                ResolutionHeight = resolution.Height;
             }
-            if (options.DisplayMode != null) Mode = options.DisplayMode switch
-            {
-                "fullscreen" => DisplayMode.FullScreen,
-                "maximized" => DisplayMode.Maximized,
-                _ => DisplayMode.Windowed
-            };
+            if (options.DisplayMode.HasValue) Mode = options.DisplayMode.Value;
             if (options.FpsCap.HasValue) FPSCap = options.FpsCap.Value;
             if (options.Topmost.HasValue) TopMost = options.Topmost.Value;
         }
 
+        /// <summary>
+        /// Persist the arguments the caller passed explicitly, before the client opens a
+        /// connection: a later start without arguments keeps the same endpoint and display
+        /// settings, and this process does not keep them only in memory. Values are the ones the
+        /// running client actually uses, so a resolution the display cannot show is already
+        /// corrected. Returns false when the file does not hold the values afterwards.
+        /// </summary>
+        public static bool SaveLaunchOverrides(LaunchOptions options)
+        {
+            if (options == null || !options.HasOverrides) return true;
+
+            var values = new List<(string Section, string Key, string Value)>();
+
+            if (options.Host != null || options.Port.HasValue)
+            {
+                // UseConfig gates the endpoint on load, so an explicit endpoint must set it too.
+                values.Add(("Network", "UseConfig", bool.TrueString));
+                if (options.Host != null) values.Add(("Network", "IPAddress", IPAddress));
+                if (options.Port.HasValue) values.Add(("Network", "Port", Port.ToString(CultureInfo.InvariantCulture)));
+            }
+            if (options.Resolution.HasValue)
+            {
+                values.Add(("Graphics", "Resolution", Resolution.ToString(CultureInfo.InvariantCulture)));
+                values.Add(("Graphics", "ResolutionHeight", ResolutionHeight.ToString(CultureInfo.InvariantCulture)));
+            }
+            if (options.DisplayMode.HasValue)
+                values.Add(("Graphics", "DisplayMode", ((int)Mode).ToString(CultureInfo.InvariantCulture)));
+            if (options.FpsCap.HasValue) values.Add(("Graphics", "FPSCap", FPSCap.ToString()));
+            if (options.Topmost.HasValue) values.Add(("Graphics", "AlwaysOnTop", TopMost.ToString()));
+
+            Reader.WriteBatch(values);
+
+            return HoldsLaunchOverrides(options);
+        }
+
+        /// <summary>Read the file back from disk; the cached reader alone proves nothing.</summary>
+        private static bool HoldsLaunchOverrides(LaunchOptions options)
+        {
+            var reader = new InIReader(ConfigFile);
+
+            if (options.Host != null && !string.Equals(reader.ReadString("Network", "IPAddress", "", false), IPAddress, StringComparison.Ordinal)) return false;
+            if (options.Port.HasValue && reader.ReadInt32("Network", "Port", 0, false) != Port) return false;
+            if ((options.Host != null || options.Port.HasValue) && !reader.ReadBoolean("Network", "UseConfig", false, false)) return false;
+            if (options.Resolution.HasValue &&
+                (reader.ReadInt32("Graphics", "Resolution", -1, false) != Resolution ||
+                 reader.ReadInt32("Graphics", "ResolutionHeight", -1, false) != ResolutionHeight)) return false;
+            if (options.DisplayMode.HasValue && reader.ReadInt32("Graphics", "DisplayMode", -1, false) != (int)Mode) return false;
+            if (options.FpsCap.HasValue && reader.ReadBoolean("Graphics", "FPSCap", !FPSCap, false) != FPSCap) return false;
+            if (options.Topmost.HasValue && reader.ReadBoolean("Graphics", "AlwaysOnTop", !TopMost, false) != TopMost) return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Complete the configuration on a start that had none: loading fills the keys it reads,
+        /// and this save writes the rest in one flush. The result is verified because an
+        /// unwritable folder would otherwise silently drop every later change.
+        /// </summary>
+        public static void EnsureFirstLaunchConfig()
+        {
+            if (!IsFirstLaunch) return;
+
+            IsFirstLaunch = false;
+
+            Save();
+
+            // A created file is not proof: an unwritable or full folder can let loading create the
+            // file and still lose every write, so read a key back before trusting the defaults.
+            if (File.Exists(ConfigFile) && new InIReader(ConfigFile).ReadInt32("Graphics", "DisplayMode", -1, false) >= 0) return;
+
+            string target = Path.GetFullPath(ConfigFile);
+            CMain.SaveError("[Settings] First launch could not create " + target);
+            MessageBox.Show(GameLanguage.Get("The client settings file could not be created:") + Environment.NewLine + target +
+                            Environment.NewLine + Environment.NewLine +
+                            GameLanguage.Get("The game will still start with default settings, but changes will not be remembered."),
+                            GameLanguage.Get("Unable to save settings"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
         public static void Load()
         {
+            IsFirstLaunch = !File.Exists(ConfigFile);
 
 
             if (!Directory.Exists(DataPath)) Directory.CreateDirectory(DataPath);
@@ -232,7 +324,8 @@ namespace Client
             if (!Directory.Exists(SoundPath)) Directory.CreateDirectory(SoundPath);
 
             //Graphics
-            int displayMode = Reader.ReadInt32("Graphics", "DisplayMode", -1);
+            // Read without writing: a missing key must not leave the migration marker -1 in the file.
+            int displayMode = Reader.ReadInt32("Graphics", "DisplayMode", -1, false);
             if (displayMode < 0 || !Enum.IsDefined(typeof(DisplayMode), (DisplayMode)displayMode))
             {
                 // Older configs have no DisplayMode entry; migrate them as FullScreen
@@ -326,17 +419,27 @@ namespace Client
             FilterGroupChat = Reader.ReadBoolean("Filter", "FilterGroupChat", FilterGroupChat);
             FilterGuildChat = Reader.ReadBoolean("Filter", "FilterGuildChat", FilterGuildChat);
 
+            LoadLanguage();
+        }
+
+        /// <summary>
+        /// Load the language pack the saved configuration selects. Startup messages shown before
+        /// <see cref="Load"/> (the installation gate) use it too, so it has to be usable on its own.
+        /// </summary>
+        public static void LoadLanguage()
+        {
+            string language = new InIReader(ConfigFile).ReadString("Game", "Language", Language, false);
+
+            if (!string.IsNullOrEmpty(language)) Language = language;
+
             try
             {
-                string languageDirectory = @".\Localization\";
-                string settingLanguageFile = Path.Combine(languageDirectory, Language + ".json");
-                GameLanguage.LoadClientLanguage(settingLanguageFile);
+                GameLanguage.LoadClientLanguage(Path.Combine(@".\Localization\", Language + ".json"));
             }
             catch (Exception ex)
             {
                 CMain.SaveError($"Load Client Language Error:{ex.Message}");
             }
-            
         }
 
         public static void Save()

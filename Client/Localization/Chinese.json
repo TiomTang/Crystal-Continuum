@@ -8974,5 +8974,53 @@
   "Test configuration (-tc)": {
     "Source": "Test configuration (-tc)",
     "Text": "测试配置 (-tc)"
+  },
+  "Invalid launch arguments": {
+    "Source": "Invalid launch arguments",
+    "Text": "启动参数无效"
+  },
+  "Unable to save settings": {
+    "Source": "Unable to save settings",
+    "Text": "无法保存设置"
+  },
+  "The launch settings could not be saved:": {
+    "Source": "The launch settings could not be saved:",
+    "Text": "无法保存启动设置："
+  },
+  "The game will use them for this session only.": {
+    "Source": "The game will use them for this session only.",
+    "Text": "游戏仅在本次运行中使用这些设置。"
+  },
+  "The client settings file could not be created:": {
+    "Source": "The client settings file could not be created:",
+    "Text": "无法创建客户端设置文件："
+  },
+  "The game will still start with default settings, but changes will not be remembered.": {
+    "Source": "The game will still start with default settings, but changes will not be remembered.",
+    "Text": "游戏仍会以默认设置启动，但之后的修改不会被保存。"
+  },
+  "The game cannot open its installation folder:": {
+    "Source": "The game cannot open its installation folder:",
+    "Text": "游戏无法打开安装目录："
+  },
+  "The game cannot create its installation lock in {0}. Check the folder permissions or start the game from a writable copy.": {
+    "Source": "The game cannot create its installation lock in {0}. Check the folder permissions or start the game from a writable copy.",
+    "Text": "游戏无法在 {0} 创建安装锁。请检查目录权限，或从可写副本启动游戏。"
+  },
+  "Another program is replacing or repairing this installation. Wait for it to finish and start the game again.": {
+    "Source": "Another program is replacing or repairing this installation. Wait for it to finish and start the game again.",
+    "Text": "另一个程序正在替换或修复本安装。请等待其完成后再启动游戏。"
+  },
+  "An interrupted update is waiting in {0}. Start the launcher once so it can finish recovery before the game runs.": {
+    "Source": "An interrupted update is waiting in {0}. Start the launcher once so it can finish recovery before the game runs.",
+    "Text": "有一个被中断的更新等待处理：{0}。请先启动一次启动器完成恢复，再运行游戏。"
+  },
+  "The installation path {0} is a reparse point; refusing to lease it.": {
+    "Source": "The installation path {0} is a reparse point; refusing to lease it.",
+    "Text": "安装路径 {0} 是重解析点，已拒绝锁定该目录。"
+  },
+  "The game cannot read its installation folder {0}. Check the folder permissions or start the game from a readable copy.": {
+    "Source": "The game cannot read its installation folder {0}. Check the folder permissions or start the game from a readable copy.",
+    "Text": "游戏无法读取安装目录 {0}。请检查目录权限，或从可读副本启动游戏。"
   }
 }
