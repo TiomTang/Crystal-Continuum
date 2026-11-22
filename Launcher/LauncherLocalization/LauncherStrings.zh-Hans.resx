@@ -1,0 +1,150 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AlwaysOnTop" xml:space="preserve">
+    <value>窗口置顶</value>
+  </data>
+  <data name="ApplyingUpdateCount" xml:space="preserve">
+    <value>应用更新 {0}/{1}</value>
+  </data>
+  <data name="ApplyingUpdateFiles" xml:space="preserve">
+    <value>正在应用更新文件…（{0}/{1}）</value>
+  </data>
+  <data name="ApplyingUpdateRestart" xml:space="preserve">
+    <value>正在应用更新……启动器将自动重新启动。</value>
+  </data>
+  <data name="ApplyingVerifyingResourceUpdate" xml:space="preserve">
+    <value>正在应用并校验资源更新…</value>
+  </data>
+  <data name="AutoStart" xml:space="preserve">
+    <value>自动启动</value>
+  </data>
+  <data name="BadBrowserFormat" xml:space="preserve">
+    <value>错误的 BROWSER 格式</value>
+  </data>
+  <data name="BorderlessWindow" xml:space="preserve">
+    <value>全屏窗口化</value>
+  </data>
+  <data name="BrowserFormatWarning" xml:space="preserve">
+    <value>请检查启动器的 BROWSER 设置格式是否正确。&#10;可能是缺少或多余的斜杠，或存在拼写错误。&#10;此错误可以忽略。</value>
+  </data>
+  <data name="BuildVersion" xml:space="preserve">
+    <value>构建：Crystal {0} {1}</value>
+  </data>
+  <data name="CancelDownload" xml:space="preserve">
+    <value>取消下载</value>
+  </data>
+  <data name="CannotReadGameSettings" xml:space="preserve">
+    <value>无法读取游戏设置：{0}</value>
+  </data>
+  <data name="CheckingFiles" xml:space="preserve">
+    <value>正在检查文件…</value>
+  </data>
+  <data name="CheckingFilesDot" xml:space="preserve">
+    <value>正在检查文件。</value>
+  </data>
+  <data name="Client" xml:space="preserve">
+    <value>客户端</value>
+  </data>
+  <data name="ConfigWindow" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="CouldNotSaveGameSettings" xml:space="preserve">
+    <value>无法保存游戏设置：{0}</value>
+  </data>
+  <data name="CrystalLauncher" xml:space="preserve">
+    <value>Crystal 启动器</value>
+  </data>
+  <data name="DesignedByBreezer" xml:space="preserve">
+    <value>由 Breezer 设计</value>
+  </data>
+  <data name="DoNotCloseWindow" xml:space="preserve">
+    <value>请勿关闭此窗口。</value>
+  </data>
+  <data name="DownloadCancelled" xml:space="preserve">
+    <value>下载已取消；已安装的文件未更改。</value>
+  </data>
+  <data name="DownloadFailed" xml:space="preserve">
+    <value>一个或多个文件下载失败，请查看 Error.txt 获取详情。</value>
+  </data>
+  <data name="ExternalRecoveryHelper" xml:space="preserve">
+    <value>外部恢复助手：{0} --recover-update &lt;安装目录&gt;</value>
+  </data>
+  <data name="FilesRemaining" xml:space="preserve">
+    <value>剩余 {0} 个文件</value>
+  </data>
+  <data name="FpsCap" xml:space="preserve">
+    <value>帧率限制</value>
+  </data>
+  <data name="Fullscreen" xml:space="preserve">
+    <value>全屏</value>
+  </data>
+  <data name="GameSettings" xml:space="preserve">
+    <value>游戏设置</value>
+  </data>
+  <data name="Graphics" xml:space="preserve">
+    <value>画面</value>
+  </data>
+  <data name="InvalidConfiguration" xml:space="preserve">
+    <value>启动器配置无效，请查看 Launcher.log。</value>
+  </data>
+  <data name="Launcher" xml:space="preserve">
+    <value>启动器</value>
+  </data>
+  <data name="NoGameSettings" xml:space="preserve">
+    <value>尚无游戏设置。保存时只会写入你实际修改的项。</value>
+  </data>
+  <data name="PoweredByCrystalM2" xml:space="preserve">
+    <value>由 Crystal M2 提供支持</value>
+  </data>
+  <data name="RepairConfirm" xml:space="preserve">
+    <value>是否重新下载全部受管文件？这会消耗流量。个人设置和未知文件不会被删除。</value>
+  </data>
+  <data name="RepairFiles" xml:space="preserve">
+    <value>修复文件</value>
+  </data>
+  <data name="Resolution" xml:space="preserve">
+    <value>分辨率</value>
+  </data>
+  <data name="RestartingLauncher" xml:space="preserve">
+    <value>正在重新启动启动器…</value>
+  </data>
+  <data name="SameAsClient" xml:space="preserve">
+    <value>与客户端相同</value>
+  </data>
+  <data name="Server" xml:space="preserve">
+    <value>服务器</value>
+  </data>
+  <data name="ServerNote" xml:space="preserve">
+    <value>从启动器进入时使用此服务器；直接启动客户端时仍使用其自身保存的服务器。</value>
+  </data>
+  <data name="Speed" xml:space="preserve">
+    <value>速度</value>
+  </data>
+  <data name="TestConfiguration" xml:space="preserve">
+    <value>测试配置 (-tc)</value>
+  </data>
+  <data name="UpToDate" xml:space="preserve">
+    <value>已是最新版本。</value>
+  </data>
+  <data name="VerifyingUpdate" xml:space="preserve">
+    <value>正在校验更新…</value>
+  </data>
+  <data name="WaitingLauncherClose" xml:space="preserve">
+    <value>正在等待启动器关闭…</value>
+  </data>
+  <data name="Windowed" xml:space="preserve">
+    <value>窗口模式</value>
+  </data>
+</root>

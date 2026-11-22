@@ -1,15 +1,45 @@
-; Operator-owned publishing configuration. Example only: not copied to output.
-; Replace placeholders before publishing a real Launcher.ini at installation root.
-; Launcher reads this file without adding keys, migrating or saving it.
+; Operator-owned publishing and game-start configuration. Example only: not copied
+; to build output and does not replace an existing operator file.
+; Put a real Launcher.ini at the installation root and publish it through the
+; existing patch publisher. The launcher reads this file without adding keys,
+; migrating or saving it. Section and key names are case-insensitive; keys the
+; launcher does not know are ignored.
 [Launcher]
+; Base HTTP(S) patch URL. A leading "www." is read as http:// and a missing
+; trailing slash is added in memory. Empty disables update requests.
 Host=https://updates.example.invalid/mir2/
+; Publisher list name; the launcher requests its .gz form from Host.
 PatchFile=PList.gz
+; Label shown in the launcher window. Empty hides it.
 ServerName=Example server
+; Announcement URL for the WebView2 panel. Empty hides the panel; an invalid URL
+; only shows a warning.
 Browser=
+; Optional HTTP Basic authentication for the patch host. Distribution
+; credentials, not game account credentials; serve them over HTTPS only.
 NeedLogin=False
 Login=
 Password=
+; Launcher UI language. Neutral English text is compiled into Launcher.exe; other
+; languages are compiled resx satellite resources shipped in the same EXE. Accepts a
+; culture name (zh-CN, zh-Hans), a neutral language (zh) or a language name (Chinese).
+; Empty falls back to the legacy [Game] Language key, then Launcher.User.ini, then
+; the Windows UI culture and its parents, then English.
+Language=
 
 [Network]
-IPAddress=game.example.invalid
-Port=7000
+; Game endpoint for sessions started from this launcher. Empty keeps the server
+; saved in the client configuration. IPv4, IPv6 and DNS names are accepted;
+; port range 1-65535.
+IPAddress=
+Port=
+
+[Graphics]
+; Display settings for sessions started from this launcher. Empty keeps the value
+; saved in the client configuration. Resolution and ResolutionHeight must be set
+; together. DisplayMode: 0 windowed, 1 maximized, 2 fullscreen.
+Resolution=
+ResolutionHeight=
+DisplayMode=
+FPSCap=
+AlwaysOnTop=

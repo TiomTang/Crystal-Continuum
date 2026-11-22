@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.Net;
-using Client.Bootstrap;
 using Microsoft.Web.WebView2.Core;
 using System.Net.Http.Headers;
 
@@ -34,7 +33,7 @@ namespace Launcher
         private PatchSource updateSource;
         private CancellationTokenSource cancellation = new();
         private bool forceRepair;
-        private volatile string updateStatus = "Checking files...";
+        private volatile string updateStatus = "";
         private readonly Button repairButton = new() { Name = "RepairButton", Size = new Size(105, 21), Location = new Point(200, 524) };
         private readonly Button cancelButton = new() { Name = "CancelButton", Size = new Size(135, 21), Location = new Point(310, 524) };
 
@@ -53,8 +52,11 @@ namespace Launcher
         {
             InitializeComponent();
 
+            // The resource culture is applied by Settings before the form is
+            // built, so every caption and status can be resolved here.
+            updateStatus = LauncherStrings.CheckingFiles;
+
             FormClosing += (_, e) => { if (_workThread != null && _workThread.IsAlive && !Completed) e.Cancel = true; };
-            LocalizeControls(this);
             foreach (var button in new[] { repairButton, cancelButton })
             {
                 button.BackColor = Color.FromArgb(48, 48, 48); button.ForeColor = Color.Gainsboro;
@@ -63,8 +65,8 @@ namespace Launcher
                 button.Font = new Font("Calibri", 8.25F);
                 button.TextAlign = ContentAlignment.MiddleCenter;
             }
-            repairButton.Text = GameLanguage.Get("Repair files");
-            cancelButton.Text = GameLanguage.Get("Cancel download");
+            repairButton.Text = LauncherStrings.RepairFiles;
+            cancelButton.Text = LauncherStrings.CancelDownload;
             // Bottom strip follows the skin: the file field ends near x=422 and the
             // version line sits below both bars, so both labels must stay inside them.
             CurrentFile_label.Size = new Size(360, 20);
@@ -76,7 +78,7 @@ namespace Launcher
             repairButton.Click += (_, _) =>
             {
                 if (_workThread?.IsAlive == true || DeferredUpdate.Pending(Settings.P_Client)) return;
-                if (MessageBox.Show(GameLanguage.Get("Download ALL managed files again? This uses bandwidth. Personal settings and unknown files will not be deleted."), GameLanguage.Get("Repair files"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+                if (MessageBox.Show(LauncherStrings.RepairConfirm, LauncherStrings.RepairFiles, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
                 forceRepair = true; Completed = Checked = ErrorFound = false; ResetProgress();
                 cancellation.Dispose(); cancellation = new(); Launch_pb.Enabled = false;
                 updateSource = Settings.Snapshot(); InterfaceTimer.Enabled = true;
@@ -87,10 +89,6 @@ namespace Launcher
             CurrentFile_label.AutoEllipsis = true;
         }
 
-        public static void LocalizeControls(Control root)
-        {
-            foreach (Control control in root.Controls) { if (!string.IsNullOrWhiteSpace(control.Text)) control.Text = GameLanguage.Get(control.Text); LocalizeControls(control); }
-        }
         public static void SaveError(string error) { try { File.AppendAllText("Launcher.log", error + Environment.NewLine); } catch { } }
         public void Start()
         {
@@ -107,7 +105,7 @@ namespace Launcher
                     if (!DeferredUpdate.RequiresRestart(plan.Downloads))
                     {
                         _phase = UpdatePhase.Applying;
-                        updateStatus = "Applying and verifying resource update...";
+                        updateStatus = LauncherStrings.ApplyingVerifyingResourceUpdate;
                         Program.Trace("resource-apply");
                         UpdateTransaction.ApplyConfirmed(Settings.P_Client, token => DeferredUpdate.Probe(Settings.P_Client, token), OnApplyProgress);
                         Program.Trace("resource-committed");
@@ -115,7 +113,7 @@ namespace Launcher
                 }
                 Checked = true;
             }
-            catch (OperationCanceledException) { ErrorFound = true; updateStatus = "Download cancelled; installed files unchanged."; }
+            catch (OperationCanceledException) { ErrorFound = true; updateStatus = LauncherStrings.DownloadCancelled; }
             catch (Exception ex) { ErrorFound = true; updateStatus = ex.Message; SaveError(ex.GetType().Name + ": Update failed; installed files unchanged or recovery required."); }
             finally { Completed = true; }
         }
@@ -156,7 +154,7 @@ namespace Launcher
             Launch_pb.Enabled = false;
             ProgressCurrent_pb.Width = SkinPixels(5);
             TotalProg_pb.Width = SkinPixels(5);
-            Version_label.Text = string.Format("Build: Crystal {0} {1}", Settings.UseTestConfig ? "Debug" : "Release", BuildVersion());
+            Version_label.Text = LauncherLanguage.Format(LauncherStrings.BuildVersion, Settings.UseTestConfig ? "Debug" : "Release", BuildVersion());
 
             if (Settings.P_ServerName != String.Empty)
             {
@@ -182,7 +180,7 @@ namespace Launcher
                 }
                 else
                 {
-                    MessageBox.Show(GameLanguage.Get("Please Check Launcher BROWSER Setting is formatted correctly.\nCan be caused by missing or extra slashes and spelling mistakes.\nThis error can be ignored."), GameLanguage.Get("Bad BROWSER Format"));
+                    MessageBox.Show(LauncherStrings.BrowserFormatWarning, LauncherStrings.BadBrowserFormat);
                 }
             }
 
@@ -334,7 +332,7 @@ namespace Launcher
                         long filesDone = Volatile.Read(ref _filesDone), filesTotal = Volatile.Read(ref _filesTotal);
                         long doneBytes = Volatile.Read(ref _doneBytes), totalBytes = Volatile.Read(ref _totalBytes);
                         CurrentFile_label.Text = _currentFileName.Length == 0
-                            ? GameLanguage.Get("{0} Files Remaining", Math.Max(0, filesTotal - filesDone))
+                            ? LauncherLanguage.Format(LauncherStrings.FilesRemaining, Math.Max(0, filesTotal - filesDone))
                             : _currentFileName;
                         ActionLabel.Text = Math.Min(filesDone + 1, filesTotal) + "/" + filesTotal + "  " + ToSize(doneBytes) + "/" + ToSize(totalBytes);
                         TotalProg_pb.Width = BarWidth(doneBytes, totalBytes);
@@ -343,7 +341,7 @@ namespace Launcher
                     case UpdatePhase.Applying:
                         int applyDone = Volatile.Read(ref _applyDone), applyTotal = Volatile.Read(ref _applyTotal);
                         CurrentFile_label.Text = _currentFileName.Length == 0 ? updateStatus : _currentFileName;
-                        ActionLabel.Text = GameLanguage.Get("Applying update {0}/{1}", applyDone, applyTotal);
+                        ActionLabel.Text = LauncherLanguage.Format(LauncherStrings.ApplyingUpdateCount, applyDone, applyTotal);
                         TotalProg_pb.Width = SkinPixels(550);
                         ProgressCurrent_pb.Width = BarWidth(applyDone, applyTotal);
                         break;
@@ -359,7 +357,7 @@ namespace Launcher
             if (!ErrorFound && DeferredUpdate.Pending(Settings.P_Client))
             {
                 CurrentFile_label.Visible = true;
-                CurrentFile_label.Text = GameLanguage.Get("Applying update... the launcher will restart automatically.");
+                CurrentFile_label.Text = LauncherStrings.ApplyingUpdateRestart;
                 Program.Trace("self-update-restart-requested");
                 CurrentFile_label.Refresh();
                 // Keep the reason visible before the one required self-update restart.
@@ -375,7 +373,7 @@ namespace Launcher
                 {
                     ErrorFound = true; Checked = false; Launch_pb.Enabled = false;
                     CurrentFile_label.Visible = true;
-                    CurrentFile_label.Text = "Invalid launcher configuration. See Launcher.log.";
+                    CurrentFile_label.Text = LauncherStrings.InvalidConfiguration;
                     SaveError("Published launcher configuration: " + ex);
                     return;
                 }
@@ -383,12 +381,12 @@ namespace Launcher
             Program.Trace("ui-ready error=" + ErrorFound);
             Launch_pb.Enabled = !ErrorFound;
             CurrentFile_label.Visible = true;
-            CurrentFile_label.Text = ErrorFound ? updateStatus : GameLanguage.Get("Up to date.");
-            if (ErrorFound) { MessageBox.Show(GameLanguage.Get("One or more files failed to download, check Error.txt for details.").Replace("Error.txt", "Launcher.log")); return; }
+            CurrentFile_label.Text = ErrorFound ? updateStatus : LauncherStrings.UpToDate;
+            if (ErrorFound) { MessageBox.Show(LauncherStrings.DownloadFailed.Replace("Error.txt", "Launcher.log")); return; }
             ProgressCurrent_pb.Width = TotalProg_pb.Width = SkinPixels(550);
             Name_label.Text = Settings.P_ServerName; Name_label.Visible = Settings.P_ServerName.Length != 0;
             
-            if (Settings.P_AutoStart) Launch();
+            if (Settings.AutoStart) Launch();
         }
 
         private void AMain_Click(object sender, EventArgs e)
@@ -406,7 +404,9 @@ namespace Launcher
         private void Credit_label_Click(object sender, EventArgs e)
         {
             _creditBrandSwitch = !_creditBrandSwitch;
-            Credit_label.Text = _creditBrandSwitch ? "Designed by Breezer" : "Powered by Crystal M2";
+            // Credit line alternates between the original author and the engine
+            // name; both remain English unless a pack supplies a translation.
+            Credit_label.Text = _creditBrandSwitch ? LauncherStrings.DesignedByBreezer : LauncherStrings.PoweredByCrystalM2;
         }
 
         private void AMain_FormClosed(object sender, FormClosedEventArgs e)

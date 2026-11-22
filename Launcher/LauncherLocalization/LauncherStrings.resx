@@ -1,0 +1,150 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AlwaysOnTop" xml:space="preserve">
+    <value>Always on top</value>
+  </data>
+  <data name="ApplyingUpdateCount" xml:space="preserve">
+    <value>Applying update {0}/{1}</value>
+  </data>
+  <data name="ApplyingUpdateFiles" xml:space="preserve">
+    <value>Applying update files... ({0}/{1})</value>
+  </data>
+  <data name="ApplyingUpdateRestart" xml:space="preserve">
+    <value>Applying update... the launcher will restart automatically.</value>
+  </data>
+  <data name="ApplyingVerifyingResourceUpdate" xml:space="preserve">
+    <value>Applying and verifying resource update...</value>
+  </data>
+  <data name="AutoStart" xml:space="preserve">
+    <value>Auto start</value>
+  </data>
+  <data name="BadBrowserFormat" xml:space="preserve">
+    <value>Bad BROWSER Format</value>
+  </data>
+  <data name="BorderlessWindow" xml:space="preserve">
+    <value>Borderless window</value>
+  </data>
+  <data name="BrowserFormatWarning" xml:space="preserve">
+    <value>Please Check Launcher BROWSER Setting is formatted correctly.&#10;Can be caused by missing or extra slashes and spelling mistakes.&#10;This error can be ignored.</value>
+  </data>
+  <data name="BuildVersion" xml:space="preserve">
+    <value>Build: Crystal {0} {1}</value>
+  </data>
+  <data name="CancelDownload" xml:space="preserve">
+    <value>Cancel download</value>
+  </data>
+  <data name="CannotReadGameSettings" xml:space="preserve">
+    <value>Cannot read the game settings: {0}</value>
+  </data>
+  <data name="CheckingFiles" xml:space="preserve">
+    <value>Checking files...</value>
+  </data>
+  <data name="CheckingFilesDot" xml:space="preserve">
+    <value>Checking Files.</value>
+  </data>
+  <data name="Client" xml:space="preserve">
+    <value>Client</value>
+  </data>
+  <data name="ConfigWindow" xml:space="preserve">
+    <value>Config</value>
+  </data>
+  <data name="CouldNotSaveGameSettings" xml:space="preserve">
+    <value>Could not save the game settings: {0}</value>
+  </data>
+  <data name="CrystalLauncher" xml:space="preserve">
+    <value>Crystal Launcher</value>
+  </data>
+  <data name="DesignedByBreezer" xml:space="preserve">
+    <value>Designed by Breezer</value>
+  </data>
+  <data name="DoNotCloseWindow" xml:space="preserve">
+    <value>Do not close this window.</value>
+  </data>
+  <data name="DownloadCancelled" xml:space="preserve">
+    <value>Download cancelled; installed files unchanged.</value>
+  </data>
+  <data name="DownloadFailed" xml:space="preserve">
+    <value>One or more files failed to download, check Error.txt for details.</value>
+  </data>
+  <data name="ExternalRecoveryHelper" xml:space="preserve">
+    <value>External recovery helper: {0} --recover-update &lt;installation-directory&gt;</value>
+  </data>
+  <data name="FilesRemaining" xml:space="preserve">
+    <value>{0} Files Remaining</value>
+  </data>
+  <data name="FpsCap" xml:space="preserve">
+    <value>FPS cap</value>
+  </data>
+  <data name="Fullscreen" xml:space="preserve">
+    <value>Fullscreen</value>
+  </data>
+  <data name="GameSettings" xml:space="preserve">
+    <value>Game settings</value>
+  </data>
+  <data name="Graphics" xml:space="preserve">
+    <value>Graphics</value>
+  </data>
+  <data name="InvalidConfiguration" xml:space="preserve">
+    <value>Invalid launcher configuration. See Launcher.log.</value>
+  </data>
+  <data name="Launcher" xml:space="preserve">
+    <value>Launcher</value>
+  </data>
+  <data name="NoGameSettings" xml:space="preserve">
+    <value>No game settings yet. Only the values you change will be written when you save.</value>
+  </data>
+  <data name="PoweredByCrystalM2" xml:space="preserve">
+    <value>Powered by Crystal M2</value>
+  </data>
+  <data name="RepairConfirm" xml:space="preserve">
+    <value>Download ALL managed files again? This uses bandwidth. Personal settings and unknown files will not be deleted.</value>
+  </data>
+  <data name="RepairFiles" xml:space="preserve">
+    <value>Repair files</value>
+  </data>
+  <data name="Resolution" xml:space="preserve">
+    <value>Resolution</value>
+  </data>
+  <data name="RestartingLauncher" xml:space="preserve">
+    <value>Restarting launcher...</value>
+  </data>
+  <data name="SameAsClient" xml:space="preserve">
+    <value>same as client</value>
+  </data>
+  <data name="Server" xml:space="preserve">
+    <value>Server</value>
+  </data>
+  <data name="ServerNote" xml:space="preserve">
+    <value>Entering from the launcher uses this server. The client keeps its own saved server when started directly.</value>
+  </data>
+  <data name="Speed" xml:space="preserve">
+    <value>Speed</value>
+  </data>
+  <data name="TestConfiguration" xml:space="preserve">
+    <value>Test configuration (-tc)</value>
+  </data>
+  <data name="UpToDate" xml:space="preserve">
+    <value>Up to date.</value>
+  </data>
+  <data name="VerifyingUpdate" xml:space="preserve">
+    <value>Verifying update...</value>
+  </data>
+  <data name="WaitingLauncherClose" xml:space="preserve">
+    <value>Waiting for the launcher to close...</value>
+  </data>
+  <data name="Windowed" xml:space="preserve">
+    <value>Windowed</value>
+  </data>
+</root>

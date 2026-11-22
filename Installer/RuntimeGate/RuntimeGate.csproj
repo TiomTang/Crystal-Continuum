@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The setup EXE must be able to install the .NET 8 Desktop Runtime on a machine
+       that does not have it, so this gate may not itself depend on .NET 8. It targets
+       .NET Framework 4.7.2, which every Windows 10 1809+ and Windows 11 installation
+       carries as an OS component: no runtime download is needed to run the gate.
+       Anything newer (net8.0 NativeAOT) would still be native, but it needs the
+       Windows SDK linker at build time; the framework target keeps the build simple
+       and the output tiny.
+
+       The probe, download, signature and install logic is not duplicated here: it is
+       compiled from the shared sources in Launcher/RuntimeAcquisition, which the
+       portable Launcher.exe entry also uses. This project only adds the gate's command
+       line (Program.cs, Arguments.cs) on top. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <AssemblyName>Mir2RuntimeGate</AssemblyName>
+    <RootNamespace>Mir2.Installer.RuntimeGate</RootNamespace>
+    <AssemblyTitle>Mir2 runtime gate</AssemblyTitle>
+    <Product>Mir2 setup</Product>
+    <Company>Crystal ZhCN</Company>
+    <Version>1.1.0</Version>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <BaseOutputPath>../../Build/Installer/gate/</BaseOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <OutputPath>../../Build/Installer/gate/Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <OutputPath>../../Build/Installer/gate/Release\</OutputPath>
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <!-- Test-only switches (signature skip, forced "missing" probe). The shipping build
+       never defines this, so those switches do not exist there. -->
+  <PropertyGroup Condition=" '$(GateTestHooks)' == 'true' ">
+    <DefineConstants>$(DefineConstants);GATE_TEST_HOOKS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Build-time only: lets the gate build on machines without the .NET Framework
+         targeting pack installed (dotnet build restores the reference assemblies). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Shared runtime acquisition sources owned by Launcher/. Launcher/ stays
+         independently publishable; the installer only consumes those files. -->
+    <Compile Include="../../Launcher/RuntimeAcquisition/*.cs" Link="RuntimeAcquisition/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

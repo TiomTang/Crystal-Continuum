@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Client.Bootstrap;
 namespace Launcher;
 internal static class Program
 {
@@ -23,6 +22,10 @@ internal static class Program
         {
             if (args.Length == 3 && args[0] == "--apply-transaction") { ApplyProgress.Run(args[1], int.Parse(args[2])); return; }
             if (args.Length == 2 && args[0] == "--recover-update") { ApplyProgress.Run(args[1], 0); return; }
+            // Load the UI language before the installation lease so startup failures
+            // are shown in the configured language. The update helper reloads the
+            // target's language itself.
+            Settings.LoadLanguage();
             if (args.Length == 2 && args[0] == "--confirm-update" && Guid.TryParseExact(args[1], "N", out _))
             {
                 Settings.Load(); using var form = new AMain();
@@ -36,11 +39,11 @@ internal static class Program
                 InstallationLease.EnsureLegacyClientStopped(AppContext.BaseDirectory);
                 if (DeferredUpdate.LegacyPending(AppContext.BaseDirectory)) throw new IOException("Legacy .launcher-update/pending.json requires manual recovery; staged files preserved.");
                 UpdateTransaction.Recover(AppContext.BaseDirectory);
-                Settings.Load();
+                Settings.Load(migrate: true);
                 Application.Run(PForm = new AMain());
                 if (DeferredUpdate.Pending(AppContext.BaseDirectory)) { DeferredUpdate.Schedule(AppContext.BaseDirectory); return; }
             }
-            if (Launch) { Settings.ReloadPublished(); Process.Start(Settings.Options.StartInfo(AppContext.BaseDirectory)); }
+            if (Launch) { Settings.ReloadPublished(); Process.Start(LaunchArguments.StartInfo(AppContext.BaseDirectory)); }
         }
         catch (Exception ex)
         {
@@ -52,7 +55,7 @@ internal static class Program
                     File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "failure.txt"), DateTime.UtcNow.ToString("O") + " " + ex.GetType().Name + ": transaction failed; backups and recovery helper retained where recovery is unresolved.");
             }
             catch { }
-            if (!healthProbe) MessageBox.Show(ex.Message + (args.Length > 0 ? "\nExternal recovery helper: " + Path.Combine(AppContext.BaseDirectory, "Launcher.exe") + " --recover-update <installation-directory>" : ""), "Launcher");
+            if (!healthProbe) MessageBox.Show(ex.Message + (args.Length > 0 ? Environment.NewLine + LauncherLanguage.Format(LauncherStrings.ExternalRecoveryHelper, Path.Combine(AppContext.BaseDirectory, "Launcher.exe")) : ""), LauncherStrings.Launcher);
             Environment.ExitCode = 1;
         }
     }

@@ -24,15 +24,21 @@ internal static class ApplyProgress
         // The window is gone before the new launcher opens, so the player never sees two.
         DeferredUpdate.Restart(root);
     }
-    // The helper copy carries the published packs but not the operator/user INI.
+    // The helper copy carries the launcher resources but not the operator or
+    // preference files of the installation, so they are read from the target.
+    // Selection order matches the normal launcher: [Launcher] Language, legacy
+    // [Game] Language, then the player preference; otherwise the UI culture.
     static void LoadLanguage(string root)
     {
         try
         {
             string folder = Path.GetFullPath(root);
-            string language = new InIReader(Path.Combine(folder, "Launcher.User.ini")).ReadString("Game", "Language", "", false);
-            if (language.Length == 0) language = new InIReader(Path.Combine(folder, "Launcher.ini")).ReadString("Game", "Language", "English", false);
-            GameLanguage.LoadClientLanguage(Path.Combine(AppContext.BaseDirectory, "Localization", language + ".json"));
+            IniFile published = IniFile.Read(Path.Combine(folder, "Launcher.ini"));
+            IniFile personal = IniFile.Read(Path.Combine(folder, Settings.PreferencesName));
+            LauncherLanguage.Load(
+                published.GetString("Launcher", "Language"),
+                published.GetString("Game", "Language"),
+                personal.GetString("Game", "Language"));
         }
         catch { }
     }
@@ -50,7 +56,7 @@ internal sealed class ApplyForm : Form
 
     public ApplyForm()
     {
-        Text = "Crystal Launcher";
+        Text = LauncherStrings.CrystalLauncher;
         Font = SystemFonts.MessageBoxFont;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterScreen;
@@ -69,18 +75,18 @@ internal sealed class ApplyForm : Form
         hint.SetBounds(16, 92, 398, 16);
         hint.ForeColor = Color.Gray;
         Controls.Add(status); Controls.Add(file); Controls.Add(bar); Controls.Add(hint);
-        status.Text = GameLanguage.Get("Waiting for the launcher to close...");
-        hint.Text = GameLanguage.Get("Do not close this window.");
+        status.Text = LauncherStrings.WaitingLauncherClose;
+        hint.Text = LauncherStrings.DoNotCloseWindow;
     }
 
     public void Report(ApplyPhase phase, int done, int total, string name) => Post(() =>
     {
         status.Text = phase switch
         {
-            ApplyPhase.Applying => GameLanguage.Get("Applying update files... ({0}/{1})", done, total),
-            ApplyPhase.Verifying => GameLanguage.Get("Verifying update..."),
-            ApplyPhase.Restarting => GameLanguage.Get("Restarting launcher..."),
-            _ => GameLanguage.Get("Waiting for the launcher to close..."),
+            ApplyPhase.Applying => LauncherLanguage.Format(LauncherStrings.ApplyingUpdateFiles, done, total),
+            ApplyPhase.Verifying => LauncherStrings.VerifyingUpdate,
+            ApplyPhase.Restarting => LauncherStrings.RestartingLauncher,
+            _ => LauncherStrings.WaitingLauncherClose,
         };
         file.Text = name ?? "";
         int value = phase is ApplyPhase.Verifying or ApplyPhase.Restarting ? bar.Maximum

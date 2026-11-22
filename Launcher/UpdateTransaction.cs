@@ -2,7 +2,6 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Runtime.InteropServices;
-using Client.Bootstrap;
 
 namespace Launcher;
 
@@ -60,10 +59,35 @@ public static class UpdateTransaction
 #endif
         output.Flush(true);
     }
+    // Windows can hold a short-lived handle on a file that was just written or read
+    // (real-time virus scanning, indexing, backup agents). ReplaceFile then fails with
+    // a sharing violation or ERROR_UNABLE_TO_REMOVE_REPLACED (1175), and a journalled
+    // update would needlessly roll back. Retry only those sharing errors for about
+    // three seconds; any other failure is reported immediately so real corruption is
+    // never hidden.
+    static void WithSharingRetry(Action action)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            try { action(); return; }
+            catch (IOException ex) when (attempt < 20 && ((ex.HResult & 0xFFFF) is 5 or 32 or 33 or 1175))
+            { Thread.Sleep(Math.Min(250, 25 * (attempt + 1))); }
+        }
+    }
+    static void ReplaceOrMove(string source, string target)
+    {
+        WithSharingRetry(() => { if (File.Exists(target)) File.Replace(source, target, null); else File.Move(source, target); });
+    }
+    static void DeleteDurable(string path)
+    {
+        if (File.Exists(path)) WithSharingRetry(() => File.Delete(path));
+    }
+    static void MoveDirectory(string source, string target) => WithSharingRetry(() => Directory.Move(source, target));
+    static void DeleteDirectory(string path) => WithSharingRetry(() => Directory.Delete(path, false));
     static void Save(string root, Journal journal, string folderName = DirectoryName)
     {
         string temp = PatchEngine.Target(root, folderName + "/journal.next"), target = PatchEngine.Target(root, folderName + "/journal.json");
-        if (File.Exists(temp)) File.Delete(temp);
+        DeleteDurable(temp);
         using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
         {
             var envelope = new Envelope { State = journal.State, Payload = JournalProtection.Transform(JsonSerializer.SerializeToUtf8Bytes(journal), root, true) };
@@ -81,7 +105,7 @@ public static class UpdateTransaction
             stream.Flush(true);
         }
         if (folderName != DirectoryName) Boundary("initial-next-complete");
-        if (File.Exists(target)) File.Replace(temp, target, null); else File.Move(temp, target);
+        ReplaceOrMove(temp, target);
         if (folderName != DirectoryName) Boundary("initial-journal-ready");
     }
     static Journal Load(string root, string folderName = DirectoryName)
@@ -153,7 +177,7 @@ public static class UpdateTransaction
         try
         {
             Save(root, j, initializing);
-            Directory.Move(PatchEngine.Target(root, initializing), Folder(root));
+            MoveDirectory(PatchEngine.Target(root, initializing), Folder(root));
         }
         catch { RecoverInitializations(root); throw; }
         try
@@ -233,7 +257,7 @@ public static class UpdateTransaction
                 Boundary("after-backup"); e.Intent = true; Save(root, j); Boundary("journal-before-replace");
                 Directory.CreateDirectory(Path.GetDirectoryName(target));
                 target = PatchEngine.Target(root, e.Name);
-                if (e.Existed) File.Replace(stage, target, null); else File.Move(stage, target);
+                ReplaceOrMove(stage, target);
                 Boundary("after-replace");
             }
             progress?.Invoke(j.Entries.Count, j.Entries.Count, null);
@@ -288,16 +312,16 @@ public static class UpdateTransaction
                     {
                         // A killed CopyDurable can leave a prefix, not a complete old file.
                         if (!IsBackupPrefix(restore, backup)) throw new IOException("Recovery scratch changed");
-                        File.Delete(Internal(root, "restore-" + i));
+                        DeleteDurable(Internal(root, "restore-" + i));
                     }
                     CopyDurable(backup, restore); File.SetLastWriteTime(restore, DateTime.FromBinary(e.OldTime));
-                    target = PatchEngine.Target(root, e.Name); File.Replace(restore, target, null);
+                    target = PatchEngine.Target(root, e.Name); ReplaceOrMove(restore, target);
                 }
             }
             else if (File.Exists(target))
             {
                 if (!Matches(target, e.Hash)) throw new IOException("New target changed externally; refusing deletion");
-                File.Delete(PatchEngine.Target(root, e.Name));
+                DeleteDurable(PatchEngine.Target(root, e.Name));
             }
             Boundary("during-rollback"); e.Restored = true; Save(root, j);
         }
@@ -327,8 +351,8 @@ public static class UpdateTransaction
                 if (j.Id != id || j.State != "Downloading" || j.Entries.Count != 0 || j.HealthToken != null) continue;
                 var entries = Directory.GetFileSystemEntries(folder);
                 if (entries.Length != 1 || Path.GetFileName(entries[0]) != "journal.json") continue;
-                File.Delete(PatchEngine.Target(root, name + "/journal.json"));
-                Directory.Delete(PatchEngine.Target(root, name), false);
+                DeleteDurable(PatchEngine.Target(root, name + "/journal.json"));
+                DeleteDirectory(PatchEngine.Target(root, name));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or CryptographicException or System.ComponentModel.Win32Exception or ArgumentException)
             { /* Unpublished evidence is never recursively erased or allowed to gate startup. */ }
@@ -345,7 +369,7 @@ public static class UpdateTransaction
             if (!File.Exists(PatchEngine.Target(root, name + "/journal.json")))
             {
                 // A kill after the final journal deletion can leave only an empty directory.
-                Directory.Delete(folder, false); continue;
+                DeleteDirectory(folder); continue;
             }
             var j = Load(root, name);
             if (j.Id != id || j.State is "Applying" or "AwaitingHealth" or "RollingBack") throw new IOException("Invalid completed transaction state");
@@ -365,18 +389,18 @@ public static class UpdateTransaction
         if (folderName == DirectoryName)
         {
             string completed = ".mir2-completed-" + j.Id;
-            Directory.Move(Folder(root), PatchEngine.Target(root, completed)); folderName = completed;
+            MoveDirectory(Folder(root), PatchEngine.Target(root, completed)); folderName = completed;
             Boundary("cleanup-after-rename");
         }
         string Artifact(string name) => PatchEngine.Target(root, folderName + "/" + name);
         for (int i = 0; i <= j.Entries.Count; i++)
             foreach (string prefix in new[] { "stage-", "backup-", "restore-" })
-            { string path = Artifact(prefix + i); if (File.Exists(path)) File.Delete(path); }
+            { string path = Artifact(prefix + i); DeleteDurable(path); }
         if (j.HealthToken != null)
-        { string ack = Artifact("health-" + j.HealthToken); if (File.Exists(ack)) File.Delete(ack); }
+        { string ack = Artifact("health-" + j.HealthToken); DeleteDurable(ack); }
         foreach (string name in new[] { "RECOVERY.txt", "journal.next", "journal.json" })
-        { string path = Artifact(name); if (File.Exists(path)) File.Delete(path); }
-        Directory.Delete(PatchEngine.Target(root, folderName), false);
+        { string path = Artifact(name); DeleteDurable(path); }
+        DeleteDirectory(PatchEngine.Target(root, folderName));
     }
     static readonly uint[] CrcTable = Enumerable.Range(0, 256).Select(v => { uint c = (uint)v; for (int i = 0; i < 8; i++) c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1; return c; }).ToArray();
     sealed class LimitedStream(Stream source, long limit) : Stream

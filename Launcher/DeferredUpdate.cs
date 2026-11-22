@@ -1,11 +1,12 @@
 using System.Diagnostics;
-using Client.Bootstrap;
 namespace Launcher;
 public enum ApplyPhase { Waiting, Applying, Verifying, Restarting }
 public static class DeferredUpdate
 {
     // Only known resource trees and the operator INI can be replaced while
     // this process holds launcher dependencies open. All other paths stay deferred.
+    // Launcher translations travel as satellite assemblies (zh-Hans/Launcher.resources.dll),
+    // which are loaded assemblies and therefore correctly require the restart.
     public static bool RequiresRestart(IEnumerable<FileInformation> files) => files.Any(file =>
     {
         string name = file.FileName.Replace((char)92, '/');
@@ -14,20 +15,45 @@ public static class DeferredUpdate
     });
     public static bool LegacyPending(string root) => File.Exists(PatchEngine.Target(root, ".launcher-update/pending.json"));
     public static bool Pending(string root) => UpdateTransaction.State(root) == "Prepared";
+    // A published build is one framework-dependent file: the launcher assemblies,
+    // the WebView2 assemblies and the translations are bundled inside Launcher.exe,
+    // so the external helper is that file. The .NET Desktop Runtime it needs is the
+    // separately packaged prerequisite of the whole installation. Ordinary
+    // Debug/Release builds stay multi-file and keep Launcher.dll next to the apphost.
+    // A bundled assembly reports no location; that is exactly the probe. A stale
+    // Launcher.dll left behind by an older multi-file install must not change the
+    // answer.
+#pragma warning disable IL3000 // Assembly.Location is empty only for bundled assemblies.
+    static bool IsSingleFile => string.IsNullOrEmpty(typeof(DeferredUpdate).Assembly.Location);
+#pragma warning restore IL3000
+    static void CopyHelperPayload(string target)
+    {
+        string source = AppContext.BaseDirectory;
+        if (IsSingleFile)
+        {
+            string executable = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(executable) || !File.Exists(executable)) executable = Path.Combine(source, "Launcher.exe");
+            File.Copy(executable, Path.Combine(target, "Launcher.exe"));
+            return;
+        }
+        // Framework-dependent helper: the apphost's companion files, the WebView2
+        // assemblies, the native loader tree and the compiled translations.
+        foreach (string file in Directory.GetFiles(source))
+        {
+            string name = Path.GetFileName(file);
+            if (new[] { "Launcher.exe", "Launcher.dll", "Launcher.deps.json", "Launcher.runtimeconfig.json" }.Contains(name, StringComparer.OrdinalIgnoreCase) ||
+                name.StartsWith("Microsoft.Web.WebView2.", StringComparison.OrdinalIgnoreCase) && name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)) File.Copy(file, Path.Combine(target, name));
+        }
+        string runtimes = Path.Combine(source, "runtimes");
+        if (Directory.Exists(runtimes)) CopyTree(runtimes, Path.Combine(target, "runtimes"));
+        foreach (string directory in Directory.GetDirectories(source))
+            if (Directory.GetFiles(directory, "*.resources.dll").Length != 0) CopyTree(directory, Path.Combine(target, Path.GetFileName(directory)));
+    }
     public static void Schedule(string root)
     {
         string helper = Path.Combine(Path.GetTempPath(), "CrystalLauncher", "UpdateHelpers", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(helper);
-        foreach (string file in Directory.GetFiles(AppContext.BaseDirectory))
-        {
-            string name = Path.GetFileName(file);
-            if (new[] { "Launcher.exe", "Launcher.dll", "Launcher.pdb", "Launcher.deps.json", "Launcher.runtimeconfig.json" }.Contains(name, StringComparer.OrdinalIgnoreCase) || name == "Shared.dll" || name == "Client.Bootstrap.dll" || name.StartsWith("Microsoft.Web.WebView2.", StringComparison.OrdinalIgnoreCase)) File.Copy(file, Path.Combine(helper, name));
-        }
-        foreach (string name in new[] { "runtimes", "Localization" })
-        {
-            string source = Path.Combine(AppContext.BaseDirectory, name);
-            if (Directory.Exists(source)) CopyTree(source, Path.Combine(helper, name));
-        }
+        CopyHelperPayload(helper);
         HelperCleanup.Mark(helper);
         File.WriteAllText(Path.Combine(root, UpdateTransaction.DirectoryName, "RECOVERY.txt"), "Run external recovery helper: " + Path.Combine(helper, "Launcher.exe") + " --recover-update <installation-directory>. Keep backups until recovery succeeds.");
         var info = new ProcessStartInfo(Path.Combine(helper, "Launcher.exe")) { WorkingDirectory = helper, UseShellExecute = false };

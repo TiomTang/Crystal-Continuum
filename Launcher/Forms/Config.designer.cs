@@ -76,7 +76,7 @@
             AutoStart_label.Name = "AutoStart_label";
             AutoStart_label.Size = new Size(54, 13);
             AutoStart_label.TabIndex = 12;
-            AutoStart_label.Text = "Auto start";
+            AutoStart_label.Text = LauncherStrings.AutoStart;
             AutoStart_label.Click += AutoStart_pb_Click;
             // 
             // OnTop_label
@@ -90,7 +90,7 @@
             OnTop_label.Name = "OnTop_label";
             OnTop_label.Size = new Size(72, 13);
             OnTop_label.TabIndex = 16;
-            OnTop_label.Text = "Always on top";
+            OnTop_label.Text = LauncherStrings.AlwaysOnTop;
             OnTop_label.Click += OnTop_pb_Click;
             // 
             // OnTop_pb
@@ -116,7 +116,7 @@
             FPScap_label.Name = "FPScap_label";
             FPScap_label.Size = new Size(42, 13);
             FPScap_label.TabIndex = 18;
-            FPScap_label.Text = "FPS cap";
+            FPScap_label.Text = LauncherStrings.FpsCap;
             FPScap_label.Click += FPScap_pb_Click;
             // 
             // FPScap_pb
@@ -142,7 +142,7 @@
             label9.Name = "label9";
             label9.Size = new Size(55, 14);
             label9.TabIndex = 21;
-            label9.Text = "Graphics";
+            label9.Text = LauncherStrings.Graphics;
             // 
             // label10
             // 
@@ -155,7 +155,7 @@
             label10.Name = "label10";
             label10.Size = new Size(66, 14);
             label10.TabIndex = 22;
-            label10.Text = "Resolution";
+            label10.Text = LauncherStrings.Resolution;
             // 
             // Resolution_cb
             // 
@@ -207,7 +207,7 @@
             ShowInTaskbar = false;
             SizeGripStyle = SizeGripStyle.Hide;
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "Config";
+            Text = LauncherStrings.ConfigWindow;
             TransparencyKey = Color.Black;
             Load += Config_Load;
             VisibleChanged += Config_VisibleChanged;

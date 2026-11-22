@@ -1,13 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
-<PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net8.0-windows7.0</TargetFramework><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>disable</Nullable><AssemblyName>Launcher</AssemblyName><RootNamespace>Launcher</RootNamespace><PlatformTarget>x64</PlatformTarget><BaseOutputPath>../Build/Client/</BaseOutputPath><AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath><ApplicationIcon>../Client/MIR2.ICO</ApplicationIcon></PropertyGroup>
+<PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net8.0-windows7.0</TargetFramework><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>disable</Nullable><AssemblyName>Launcher</AssemblyName><RootNamespace>Launcher</RootNamespace><PlatformTarget>x64</PlatformTarget><BaseOutputPath>../Build/Launcher/</BaseOutputPath><AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath><AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath><ApplicationIcon>MIR2.ICO</ApplicationIcon></PropertyGroup>
 <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-  <OutputPath>../Build/Client/Debug\</OutputPath>
+  <OutputPath>../Build/Launcher/Debug\</OutputPath>
 </PropertyGroup>
 <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-  <OutputPath>../Build/Client/Release\</OutputPath>
+  <OutputPath>../Build/Launcher/Release\</OutputPath>
 </PropertyGroup>
-<ItemGroup><ProjectReference Include="../Shared/Shared.csproj"/><ProjectReference Include="../Client.Bootstrap/Client.Bootstrap.csproj"/><PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40"/></ItemGroup>
-<ItemGroup><None Include="../Client/Localization/*.json" Link="Localization/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+<ItemGroup><PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40"/></ItemGroup>
+<!-- Translations are compiled resx satellites (LauncherLocalization/LauncherStrings*.resx
+     -> zh-Hans/Launcher.resources.dll), not copied JSON packs; nothing under
+     LauncherLocalization is packaged as content. The single-file published artifact is
+     defined by Properties/PublishProfiles/win-x64.pubxml. -->
 <!-- The WebView2 package ships a WPF assembly built for net5.0 WPF that references
      WindowsBase 5.0.0.0, conflicting with the 4.0.0.0 in net8.0. The launcher only
      uses the WinForms control, so drop the unused reference. -->

@@ -99,7 +99,7 @@ namespace Launcher
             SpeedLabel.RightToLeft = System.Windows.Forms.RightToLeft.No;
             SpeedLabel.Size = new System.Drawing.Size(83, 18);
             SpeedLabel.TabIndex = 13;
-            SpeedLabel.Text = "Speed";
+            SpeedLabel.Text = LauncherStrings.Speed;
             SpeedLabel.TextAlign = System.Drawing.ContentAlignment.TopRight;
             SpeedLabel.Visible = false;
             // 
@@ -213,7 +213,7 @@ namespace Launcher
             CurrentFile_label.Name = "CurrentFile_label";
             CurrentFile_label.Size = new System.Drawing.Size(422, 20);
             CurrentFile_label.TabIndex = 27;
-            CurrentFile_label.Text = "Checking Files.";
+            CurrentFile_label.Text = LauncherStrings.CheckingFilesDot;
             CurrentFile_label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             CurrentFile_label.Visible = false;
             // 
@@ -259,7 +259,7 @@ namespace Launcher
             Credit_label.Name = "Credit_label";
             Credit_label.Size = new System.Drawing.Size(114, 13);
             Credit_label.TabIndex = 30;
-            Credit_label.Text = "Powered by Crystal M2";
+            Credit_label.Text = LauncherStrings.PoweredByCrystalM2;
             Credit_label.Click += Credit_label_Click;
             // 
             // ProgTotalEnd_pb
