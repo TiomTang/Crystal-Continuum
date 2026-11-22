@@ -182,9 +182,30 @@ namespace Server.MirObjects
         /// </summary>
         internal Stats RawStats => BaseStats;
 
-        // Attribute modifiers, collected from their sources on every rebuild. Stage 1
-        // only poison feeds this list; equipment, skills and buffs still write BaseStats.
+        // Attribute modifiers, collected from their sources on every rebuild. Only Mul
+        // rules live here; percentage bonuses arrive as whole-percent fields inside
+        // BaseStats and are mapped onto their target stat below.
         protected readonly List<StatModifier> Modifiers = new List<StatModifier>();
+
+        /// <summary>
+        /// Whole-percent fields in the raw table and the stat each one increases. Adding a
+        /// new percentage-based attribute means adding one line here; the fold, the
+        /// network payload and the client all follow it without further changes.
+        /// </summary>
+        private static readonly (Stat Rate, Stat Target)[] PctFromRate =
+        {
+            (Stat.HPRatePercent, Stat.HP),
+            (Stat.MPRatePercent, Stat.MP),
+            (Stat.MaxACRatePercent, Stat.MaxAC),
+            (Stat.MaxMACRatePercent, Stat.MaxMAC),
+            (Stat.MaxDCRatePercent, Stat.MaxDC),
+            (Stat.MaxMCRatePercent, Stat.MaxMC),
+            (Stat.MaxSCRatePercent, Stat.MaxSC),
+            // Points, not milliseconds: Stats[Stat.AttackSpeed] is a count where more is
+            // faster, while MapObject.AttackSpeed is the millisecond interval where less
+            // is faster. A positive percentage here speeds the target up.
+            (Stat.AttackSpeedRatePercent, Stat.AttackSpeed),
+        };
 
         protected float ArmourMulFactor = 1F;
 
@@ -339,15 +360,29 @@ namespace Server.MirObjects
         }
 
         /// <summary>
-        /// Rebuilds the effective layer from the raw layer. Every stat is copied first,
-        /// then each stat carrying a Mul rule is scaled by its net factor and rounded
-        /// exactly once. Repeating a stat is harmless: the net factor always comes from
-        /// the full rule list, so the second pass writes the same value.
+        /// Rebuilds the effective layer from the raw layer in three stages, in this order:
+        /// each percentage field is applied once with integer arithmetic, the class caps are
+        /// applied, then every Mul rule is folded and truncated. Both stages truncate on
+        /// their own boundary, and the client repeats the same order on the values the
+        /// server sends it.
         /// </summary>
         protected void RebuildEffectiveStats()
         {
             effectiveStats.Clear();
             effectiveStats.Add(BaseStats);
+
+            for (int i = 0; i < PctFromRate.Length; i++)
+            {
+                int percent = BaseStats[PctFromRate[i].Rate];
+
+                if (percent == 0) continue;
+
+                Stat target = PctFromRate[i].Target;
+
+                effectiveStats[target] += (effectiveStats[target] * percent) / 100;
+            }
+
+            ApplyStatCaps(effectiveStats);
 
             for (int i = 0; i < Modifiers.Count; i++)
             {
@@ -357,16 +392,43 @@ namespace Server.MirObjects
 
                 float factor = StatMath.MulFactor(Modifiers, modifier.Stat);
 
-                effectiveStats[modifier.Stat] = StatMath.Truncate(BaseStats[modifier.Stat] * factor);
+                effectiveStats[modifier.Stat] = StatMath.Truncate(effectiveStats[modifier.Stat] * factor);
             }
         }
 
         /// <summary>
-        /// Aggregates every Mul rule into one factor per stat. Sources are folded here,
-        /// so consumers only ever see the net effect.
+        /// Class-specific clamping applied between the percentage and multiplier stages.
+        /// Objects without caps leave the table untouched.
         /// </summary>
-        public void BuildStatMultipliers(List<Stat> stats, List<float> factors)
+        protected virtual void ApplyStatCaps(Stats target) { }
+
+        /// <summary>
+        /// Aggregates both stages into one entry per affected stat. The three lists stay
+        /// index-aligned: a stat present for either stage appears once, with a zero
+        /// percentage and an identity factor when that stage does not touch it.
+        /// </summary>
+        public void BuildStatModifiers(List<Stat> stats, List<int> pctPercents, List<float> factors)
         {
+            for (int i = 0; i < PctFromRate.Length; i++)
+            {
+                int percent = BaseStats[PctFromRate[i].Rate];
+
+                if (percent == 0) continue;
+
+                int index = stats.IndexOf(PctFromRate[i].Target);
+
+                if (index < 0)
+                {
+                    stats.Add(PctFromRate[i].Target);
+                    pctPercents.Add(percent);
+                    factors.Add(1F);
+                }
+                else
+                {
+                    pctPercents[index] += percent;
+                }
+            }
+
             for (int i = 0; i < Modifiers.Count; i++)
             {
                 StatModifier modifier = Modifiers[i];
@@ -378,6 +440,7 @@ namespace Server.MirObjects
                 if (index < 0)
                 {
                     stats.Add(modifier.Stat);
+                    pctPercents.Add(0);
                     factors.Add(modifier.Value);
                 }
                 else

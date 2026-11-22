@@ -142,6 +142,7 @@ namespace Client.MirObjects
         }
 
         private Stat[] serverMultiplierStats = Array.Empty<Stat>();
+        private int[] serverPctPercents = Array.Empty<int>();
         private float[] serverMultiplierFactors = Array.Empty<float>();
 
         public void RefreshStats()
@@ -160,21 +161,18 @@ namespace Client.MirObjects
             SetLibraries();
             SetEffects();
 
-            Stats[Stat.HP] += (Stats[Stat.HP] * Stats[Stat.HPRatePercent]) / 100;
-            Stats[Stat.MP] += (Stats[Stat.MP] * Stats[Stat.MPRatePercent]) / 100;
-            Stats[Stat.MaxAC] += (Stats[Stat.MaxAC] * Stats[Stat.MaxACRatePercent]) / 100;
-            Stats[Stat.MaxMAC] += (Stats[Stat.MaxMAC] * Stats[Stat.MaxMACRatePercent]) / 100;
-
-            Stats[Stat.MaxDC] += (Stats[Stat.MaxDC] * Stats[Stat.MaxDCRatePercent]) / 100;
-            Stats[Stat.MaxMC] += (Stats[Stat.MaxMC] * Stats[Stat.MaxMCRatePercent]) / 100;
-            Stats[Stat.MaxSC] += (Stats[Stat.MaxSC] * Stats[Stat.MaxSCRatePercent]) / 100;
-            Stats[Stat.AttackSpeed] += (Stats[Stat.AttackSpeed] * Stats[Stat.AttackSpeedRatePercent]) / 100;
+            // Percentage bonuses and multipliers come from the server, aggregated. The
+            // client only applies them, in the same order and on the same rounding
+            // boundaries the server used: percent first, then caps, then multipliers.
+            ApplyServerPct();
 
             RefreshStatCaps();
 
             ApplyServerMultipliers();
 
             if (this == User && Light < 3) Light = 3;
+            // Stats[Stat.AttackSpeed] counts points (more points, shorter interval); the
+            // AttackSpeed field below is that interval in milliseconds (smaller is faster).
             AttackSpeed = 1400 - ((Stats[Stat.AttackSpeed] * 60) + Math.Min(370, (Level * 14)));
             if (AttackSpeed < 550) AttackSpeed = 550;
 
@@ -712,9 +710,24 @@ namespace Client.MirObjects
         public void ApplyStatMultipliers(S.SelfStatMultipliers p)
         {
             serverMultiplierStats = p.Stats ?? Array.Empty<Stat>();
+            serverPctPercents = p.PctPercents ?? Array.Empty<int>();
             serverMultiplierFactors = p.Factors ?? Array.Empty<float>();
 
             RefreshStats();
+        }
+
+        private void ApplyServerPct()
+        {
+            for (int i = 0; i < serverMultiplierStats.Length && i < serverPctPercents.Length; i++)
+            {
+                int percent = serverPctPercents[i];
+
+                if (percent == 0) continue;
+
+                Stat stat = serverMultiplierStats[i];
+
+                Stats[stat] += (Stats[stat] * percent) / 100;
+            }
         }
 
         private void ApplyServerMultipliers()

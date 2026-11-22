@@ -6897,8 +6897,11 @@ namespace ServerPackets
         public override bool Observable => false;
 
         // One entry per affected stat, already aggregated by the server. The client
-        // applies the factor blindly, so it never needs to know which sources exist.
+        // applies both stages blindly, so it never needs to know which sources exist.
+        // PctPercents is a whole percent (15 means +15%) on purpose: both ends then do
+        // integer arithmetic and cannot cross a rounding boundary differently.
         public Stat[] Stats = Array.Empty<Stat>();
+        public int[] PctPercents = Array.Empty<int>();
         public float[] Factors = Array.Empty<float>();
 
         protected override void ReadPacket(BinaryReader reader)
@@ -6906,11 +6909,13 @@ namespace ServerPackets
             int count = reader.ReadInt32();
 
             Stats = new Stat[count];
+            PctPercents = new int[count];
             Factors = new float[count];
 
             for (int i = 0; i < count; i++)
             {
                 Stats[i] = (Stat)reader.ReadByte();
+                PctPercents[i] = reader.ReadInt32();
                 Factors[i] = reader.ReadSingle();
             }
         }
@@ -6922,6 +6927,7 @@ namespace ServerPackets
             for (int i = 0; i < Stats.Length; i++)
             {
                 writer.Write((byte)Stats[i]);
+                writer.Write(PctPercents[i]);
                 writer.Write(Factors[i]);
             }
         }

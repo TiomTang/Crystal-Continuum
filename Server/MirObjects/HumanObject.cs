@@ -1787,13 +1787,15 @@ namespace Server.MirObjects
         protected override void OnStatMultipliersChanged()
         {
             var stats = new List<Stat>();
+            var pctPercents = new List<int>();
             var factors = new List<float>();
 
-            BuildStatMultipliers(stats, factors);
+            BuildStatModifiers(stats, pctPercents, factors);
 
             Enqueue(new S.SelfStatMultipliers
             {
                 Stats = stats.ToArray(),
+                PctPercents = pctPercents.ToArray(),
                 Factors = factors.ToArray(),
             });
         }
@@ -1824,30 +1826,20 @@ namespace Server.MirObjects
             RefreshBuffs();
             RefreshGuildBuffs();
 
-            //Add any rate percent changes
+            // Percentage fields, class caps and multipliers are folded here, in that
+            // order, so every reader below sees the effective values.
+            RebuildEffectiveStats();
 
-            BaseStats[Stat.HP] += (BaseStats[Stat.HP] * BaseStats[Stat.HPRatePercent]) / 100;
-            BaseStats[Stat.MP] += (BaseStats[Stat.MP] * BaseStats[Stat.MPRatePercent]) / 100;
-            BaseStats[Stat.MaxAC] += (BaseStats[Stat.MaxAC] * BaseStats[Stat.MaxACRatePercent]) / 100;
-            BaseStats[Stat.MaxMAC] += (BaseStats[Stat.MaxMAC] * BaseStats[Stat.MaxMACRatePercent]) / 100;
+            if (HP > Stats[Stat.HP]) SetHP(Stats[Stat.HP]);
+            if (MP > Stats[Stat.MP]) SetMP(Stats[Stat.MP]);
 
-            BaseStats[Stat.MaxDC] += (BaseStats[Stat.MaxDC] * BaseStats[Stat.MaxDCRatePercent]) / 100;
-            BaseStats[Stat.MaxMC] += (BaseStats[Stat.MaxMC] * BaseStats[Stat.MaxMCRatePercent]) / 100;
-            BaseStats[Stat.MaxSC] += (BaseStats[Stat.MaxSC] * BaseStats[Stat.MaxSCRatePercent]) / 100;
-            BaseStats[Stat.AttackSpeed] += (BaseStats[Stat.AttackSpeed] * BaseStats[Stat.AttackSpeedRatePercent]) / 100;
-
-            RefreshStatCaps();
-
-            if (HP > BaseStats[Stat.HP]) SetHP(BaseStats[Stat.HP]);
-            if (MP > BaseStats[Stat.MP]) SetMP(BaseStats[Stat.MP]);
-
-            AttackSpeed = 1400 - ((BaseStats[Stat.AttackSpeed] * 60) + Math.Min(370, (Level * 14)));
+            // Stats[Stat.AttackSpeed] counts points (more points, shorter interval); the
+            // AttackSpeed field below is that interval in milliseconds (smaller is faster).
+            AttackSpeed = 1400 - ((Stats[Stat.AttackSpeed] * 60) + Math.Min(370, (Level * 14)));
 
             if (AttackSpeed < 550) AttackSpeed = 550;
 
             RefreshPetInheritance();
-
-            RebuildEffectiveStats();
         }
 
         /// <summary>
@@ -2324,30 +2316,30 @@ namespace Server.MirObjects
                 BaseStats[Stat.HandWeight] += 17;
             }
         }
-        public void RefreshStatCaps()
+        protected override void ApplyStatCaps(Stats target)
         {
             foreach (var cap in Settings.ClassBaseStats[(byte)Class].Caps.Values)
             {
-                BaseStats[cap.Key] = Math.Min(cap.Value, BaseStats[cap.Key]);
+                target[cap.Key] = Math.Min(cap.Value, target[cap.Key]);
             }
 
-            BaseStats[Stat.HP] = Math.Max(0, BaseStats[Stat.HP]);
-            BaseStats[Stat.MP] = Math.Max(0, BaseStats[Stat.MP]);
+            target[Stat.HP] = Math.Max(0, target[Stat.HP]);
+            target[Stat.MP] = Math.Max(0, target[Stat.MP]);
 
-            BaseStats[Stat.MinAC] = Math.Max(0, BaseStats[Stat.MinAC]);
-            BaseStats[Stat.MaxAC] = Math.Max(0, BaseStats[Stat.MaxAC]);
-            BaseStats[Stat.MinMAC] = Math.Max(0, BaseStats[Stat.MinMAC]);
-            BaseStats[Stat.MaxMAC] = Math.Max(0, BaseStats[Stat.MaxMAC]);
-            BaseStats[Stat.MinDC] = Math.Max(0, BaseStats[Stat.MinDC]);
-            BaseStats[Stat.MaxDC] = Math.Max(0, BaseStats[Stat.MaxDC]);
-            BaseStats[Stat.MinMC] = Math.Max(0, BaseStats[Stat.MinMC]);
-            BaseStats[Stat.MaxMC] = Math.Max(0, BaseStats[Stat.MaxMC]);
-            BaseStats[Stat.MinSC] = Math.Max(0, BaseStats[Stat.MinSC]);
-            BaseStats[Stat.MaxSC] = Math.Max(0, BaseStats[Stat.MaxSC]);
+            target[Stat.MinAC] = Math.Max(0, target[Stat.MinAC]);
+            target[Stat.MaxAC] = Math.Max(0, target[Stat.MaxAC]);
+            target[Stat.MinMAC] = Math.Max(0, target[Stat.MinMAC]);
+            target[Stat.MaxMAC] = Math.Max(0, target[Stat.MaxMAC]);
+            target[Stat.MinDC] = Math.Max(0, target[Stat.MinDC]);
+            target[Stat.MaxDC] = Math.Max(0, target[Stat.MaxDC]);
+            target[Stat.MinMC] = Math.Max(0, target[Stat.MinMC]);
+            target[Stat.MaxMC] = Math.Max(0, target[Stat.MaxMC]);
+            target[Stat.MinSC] = Math.Max(0, target[Stat.MinSC]);
+            target[Stat.MaxSC] = Math.Max(0, target[Stat.MaxSC]);
 
-            BaseStats[Stat.MinDC] = Math.Min(BaseStats[Stat.MinDC], BaseStats[Stat.MaxDC]);
-            BaseStats[Stat.MinMC] = Math.Min(BaseStats[Stat.MinMC], BaseStats[Stat.MaxMC]);
-            BaseStats[Stat.MinSC] = Math.Min(BaseStats[Stat.MinSC], BaseStats[Stat.MaxSC]);
+            target[Stat.MinDC] = Math.Min(target[Stat.MinDC], target[Stat.MaxDC]);
+            target[Stat.MinMC] = Math.Min(target[Stat.MinMC], target[Stat.MaxMC]);
+            target[Stat.MinSC] = Math.Min(target[Stat.MinSC], target[Stat.MaxSC]);
         }
         #endregion
 

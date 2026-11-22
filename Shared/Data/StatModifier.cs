@@ -5,7 +5,6 @@
 public enum StatModOp
 {
     Add,
-    Pct,
     Mul,
 }
 
