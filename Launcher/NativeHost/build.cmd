@@ -6,6 +6,10 @@ set "gate=%~f3"
 for /f "usebackq tokens=*" %%V in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vs=%%V"
 if not defined vs exit /b 1
 call "%vs%\VC\Auxiliary\Build\vcvars64.bat" >nul || exit /b 1
+set "includes=%~4\Include\10.0.26100.0"
+set "INCLUDE=%includes%\ucrt;%includes%\um;%includes%\shared;%INCLUDE%"
+set "LIB=%~5\um\x64;%~5\ucrt\x64;%LIB%"
+set "PATH=%~4\bin\10.0.26100.0\x64;%PATH%"
 if not exist "%output%" mkdir "%output%" || exit /b 1
 pushd "%output%" || exit /b 1
 >host.rc echo 101 RCDATA "%gate:\=/%"

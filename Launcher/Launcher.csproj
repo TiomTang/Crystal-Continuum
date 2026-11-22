@@ -5,8 +5,16 @@
 </PropertyGroup>
 <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
   <OutputPath>../Build/Launcher/Release\</OutputPath>
+  <PublishProfile Condition="'$(PublishProfile)' == ''">win-x64</PublishProfile>
 </PropertyGroup>
 <ItemGroup><PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40"/></ItemGroup>
+<ItemGroup>
+  <Compile Remove="RuntimeAcquisition/**/*.cs" />
+</ItemGroup>
+<ItemGroup Condition="'$(PublishProfile)' == 'win-x64'">
+  <PackageReference Include="Microsoft.Windows.SDK.CPP" Version="10.0.26100.9457" GeneratePathProperty="true" ExcludeAssets="all" PrivateAssets="all" />
+  <PackageReference Include="Microsoft.Windows.SDK.CPP.x64" Version="10.0.26100.9457" GeneratePathProperty="true" ExcludeAssets="all" PrivateAssets="all" />
+</ItemGroup>
 <!-- Translations are compiled resx satellites (LauncherLocalization/LauncherStrings*.resx
      -> zh-Hans/Launcher.resources.dll), not copied JSON packs; nothing under
      LauncherLocalization is packaged as content. The single-file published artifact is
@@ -18,5 +26,9 @@
   <ItemGroup>
     <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
   </ItemGroup>
+</Target>
+<Target Name="PackageReleaseLauncher" AfterTargets="Build"
+        Condition="'$(Configuration)' == 'Release' and '$(PublishProfile)' == 'win-x64' and '$(DesignTimeBuild)' != 'true' and '$(_IsPublishing)' != 'true'">
+  <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish" Properties="NoBuild=true;BuildProjectReferences=false" />
 </Target>
 </Project>
