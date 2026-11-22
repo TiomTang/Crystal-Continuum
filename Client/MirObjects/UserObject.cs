@@ -723,7 +723,7 @@ namespace Client.MirObjects
             {
                 Stat stat = serverMultiplierStats[i];
 
-                Stats[stat] = StatMath.RoundEff(Stats[stat] * serverMultiplierFactors[i]);
+                Stats[stat] = StatMath.Truncate(Stats[stat] * serverMultiplierFactors[i]);
             }
         }
 

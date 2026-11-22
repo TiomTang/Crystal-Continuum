@@ -186,11 +186,6 @@ namespace Server.MirObjects
         // only poison feeds this list; equipment, skills and buffs still write BaseStats.
         protected readonly List<StatModifier> Modifiers = new List<StatModifier>();
 
-        // Effective defence range as floats. Kept apart from Stats because a 50%
-        // reduction of 3..5 has to stay 1.5..2.5 through the roll, and Stats can only
-        // hold integers.
-        protected DefenceValues DefenceEff;
-
         protected float ArmourMulFactor = 1F;
 
         private bool? redArmourActive;
@@ -362,22 +357,8 @@ namespace Server.MirObjects
 
                 float factor = StatMath.MulFactor(Modifiers, modifier.Stat);
 
-                effectiveStats[modifier.Stat] = StatMath.RoundEff(BaseStats[modifier.Stat] * factor);
+                effectiveStats[modifier.Stat] = StatMath.Truncate(BaseStats[modifier.Stat] * factor);
             }
-
-            RebuildDefenceEffect();
-        }
-
-        /// <summary>
-        /// Recalculates the float defence range used by settlement. Called after any
-        /// stat rebuild and after any multiplier change.
-        /// </summary>
-        protected void RebuildDefenceEffect()
-        {
-            DefenceEff = new DefenceValues(
-                BaseStats[Stat.MinAC], BaseStats[Stat.MaxAC],
-                BaseStats[Stat.MinMAC], BaseStats[Stat.MaxMAC],
-                ArmourMulFactor, ArmourMulFactor);
         }
 
         /// <summary>
@@ -676,9 +657,12 @@ namespace Server.MirObjects
         }
 
         /// <summary>
-        /// Rolls the effective armour for a defence type. Agility and agility+armour
-        /// types share the physical range, magic types share the magic range, and a
-        /// pure agility defence carries no armour value.
+        /// Rolls the effective armour for a defence type. One integer value is rolled out
+        /// of the raw range and the multiplier is applied to that single value, which is
+        /// the original rule: a state multiplier shrinks the result of a roll, not the
+        /// range it was rolled from. Agility and agility+armour types share the physical
+        /// range, magic types share the magic range, and a pure agility defence carries no
+        /// armour value.
         /// </summary>
         protected int RollTypeArmour(DefenceType type)
         {
@@ -686,10 +670,10 @@ namespace Server.MirObjects
             {
                 case DefenceType.ACAgility:
                 case DefenceType.AC:
-                    return StatMath.RollBetween(DefenceEff.MinAC, DefenceEff.MaxAC, Envir.Random.NextDouble());
+                    return StatMath.Truncate(GetAttackPower(BaseStats[Stat.MinAC], BaseStats[Stat.MaxAC]) * ArmourMulFactor);
                 case DefenceType.MACAgility:
                 case DefenceType.MAC:
-                    return StatMath.RollBetween(DefenceEff.MinMAC, DefenceEff.MaxMAC, Envir.Random.NextDouble());
+                    return StatMath.Truncate(GetAttackPower(BaseStats[Stat.MinMAC], BaseStats[Stat.MaxMAC]) * ArmourMulFactor);
                 default:
                     return 0;
             }

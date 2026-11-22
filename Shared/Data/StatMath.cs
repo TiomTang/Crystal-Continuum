@@ -46,66 +46,12 @@ public static class StatMath
     }
 
     /// <summary>
-    /// The only place a scaled value becomes an integer.
+    /// The only place a scaled value becomes an integer. It truncates: settlement rolls
+    /// an integer armour value first and scales that single value afterwards, so the
+    /// final conversion has to drop the fraction instead of rounding it away.
     /// </summary>
-    public static int RoundEff(float value)
+    public static int Truncate(float value)
     {
-        return (int)Math.Round(value, MidpointRounding.AwayFromZero);
-    }
-
-    /// <summary>
-    /// Picks a value from the effective (already scaled) range. The caller owns
-    /// the random source so the same contract can be exercised in tests.
-    /// </summary>
-    public static int RollBetween(float min, float max, double sample)
-    {
-        if (min < 0F) min = 0F;
-        if (min > max) max = min;
-
-        if (sample <= 0D) return RoundEff(min);
-        if (sample >= 1D) return RoundEff(max);
-
-        return RoundEff(min + (float)sample * (max - min));
-    }
-}
-
-/// <summary>
-/// Effective defence range after attribute multipliers. Stored as floats so a
-/// 50% reduction of 3..5 becomes 1.5..2.5 instead of collapsing to 1..2.
-/// </summary>
-public readonly struct DefenceValues
-{
-    public readonly float MinAC;
-    public readonly float MaxAC;
-    public readonly float MinMAC;
-    public readonly float MaxMAC;
-
-    public DefenceValues(int minAC, int maxAC, int minMAC, int maxMAC, float armourFactor, float magicArmourFactor)
-    {
-        MinAC = StatMath.Scale(minAC, armourFactor);
-        MaxAC = StatMath.Scale(maxAC, armourFactor);
-        MinMAC = StatMath.Scale(minMAC, magicArmourFactor);
-        MaxMAC = StatMath.Scale(maxMAC, magicArmourFactor);
-    }
-
-    public int DisplayMinAC => StatMath.RoundEff(MinAC);
-    public int DisplayMaxAC => StatMath.RoundEff(MaxAC);
-    public int DisplayMinMAC => StatMath.RoundEff(MinMAC);
-    public int DisplayMaxMAC => StatMath.RoundEff(MaxMAC);
-
-    /// <summary>
-    /// Display value for one of the four defence stats. Any other stat is not
-    /// part of this layer and returns 0.
-    /// </summary>
-    public int Display(Stat stat)
-    {
-        switch (stat)
-        {
-            case Stat.MinAC: return DisplayMinAC;
-            case Stat.MaxAC: return DisplayMaxAC;
-            case Stat.MinMAC: return DisplayMinMAC;
-            case Stat.MaxMAC: return DisplayMaxMAC;
-            default: return 0;
-        }
+        return (int)value;
     }
 }
