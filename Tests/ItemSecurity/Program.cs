@@ -16,12 +16,12 @@ void Check(bool condition, string message)
 
 TestPlayer Player()
 {
-    var p = (TestPlayer)RuntimeHelpers.GetUninitializedObject(typeof(TestPlayer));
+    var p = new TestPlayer();
     p.Packets = new();
     p.Info = new CharacterInfo { Index = 1, Name = "SecurityTest", Level = 50 };
     p.Account = new AccountInfo { Gold = 1000 };
     p.Info.AccountInfo = p.Account;
-    p.Stats = new Stats { [Stat.BagWeight] = int.MaxValue };
+    p.SetBaseStat(Stat.BagWeight, int.MaxValue);
     p.Report = new Reporting(p);
     return p;
 }
@@ -464,4 +464,9 @@ sealed class TestPlayer : PlayerObject
     }
     public override void ReceiveChat(string text, ChatType type) { }
     public void AddForTest(UserItem item) => AddItem(item);
+    public void SetBaseStat(Stat stat, int value)
+    {
+        BaseStats[stat] = value;
+        RebuildEffectiveStats();
+    }
 }
